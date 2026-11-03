@@ -11,6 +11,10 @@
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icon-180.png" />
     <title>Luma</title>
+    <!-- The stored theme, before the first paint (appearance.ts keeps it in sync afterwards). -->
+    <script>
+      try { const t = JSON.parse(localStorage.getItem('luma-appearance')).state.theme; if (t && t !== 'luma') document.documentElement.dataset.theme = t } catch {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

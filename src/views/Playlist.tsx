@@ -6,8 +6,20 @@ import { Icon } from '../ui/Icon.tsx'
 import { IconButton, pickFiles } from '../ui/kit.tsx'
 import { openMenu } from '../ui/Menu.tsx'
 import { TrackList } from '../ui/TrackList.tsx'
+import { Wash } from '../ui/Wash.tsx'
 import { PlayPills } from './Songs.tsx'
+import type { Playlist as PlaylistData } from '../types.ts'
 import '../styles/library.css'
+
+/** The playlist's cover, else its first song's cover, softened behind the header. None over a wallpaper. */
+function HeaderWash({ playlist }: { playlist: PlaylistData }) {
+  const first = useLibrary((s) => s.tracks[playlist.trackIds[0] ?? ''])
+  const wallpaper = useLibrary((s) => !!s.background)
+  if (wallpaper) return null
+  if (playlist.cover) return <Wash className="playlist-wash" still blobKey={`playlist-cover:${playlist.id}`} v={playlist.cover} seed={playlist.id} />
+  if (first?.cover) return <Wash className="playlist-wash" still blobKey={`cover:${first.id}`} v={first.cover} seed={first.id} />
+  return null
+}
 
 export function Playlist({ id }: { id: string }) {
   const playlist = useLibrary((s) => s.playlists.find((p) => p.id === id))
@@ -53,7 +65,8 @@ export function Playlist({ id }: { id: string }) {
     ])
 
   return (
-    <section>
+    <section className="playlist">
+      <HeaderWash playlist={playlist} />
       <header className="playlist-head">
         <PlaylistArt playlist={playlist} className="playlist-cover" />
         <div className="playlist-info">

@@ -1,0 +1,82 @@
+/* The cover wash: Now Playing's moving backdrop (Color style) and the still one behind playlist headers.
+   The images are tiny pre-softened bitmaps: no filter, mask, radius or object-fit on the moving ones, so WebKit
+   hands them to the GPU to scale and only their transforms change. */
+
+.wash {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.wash-scene {
+  position: absolute;
+  inset: 0;
+  animation: wash-in 1100ms ease both;
+}
+
+.wash-scene img {
+  position: absolute;
+  display: block;
+  will-change: transform;
+}
+
+.wash-fill {
+  position: absolute;
+  inset: 0;
+}
+
+.wash.still .wash-scene img {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wash.still .wash-scene {
+  animation-duration: 600ms;
+}
+
+@keyframes wash-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ── Playlist header (D5) ──────────────────────────────────────────── */
+
+.playlist {
+  position: relative;
+  isolation: isolate;
+}
+
+.playlist-wash {
+  position: absolute;
+  top: -36px;
+  left: -40px;
+  right: -40px;
+  bottom: auto;
+  height: 360px;
+  opacity: 0.55;
+  z-index: -1;
+  -webkit-mask-image: linear-gradient(#000 30%, transparent);
+  mask-image: linear-gradient(#000 30%, transparent);
+}
+
+/* Desktop: the content column stops short of the window, so the wash fades out sideways too. */
+@media (min-width: 900px) {
+  .playlist-wash {
+    -webkit-mask-image: linear-gradient(#000 30%, transparent), linear-gradient(to right, #000 55%, transparent);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(#000 30%, transparent), linear-gradient(to right, #000 55%, transparent);
+    mask-composite: intersect;
+  }
+}
+
+@media (max-width: 899px) {
+  .playlist-wash {
+    top: calc(-1 * (var(--safe-top) + 24px));
+    left: calc(-1 * var(--gutter));
+    right: calc(-1 * var(--gutter));
+  }
+}
