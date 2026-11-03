@@ -1,0 +1,163 @@
+/* The sign-in sheet (Account.tsx): a bottom sheet on phones, a small centered card on desktop. */
+
+.sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  animation: sheet-fade 200ms var(--ease);
+}
+
+.sheet {
+  display: grid;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 16px calc(16px + var(--safe-bottom));
+  border-radius: 20px 20px 0 0;
+  background: var(--surface);
+  box-shadow: 0 -0.5px 0 var(--line);
+  animation: sheet-up 380ms var(--ease);
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+}
+
+.sheet-head h2 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.sheet-field {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  padding: 0 14px;
+  border-radius: var(--r);
+  background: var(--fill);
+  box-shadow: inset 0 0 0 1.5px transparent;
+  transition: box-shadow 140ms;
+}
+
+.sheet-field:focus-within {
+  box-shadow: inset 0 0 0 1.5px var(--text-3);
+}
+
+.sheet-field.wrong {
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+  animation: sheet-shake 320ms var(--ease);
+}
+
+.sheet-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: none;
+  font-size: 17px; /* 16px or more: iOS doesn't zoom on focus */
+  outline: none;
+}
+
+.sheet-field input::placeholder {
+  color: var(--text-3);
+}
+
+.sheet-field input[name='code']:not(:placeholder-shown) {
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-at {
+  color: var(--text-2);
+  font-size: 17px;
+}
+
+.sheet-submit.pill {
+  width: 100%;
+  height: 50px;
+}
+
+.sheet-submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: spin 700ms linear infinite;
+}
+
+.user-missing {
+  display: grid;
+  place-items: center;
+  min-height: 50vh;
+  color: var(--text-3);
+}
+
+@media (min-width: 900px) {
+  .sheet-scrim {
+    align-items: center;
+  }
+
+  .sheet {
+    width: 400px;
+    padding: 10px 20px 20px;
+    border-radius: 20px;
+    box-shadow:
+      0 0 0 0.5px var(--line),
+      0 24px 64px rgba(0, 0, 0, 0.5);
+    animation: sheet-pop 220ms var(--ease);
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes sheet-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+
+@keyframes sheet-shake {
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-scrim,
+  .sheet,
+  .sheet-field.wrong {
+    animation: none;
+  }
+}

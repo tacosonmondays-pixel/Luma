@@ -10,6 +10,7 @@ vi.mock('../src/lib/library.ts', () => {
   return {
     useLibrary: { getState: () => state },
     addTrack: vi.fn(async (track: Track) => void (state.tracks[track.id] = track)),
+    isDownloaded: (track: Track | undefined) => !!track && !track.missing,
   }
 })
 

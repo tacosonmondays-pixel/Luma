@@ -13,6 +13,7 @@ import { Playlist } from './views/Playlist.tsx'
 import { Playlists } from './views/Playlists.tsx'
 import { Search } from './views/Search.tsx'
 import { Songs } from './views/Songs.tsx'
+import { User } from './views/User.tsx'
 import { You } from './views/You.tsx'
 
 function View({ route }: { route: Route }) {
@@ -27,6 +28,8 @@ function View({ route }: { route: Route }) {
       return <Search />
     case 'you':
       return <You />
+    case 'user':
+      return <User handle={route.handle} />
   }
 }
 

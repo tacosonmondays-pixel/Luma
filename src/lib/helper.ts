@@ -1,7 +1,7 @@
 // The helper API client (server/api.ts): health, search, and downloads into the library.
 
 import { create } from 'zustand'
-import { addTrack, useLibrary } from './library.ts'
+import { addTrack, isDownloaded, useLibrary } from './library.ts'
 import { cleanTitle } from './titles.ts'
 import type { ApiError, Health, SearchResponse, SearchResult, SearchSort } from '../types.ts'
 
@@ -100,7 +100,7 @@ async function fetchCover(id: string): Promise<Blob | null> {
 /** Download a result into the library. Resolves true once it is saved, false on failure. Never rejects. */
 export function downloadTrack(result: SearchResult): Promise<boolean> {
   const { id } = result
-  if (useLibrary.getState().tracks[id]) return Promise.resolve(true)
+  if (isDownloaded(useLibrary.getState().tracks[id])) return Promise.resolve(true)
   const existing = inflight.get(id)
   if (existing) return existing
   const job = (async () => {

@@ -5,6 +5,8 @@ import { setBackground, useLibrary } from '../lib/library.ts'
 import { usePlayer } from '../lib/player.ts'
 import { detect, useSource } from '../lib/source.ts'
 import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
+import { profileLink, useAccount } from '../lib/account.ts'
+import { AccountRows } from '../ui/Account.tsx'
 import { Appearance } from '../ui/Appearance.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { pickFiles } from '../ui/kit.tsx'
@@ -63,11 +65,22 @@ export function You() {
   // Now Playing covers the page completely, and the observer can't tell: the card rests behind it too.
   const covered = usePlayer((s) => s.open)
   const live = useLive(cardRef, !editing && !covered)
+  const handle = useAccount((s) => (s.row?.member && !s.row.banned ? s.row.handle : null))
+  const share = async () => {
+    if (!handle) return
+    const url = profileLink(handle)
+    try {
+      if (navigator.share) return await navigator.share({ url })
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+    }
+    await navigator.clipboard?.writeText(url).catch(() => {})
+  }
 
   return (
     <section className="you">
       <div ref={cardRef}>
-        <ProfileCard profile={profile} media={media} live={live} effectFor={EFFECT_MS} onEdit={() => setEditing(true)} claimsVideo />
+        <ProfileCard profile={profile} media={media} live={live} effectFor={EFFECT_MS} onEdit={() => setEditing(true)} onShare={handle ? () => void share() : undefined} claimsVideo />
       </div>
       <div className="you-settings">
         <Appearance />
@@ -85,6 +98,7 @@ export function You() {
             </button>
           )}
           <YouTubeKey />
+          <AccountRows />
         </div>
       </div>
       {/* On body, beside Now Playing and the menu: Y2K's desktop window would otherwise trap it under the player bar. */}

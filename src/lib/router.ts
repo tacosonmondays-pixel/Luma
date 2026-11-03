@@ -6,6 +6,7 @@ export type Route =
   | { name: 'playlist'; id: string }
   | { name: 'search' }
   | { name: 'you' }
+  | { name: 'user'; handle: string } // someone's public profile, /u/<handle>
 
 /** Where the app is served: '/' from the helper, '/Luma/' on GitHub Pages. Always ends in '/'. */
 const BASE = import.meta.env.BASE_URL
@@ -26,6 +27,7 @@ export function parse(path: string): Route {
   if (first === 'playlist' && second) return { name: 'playlist', id: decodeURIComponent(second) }
   if (first === 'search') return { name: 'search' }
   if (first === 'you') return { name: 'you' }
+  if (first === 'u' && second) return { name: 'user', handle: decodeURIComponent(second) }
   return { name: 'songs' }
 }
 

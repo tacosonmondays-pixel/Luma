@@ -13,6 +13,7 @@ export interface Track {
   cover?: number // blob `cover:<id>`
   canvas?: number // blob `canvas:<id>`: a looping image/GIF/video shown behind the Canvas player style
   canvasKind?: MediaKind
+  missing?: true // synced from another device: the metadata is here, the audio isn't (download it again)
 }
 
 export interface Playlist {
@@ -95,3 +96,49 @@ export interface Health {
 export interface ApiError {
   error: 'ytdlp-missing' | 'bad-request' | 'not-found' | 'failed'
 }
+
+// ── Server (Supabase, supabase/migrations/0001_luma.sql) ────────────────
+
+/** A pinned song as the public profile shows it: metadata only, never audio. */
+export interface PinnedSong {
+  id: string
+  title: string
+  artist: string
+  source: Track['source']
+}
+
+/** A `profiles` row. */
+export interface ProfileRow {
+  id: string
+  handle: string | null
+  member: boolean
+  admin: boolean
+  banned: boolean
+  name: string
+  bio: string | null
+  colors: [string, string] | null
+  auto_colors: [string, string] | null
+  frame: FrameId | null
+  effect: EffectId | null
+  name_style: NameStyleId | null
+  pinned_songs: PinnedSong[]
+  pinned_playlists: string[]
+  badges: { id: BadgeId; tier: Tier }[]
+  avatar_path: string | null
+  avatar_still_path: string | null
+  avatar_kind: MediaKind | null
+  avatar_version: number | null
+  banner_path: string | null
+  banner_still_path: string | null
+  banner_kind: MediaKind | null
+  banner_version: number | null
+  backdrop_path: string | null
+  backdrop_still_path: string | null
+  backdrop_kind: MediaKind | null
+  backdrop_version: number | null
+  share_activity: boolean
+  created_at: string
+  updated_at: string
+}
+
+export type RedeemResult = 'ok' | 'member' | 'invalid' | 'rate_limited' | 'banned'

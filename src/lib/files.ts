@@ -1,6 +1,6 @@
 // Import audio files from the device into the library.
 import { create } from 'zustand'
-import { addTrack, useLibrary } from './library.ts'
+import { addTrack, isDownloaded, useLibrary } from './library.ts'
 
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|m4b|aac|wav|wave|flac|ogg|oga|opus|weba|webm|aif|aiff|aifc|caf|alac|mp4)$/i
 const MP4_EXTENSIONS = /\.(m4a|m4b|mp4|aac|alac)$/i
@@ -147,7 +147,7 @@ export async function importFiles(files: File[]): Promise<void> {
   for (const file of files.filter(isAudioFile)) {
     const { id: videoId, name } = videoIdOf(file.name)
     const id = videoId ?? fileId(file)
-    if (useLibrary.getState().tracks[id]) continue
+    if (isDownloaded(useLibrary.getState().tracks[id])) continue
     const tags = MP4_EXTENSIONS.test(file.name) ? await readTags(file).catch(() => ({}) as Tags) : {}
     const fromName = parseFileName(name)
     const title = tags.title || fromName.title

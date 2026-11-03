@@ -415,3 +415,16 @@
 .group-row:focus-within {
   background: var(--hover);
 }
+
+/* A song synced from another device, without its audio until it is downloaded again. */
+.track.missing .track-main > .art,
+.track.missing .track-text {
+  opacity: 0.45;
+}
+
+.track-missing {
+  display: flex;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--text-3);
+}
