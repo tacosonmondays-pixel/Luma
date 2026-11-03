@@ -1,5 +1,8 @@
+import { useEffect } from 'react'
 import { useBlobUrl } from '../lib/blobs.ts'
 import { setBackground, setProfileImage, setProfileName, useLibrary } from '../lib/library.ts'
+import { detect, useSource } from '../lib/source.ts'
+import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
 import { Avatar } from '../ui/Art.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { pickFiles } from '../ui/kit.tsx'
@@ -16,6 +19,32 @@ function BackgroundThumb() {
     <span className="bg-thumb">
       {background.kind === 'video' ? <video src={`${url}#t=0.1`} muted playsInline preload="metadata" /> : <img src={url} alt="" />}
     </span>
+  )
+}
+
+/** Phone mode only: the helper searches with yt-dlp instead. */
+function YouTubeKey() {
+  const mode = useSource((s) => s.mode)
+  const key = useYouTubeKey()
+  useEffect(() => {
+    if (!useSource.getState().mode) void detect()
+  }, [])
+  if (mode !== 'phone') return null
+  return (
+    <label className="group-row">
+      <span>YouTube Key</span>
+      <input
+        className="group-input"
+        aria-label="YouTube Key"
+        value={key}
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        onChange={(e) => setYouTubeKey(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+    </label>
   )
 }
 
@@ -55,6 +84,7 @@ export function You() {
             Remove Background
           </button>
         )}
+        <YouTubeKey />
       </div>
     </section>
   )

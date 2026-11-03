@@ -1,14 +1,16 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react'
-import { downloadAll, downloadTrack, health, HelperError, search, useDownloads, type DownloadState } from '../lib/helper.ts'
+import { useDownloads, type DownloadState } from '../lib/helper.ts'
 import { formatTime } from '../lib/format.ts'
 import { useLibrary } from '../lib/library.ts'
 import { playTracks, usePlayer } from '../lib/player.ts'
+import { detect, downloadAll, downloadTrack, importDownloads, problemOf, search, thumbnails, useSource, type Problem } from '../lib/source.ts'
 import { cleanTitle } from '../lib/titles.ts'
-import { Icon } from '../ui/Icon.tsx'
+import { Icon, type IconName } from '../ui/Icon.tsx'
+import { Link, pickFiles } from '../ui/kit.tsx'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 import '../styles/search.css'
 
-type Status = 'idle' | 'loading' | 'done' | 'offline' | 'missing' | 'failed'
+type Status = 'idle' | 'loading' | 'done' | Problem
 
 /** Kept across visits to the screen. */
 const last: { input: string; query: string; sort: SearchSort; response: SearchResponse | null; status: Status } = {
@@ -21,13 +23,6 @@ const last: { input: string; query: string; sort: SearchSort; response: SearchRe
 
 /** The result the user last tapped while it was still downloading; it plays when it finishes. */
 let wantsPlay: string | null = null
-
-function statusOf(e: unknown): Status {
-  if (!(e instanceof HelperError)) return 'failed'
-  if (e.code === 'offline') return 'offline'
-  if (e.code === 'ytdlp-missing') return 'missing'
-  return 'failed'
-}
 
 // ── Layouts ──────────────────────────────────────────────────────────────
 
@@ -150,16 +145,12 @@ export function Search() {
     Object.assign(last, { input, sort, response, status: status === 'loading' ? last.status : status })
   }, [input, sort, response, status])
 
-  // With nothing on screen yet, check the helper so a missing one shows up before the first search.
+  // With nothing on screen yet, look for the helper (or the YouTube key) so a problem shows up before the first search.
   useEffect(() => {
     if (last.response || last.status === 'loading') return
     let live = true
-    // A search answers for itself; a late health check must not replace its outcome.
-    const apply = (next: Status) => live && !abort.current && setStatus(next)
-    health().then(
-      (h) => apply(h.ytdlp ? 'idle' : 'missing'),
-      (e) => apply(statusOf(e)),
-    )
+    // A search answers for itself; a late check must not replace its outcome.
+    void detect().then((problem) => live && !abort.current && setStatus(problem ?? 'idle'))
     return () => {
       live = false
       abort.current?.abort()
@@ -182,7 +173,7 @@ export function Search() {
     } catch (e) {
       if (controller.signal.aborted) return
       setResponse(null)
-      setStatus(statusOf(e))
+      setStatus(problemOf(e))
     }
   }
 
@@ -203,10 +194,18 @@ export function Search() {
     field.current?.focus()
   }
 
+  const importing = useSource((s) => s.importing)
+  const importFiles = () => void pickFiles('audio/*', true).then(importDownloads)
+
   return (
     <section className="search">
-      <header className="view-head search-title">
+      <header className={`view-head search-title${importing ? ' has-import' : ''}`}>
         <h1>Search</h1>
+        {importing && (
+          <button type="button" className="pill primary search-import" onClick={importFiles}>
+            Import
+          </button>
+        )}
       </header>
       <form className="search-bar" role="search" onSubmit={submit}>
         <label className="search-field">
@@ -256,6 +255,16 @@ export function Search() {
 function Body({ status, response, layout }: { status: Status; response: SearchResponse | null; layout: Layout }) {
   if (status === 'offline') return <Empty icon="offline" text="Offline" />
   if (status === 'missing') return <Empty icon="alert" text="Install yt-dlp" />
+  if (status === 'key')
+    return (
+      <div className="empty search-empty">
+        <Icon name="key" size={40} />
+        <Link to="/you" className="pill primary">
+          Add YouTube Key
+        </Link>
+      </div>
+    )
+  if (status === 'quota') return <Empty text="Daily limit reached" />
   if (status === 'failed') return <Empty text="No results" />
   if (!response) return null
   if (!response.results.length) return <Empty text="No results" />
@@ -279,7 +288,7 @@ function Body({ status, response, layout }: { status: Status; response: SearchRe
   )
 }
 
-function Empty({ icon, text }: { icon?: 'offline' | 'alert'; text: string }) {
+function Empty({ icon, text }: { icon?: IconName; text: string }) {
   return (
     <div className="empty search-empty">
       {icon && <Icon name={icon} size={40} />}
@@ -295,7 +304,7 @@ function PlaylistHead({ title, results }: { title: string; results: SearchResult
   return (
     <div className="search-playlist">
       <h2 className="ellipsis">{title || 'Playlist'}</h2>
-      <button type="button" className="pill primary" disabled={!left} onClick={() => void downloadAll(results)}>
+      <button type="button" className="pill primary" disabled={!left} onClick={() => downloadAll(results, last.query)}>
         Download All
       </button>
     </div>
@@ -336,14 +345,22 @@ function useResult(result: SearchResult) {
   return { saved, state, current, title, artist, open, press }
 }
 
+/** The first thumbnail that exists. YouTube answers a missing size with a 120×90 placeholder. */
 function Thumb({ id, small }: { id: string; small: boolean }) {
+  const sources = thumbnails(id, small)
+  const [index, setIndex] = useState(0)
+  const next = (img: HTMLImageElement) => {
+    if (index + 1 < sources.length) setIndex(index + 1)
+    else img.style.opacity = '0'
+  }
   return (
     <img
-      src={`/api/cover/${id}${small ? '?small=1' : ''}`}
+      src={sources[index]}
       alt=""
       loading="lazy"
       draggable={false}
-      onError={(e) => (e.currentTarget.style.opacity = '0')}
+      onLoad={(e) => e.currentTarget.naturalWidth <= 120 && index + 1 < sources.length && next(e.currentTarget)}
+      onError={(e) => next(e.currentTarget)}
     />
   )
 }

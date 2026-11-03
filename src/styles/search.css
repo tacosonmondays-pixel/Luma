@@ -550,3 +550,14 @@
     animation-iteration-count: infinite !important;
   }
 }
+
+/* Import: back from the "Save to Luma" Shortcut. */
+.search .search-title.has-import {
+  display: flex;
+}
+
+.search-title .search-import {
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+}
