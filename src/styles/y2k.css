@@ -1488,6 +1488,15 @@
   color: var(--y2k-icon);
 }
 
+/* Canvas: the volume row stands on the picture's dark scrim, so its icons are white. */
+:root[data-theme='y2k'] .np[data-style='canvas'] .np-volume .vol-icon {
+  color: #fff;
+}
+
+:root[data-theme='y2k'] .np[data-style='canvas'] .np-volume .vol-icon .icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
 /* Canvas: the picture fills the sheet, so on phones the display and console get a touch more lift. */
 @media (max-width: 899px) {
   :root[data-theme='y2k'] .np:has(.y2k-np[data-style='canvas']) :is(.y2k-bezel, .transport.full) {
@@ -1532,9 +1541,11 @@
       var(--y2k-sky);
   }
 
-  /* The sheet lets go of positioning, so close and More sit in the window's corners. */
+  /* The sheet lets go of positioning, so close and More sit in the window's corners. As a flex item it still
+     takes a z-index, which keeps it over the Canvas picture. */
   :root[data-theme='y2k'] .np .np-sheet {
     position: static;
+    z-index: 1;
   }
 
   :root[data-theme='y2k'] .np .np-top {
@@ -1603,6 +1614,7 @@
   :root[data-theme='y2k'] .np .np-controls {
     display: flex;
     flex-direction: column;
+    align-items: stretch;
   }
 
   :root[data-theme='y2k'] .y2k-np {
