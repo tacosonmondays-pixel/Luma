@@ -97,6 +97,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view test-build > /dev/null 2>&1 ||
-            gh release create test-build --prerelease --title "Test build" --notes "Newest iPhone build." --target "$GITHUB_SHA"
+            gh release create test-build --prerelease --title "Test build" --notes "Newest builds." --target "$GITHUB_SHA" ||
+            gh release view test-build > /dev/null
           gh release upload test-build ios/build/Luma.ipa --clobber
-          gh release edit test-build --notes "Newest iPhone build, from ${GITHUB_SHA::7}."
