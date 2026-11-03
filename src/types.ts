@@ -35,6 +35,14 @@ export type FrameId = (typeof FRAME_IDS)[number]
 export type EffectId = (typeof EFFECT_IDS)[number]
 export type NameStyleId = (typeof NAME_STYLE_IDS)[number]
 
+/** Which part of a profile image shows in its frame: the focus point (0..1 of the source, kept at the frame's
+ * center as far as the edges allow) and a zoom of 1 (cover) to 4. Undefined = centered at 1×. */
+export interface Crop {
+  x: number
+  y: number
+  zoom: number
+}
+
 export interface Profile {
   name: string
   avatar?: number // blob `avatar` (+ `avatar-still` when avatarKind is 'animated')
@@ -43,6 +51,9 @@ export interface Profile {
   bannerKind?: MediaKind // never 'video'
   backdrop?: number // blob `backdrop` (+ `backdrop-still`): the card's own background (not the app wallpaper `background`)
   backdropKind?: MediaKind
+  avatarCrop?: Crop
+  bannerCrop?: Crop
+  backdropCrop?: Crop
   colors?: [string, string] // '#rrggbb' top, bottom; undefined = Auto
   autoColors?: [string, string] // from the avatar's still (else the banner's)
   frame?: FrameId
@@ -51,15 +62,6 @@ export interface Profile {
   bio?: string // up to 190 characters
   pinnedSongs?: string[] // up to 5 track ids, newest first
   pinnedPlaylists?: string[] // up to 6 playlist ids
-  avatarCrop?: Crop // the visible position and zoom of each image
-  bannerCrop?: Crop
-  backdropCrop?: Crop
-}
-
-export interface Crop {
-  x: number
-  y: number
-  zoom: number
 }
 
 // ── Listening ───────────────────────────────────────────────────────────

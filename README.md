@@ -2,9 +2,11 @@
 
 A clean music player for your iPhone and computer. Search, save songs into the app, and play them offline.
 
+Links: [Get Luma](https://tacosonmondays-pixel.github.io/Luma/get/) · [Terms](https://tacosonmondays-pixel.github.io/Luma/terms/) · [Privacy](https://tacosonmondays-pixel.github.io/Luma/privacy/)
+
 ## Windows
 
-Download [Luma.exe](https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe) and run it. Nothing else to install: the first run downloads the tools it uses (yt-dlp and Deno), then Luma opens in your browser. Closing its window stops Luma.
+Download [Luma.exe](https://github.com/tacosonmondays-pixel/Luma/releases/download/test-build/Luma.exe) and run it. Nothing else to install: the first run downloads the tools it uses (yt-dlp and Deno), then Luma opens in your browser. Closing its window stops Luma.
 
 The exe is unsigned, so Windows shows "Windows protected your PC". Click **More info**, then **Run anyway**.
 
@@ -55,7 +57,7 @@ Only save music you have the right to download.
 
 ## iPhone app
 
-Luma also comes as an app, `Luma.ipa`: from the [latest Release](https://github.com/tacosonmondays-pixel/Luma/releases/latest), or from the **Luma-ipa** artifact of the newest [iOS run](https://github.com/tacosonmondays-pixel/Luma/actions/workflows/ios.yml).
+Luma also comes as an app, `Luma.ipa`: from the [Test build](https://github.com/tacosonmondays-pixel/Luma/releases/tag/test-build), or from the **Luma-ipa** artifact of the newest [iOS run](https://github.com/tacosonmondays-pixel/Luma/actions/workflows/ios.yml).
 
 It's unsigned, so install it with a sideloading tool, which signs it for you:
 - [Signulous](https://www.signulous.com): lasts a year.

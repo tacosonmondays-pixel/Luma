@@ -25,11 +25,12 @@ Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper u
   - `source.ts` helper or phone mode: search, thumbnails, downloads, Import · `helper.ts` helper API client and downloads · `youtube.ts` YouTube Data API search and the key
   - `files.ts` import local audio (M4A tags and cover, `[<YouTube id>]` in the file name) · `titles.ts` clean YouTube titles
   - `appearance.ts` theme, cover colors, player style (localStorage) · `palette.ts` accent and wash from cover art
+  - `crop.ts` the profile images' crop (focus point + zoom, stored as data; `.crop` in `base.css` draws it)
   - `media.ts` profile and canvas media: resize, stills, animation detection, size caps · `gif.ts` + `gif.worker.ts` video → GIF
   - `plays.ts` the play log (`luma-plays`) · `stats.ts` On Repeat and badges
   - `supabase.ts` project URL, publishable key, lazy client, `mediaUrl` · `account.ts` session and `profiles` row: sign-in with email codes, invites, handle · `sync.ts` backup and sync (last write wins), profile media, shared plays · `search-link.ts` open Search with a query
 - `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`, `Account` (the account rows and sign-in sheet)
-  - `ui/profile/` the profile card, editor, frames, effects and name styles · `ui/y2k/` the Y2K theme's extra markup (LCD)
+  - `ui/profile/` the profile card, editor, crop sheet (`ImageCrop`), frames, effects and name styles · `ui/y2k/` the Y2K theme's extra markup (LCD)
 - `src/views/` — one file per screen: `Songs`, `Playlists`, `Playlist`, `Search`, `You`, `User` (someone's public profile, `/u/:handle`)
 - `src/styles/` — `base.css` (tokens, reset, shell), `themes.css` (dark themes), `y2k.css` (the light Y2K theme, all scoped to `[data-theme='y2k']`), and one file per feature (`player.css`, `wash.css`, `library.css`, `search.css`, `profile.css`, `badges.css`, `appearance.css`, `gif.css`), imported by the component that uses it
 - `src/assets/fonts/` — bundled OFL fonts (name styles, the Y2K LCD)

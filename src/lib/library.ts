@@ -256,6 +256,7 @@ export async function saveProfile(draft: Profile, media: Partial<Record<ProfileS
     } else {
       profile[slot] = undefined
       profile[KIND[slot]] = undefined
+      profile[`${slot}Crop`] = undefined
     }
   }
   if (media.avatar !== undefined || media.banner !== undefined) profile.autoColors = await autoColorsOf(profile, media)

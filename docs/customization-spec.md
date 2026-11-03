@@ -323,7 +323,7 @@ Other color rules:
 |---|---|---|
 | Avatar | Image (JPEG, PNG, HEIC, which iOS hands over as JPEG), GIF, APNG, animated WebP. A video opens `<GifMaker aspect={1}>`, and the GIF it makes is what gets saved | Lists, sidebar and tab bar always use the still. The card and editor preview play the animation (rules in section 6). |
 | Frame | None, halo, aurora, vinyl, orbit, equalizer, laurel, blossoms, sparkles (section 5) | `vinyl` turns and `equalizer` pulses only while music plays: the component reads `usePlayer(s => s.playing)` and sets `data-playing`. |
-| Banner | Same as the avatar, with `<GifMaker aspect={3}>` for a video | Center-cropped to 3:1. A banner GIF from the maker is 480px wide, so on desktop it looks softer than a still banner. Raising that width is a separate change to the GIF maker. |
+| Banner | Same as the avatar, with `<GifMaker aspect={3}>` for a video | Cropped to 3:1 by its stored crop (centered by default). A banner GIF from the maker is 480px wide, so on desktop it looks softer than a still banner. Raising that width is a separate change to the GIF maker. |
 | Background | Images and animated images as above, plus MP4/MOV, and WebM only when `canPlayType('video/webm; codecs="vp9"')`. Videos are stored as they are, because the card is tall and the GIF maker only crops 1:1 and 3:1 | Fills the card under the dark overlay. |
 | Colors | Auto, 10 presets, or two custom colors | Presets (top → bottom): `#ff7ab8→#6b5bff`, `#38bdf8→#1e3a8a`, `#a3e635→#065f46`, `#fb923c→#7f1d1d`, `#fda4af→#9d174d`, `#fde68a→#92400e`, `#6ee7b7→#0f766e`, `#c4b5fd→#4c1d95`, `#e5e7eb→#374151`, `#1e293b→#020617`. |
 | Effect | None, petals, snow, sparkles, stars, notes, fireflies | On the You page it plays for 8 s when the card first becomes visible after mounting, then fades out over 1.2 s. It loops in the editor preview. Under reduced motion it is one still frame. |
@@ -345,6 +345,7 @@ There is one component with one section list. Phones show the sections as tabs o
 - A video picked for the avatar or banner first opens the GIF maker. It is a fixed sheet at `z-index: 60`, so it sits above the editor's 50. Use passes its GIF to `media.ts`; Cancel returns to the editor unchanged.
 - **Done** calls `saveProfile(draft)` in `library.ts`. It writes changed blobs, deletes removed ones, recomputes `autoColors` from the stills when the avatar or banner changed, and sets the profile.
 - **Cancel** throws the draft away.
+- **Crop:** picking an image or GIF opens the crop sheet (`ImageCrop.tsx`) before it is accepted, and a slot with media offers **Adjust** beside Choose and Remove. The sheet shows the media full-bleed with a frame in the slot's shape (circle, 3:1, the preview card's shape for the Background) and dims the rest: drag to move, pinch / wheel / a slider to zoom 1× to 4×, double-tap to reset; Cancel and Done only. The result is stored as `avatarCrop`, `bannerCrop`, `backdropCrop` (`{ x, y, zoom }`, the focus point in 0..1 of the source), never re-encoded; undefined means centered at 1×. GIF-maker output skips the sheet (it is already cropped).
 - While the editor is open, the page card underneath is paused (`live = false`).
 
 **Phone layout:**
