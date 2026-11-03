@@ -1,17 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBlobUrl } from '../lib/blobs.ts'
-import { setBackground, setProfileImage, setProfileName, useLibrary } from '../lib/library.ts'
+import { setBackground, useLibrary } from '../lib/library.ts'
 import { detect, useSource } from '../lib/source.ts'
 import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
-import { Avatar } from '../ui/Art.tsx'
+import { Appearance } from '../ui/Appearance.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { pickFiles } from '../ui/kit.tsx'
+import { ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
+import { ProfileEditor } from '../ui/profile/ProfileEditor.tsx'
+import { useSavedMedia } from '../ui/profile/ProfileMedia.tsx'
 import '../styles/library.css'
+import '../styles/profile.css'
 
-const pickImage = (which: 'avatar' | 'banner') => () =>
-  void pickFiles('image/*').then(([file]) => file && setProfileImage(which, file))
-
-function BackgroundThumb() {
+function WallpaperThumb() {
   const background = useLibrary((s) => s.background)
   const url = useBlobUrl('background', background?.v)
   if (!background || !url) return null
@@ -48,44 +49,41 @@ function YouTubeKey() {
   )
 }
 
+/** The effect plays this long when the card first shows, then fades. */
+const EFFECT_MS = 8000
+
 export function You() {
   const profile = useLibrary((s) => s.profile)
   const hasBackground = useLibrary((s) => !!s.background)
-  const banner = useBlobUrl('banner', profile.banner)
+  const media = useSavedMedia(profile)
+  const [editing, setEditing] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const live = useLive(cardRef, !editing)
 
   return (
-    <section className="profile">
-      <button type="button" className="banner" aria-label="Change Banner" onClick={pickImage('banner')}>
-        {banner && <img src={banner} alt="" draggable={false} />}
-      </button>
-      <button type="button" className="profile-avatar" aria-label="Change Photo" onClick={pickImage('avatar')}>
-        <Avatar size={104} />
-      </button>
-      <input
-        className="profile-name"
-        aria-label="Name"
-        placeholder="Name"
-        value={profile.name}
-        spellCheck={false}
-        autoComplete="off"
-        onChange={(e) => setProfileName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-      />
-      <div className="group">
-        <button type="button" className="group-row" onClick={() => void pickFiles('image/*,video/*').then(([file]) => file && setBackground(file))}>
-          <span>Background</span>
-          <span className="group-value">
-            <BackgroundThumb />
-            <Icon name="chevron-right" size={18} />
-          </span>
-        </button>
-        {hasBackground && (
-          <button type="button" className="group-row danger" onClick={() => void setBackground(null)}>
-            Remove Background
-          </button>
-        )}
-        <YouTubeKey />
+    <section className="you">
+      <div ref={cardRef}>
+        <ProfileCard profile={profile} media={media} live={live} effectFor={EFFECT_MS} onEdit={() => setEditing(true)} claimsVideo />
       </div>
+      <div className="you-settings">
+        <Appearance />
+        <div className="group">
+          <button type="button" className="group-row" onClick={() => void pickFiles('image/*,video/*').then(([file]) => file && setBackground(file))}>
+            <span>Wallpaper</span>
+            <span className="group-value">
+              <WallpaperThumb />
+              <Icon name="chevron-right" size={18} />
+            </span>
+          </button>
+          {hasBackground && (
+            <button type="button" className="group-row danger" onClick={() => void setBackground(null)}>
+              Remove Wallpaper
+            </button>
+          )}
+          <YouTubeKey />
+        </div>
+      </div>
+      {editing && <ProfileEditor onClose={() => setEditing(false)} />}
     </section>
   )
 }

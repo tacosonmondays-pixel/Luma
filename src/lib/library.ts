@@ -4,8 +4,10 @@ import { useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import { del, get, set } from 'idb-keyval'
-import { db, deleteBlob, putBlob } from './blobs.ts'
+import { db, deleteBlob, getBlob, putBlob } from './blobs.ts'
 import { uid } from './format.ts'
+import type { Media } from './media.ts'
+import { imageColors } from './palette.ts'
 import type { Background, Playlist, Profile, Track } from '../types.ts'
 
 interface Library {
@@ -99,14 +101,27 @@ export async function deleteTrack(id: string): Promise<void> {
       tracks,
       order: s.order.filter((x) => x !== id),
       playlists: s.playlists.map((p) => (p.trackIds.includes(id) ? { ...p, trackIds: p.trackIds.filter((x) => x !== id) } : p)),
+      profile: s.profile.pinnedSongs?.includes(id) ? { ...s.profile, pinnedSongs: s.profile.pinnedSongs.filter((x) => x !== id) } : s.profile,
     }
   })
-  await Promise.all([deleteBlob(`audio:${id}`), deleteBlob(`cover:${id}`)])
+  await Promise.all([deleteBlob(`audio:${id}`), deleteBlob(`cover:${id}`), deleteBlob(`canvas:${id}`)])
 }
 
 export async function setTrackCover(id: string, image: Blob): Promise<void> {
   await putBlob(`cover:${id}`, image)
   updateTrack(id, { cover: Date.now() })
+}
+
+/** A song's Canvas (image, GIF or video from processMedia), or null to remove it. */
+export async function setTrackCanvas(id: string, media: Media | null): Promise<void> {
+  if (!media) {
+    updateTrack(id, { canvas: undefined, canvasKind: undefined })
+    await deleteBlob(`canvas:${id}`)
+    return
+  }
+  await putBlob(`canvas:${id}`, media.blob)
+  updateTrack(id, { canvas: Date.now(), canvasKind: media.kind })
+  void navigator.storage?.persist?.()
 }
 
 export function updateTrack(id: string, patch: Partial<Track>): void {
@@ -159,17 +174,85 @@ export async function setPlaylistCover(id: string, image: Blob): Promise<void> {
 }
 
 export async function deletePlaylist(id: string): Promise<void> {
-  setState((s) => ({ playlists: s.playlists.filter((p) => p.id !== id) }))
+  setState((s) => ({
+    playlists: s.playlists.filter((p) => p.id !== id),
+    profile: s.profile.pinnedPlaylists?.includes(id)
+      ? { ...s.profile, pinnedPlaylists: s.profile.pinnedPlaylists.filter((x) => x !== id) }
+      : s.profile,
+  }))
   await deleteBlob(`playlist-cover:${id}`)
 }
 
 // ── Profile & background ─────────────────────────────────────────────────
+// Profile media lives under `avatar`, `banner` and `backdrop`, each with a `-still` copy when it is animated or a video.
 
-export const setProfileName = (name: string) => setState((s) => ({ profile: { ...s.profile, name } }))
+export type ProfileSlot = 'avatar' | 'banner' | 'backdrop'
+export const PROFILE_SLOTS: ProfileSlot[] = ['avatar', 'banner', 'backdrop']
+const KIND = { avatar: 'avatarKind', banner: 'bannerKind', backdrop: 'backdropKind' } as const
 
-export async function setProfileImage(which: 'avatar' | 'banner', image: Blob): Promise<void> {
-  await putBlob(which, image)
-  setState((s) => ({ profile: { ...s.profile, [which]: Date.now() } }))
+export const MAX_PINNED_SONGS = 5
+export const MAX_PINNED_PLAYLISTS = 6
+
+/**
+ * Saves the editor's draft. `media` holds the slots that changed: new media, or null for removed. Blobs are written
+ * first and the record last, so a failure (storage full) leaves the stored profile as it was.
+ */
+export async function saveProfile(draft: Profile, media: Partial<Record<ProfileSlot, Media | null>> = {}): Promise<void> {
+  const profile: Profile = { ...draft, name: draft.name.trim() ? draft.name : '', bio: draft.bio?.trim() ? draft.bio : undefined }
+  const v = Date.now()
+  for (const slot of PROFILE_SLOTS) {
+    const picked = media[slot]
+    if (picked === undefined) continue
+    if (picked) {
+      await putBlob(slot, picked.blob)
+      if (picked.still) await putBlob(`${slot}-still`, picked.still)
+      profile[slot] = v
+      profile[KIND[slot]] = picked.kind
+    } else {
+      profile[slot] = undefined
+      profile[KIND[slot]] = undefined
+    }
+  }
+  if (media.avatar !== undefined || media.banner !== undefined) profile.autoColors = await autoColorsOf(profile, media)
+  const before = getState().profile
+  setState({ profile })
+  try {
+    await saving
+  } catch (error) {
+    setState({ profile: before })
+    throw error
+  }
+  // Removed slots, and `-still` copies a replacement no longer needs.
+  await Promise.all(
+    PROFILE_SLOTS.flatMap((slot) => {
+      const picked = media[slot]
+      if (picked === undefined) return []
+      if (picked === null) return [deleteBlob(slot), deleteBlob(`${slot}-still`)]
+      return picked.still ? [] : [deleteBlob(`${slot}-still`)]
+    }),
+  )
+  if (Object.values(media).some(Boolean)) void navigator.storage?.persist?.()
+}
+
+/** Colors from the avatar's still, else the banner's (a new pick, or what is stored). */
+async function autoColorsOf(profile: Profile, media: Partial<Record<ProfileSlot, Media | null>>): Promise<[string, string] | undefined> {
+  for (const slot of ['avatar', 'banner'] as const) {
+    if (!profile[slot]) continue
+    const picked = media[slot]
+    const blob = picked ? (picked.still ?? picked.blob) : ((await getBlob(`${slot}-still`)) ?? (await getBlob(slot)))
+    if (blob) return imageColors(blob).catch(() => undefined)
+  }
+}
+
+/** Pins a song to the top of the profile; a sixth pin drops the last. Pinning again moves it to the top. */
+export function pinSong(id: string): void {
+  setState((s) => ({
+    profile: { ...s.profile, pinnedSongs: [id, ...(s.profile.pinnedSongs ?? []).filter((x) => x !== id)].slice(0, MAX_PINNED_SONGS) },
+  }))
+}
+
+export function unpinSong(id: string): void {
+  setState((s) => ({ profile: { ...s.profile, pinnedSongs: (s.profile.pinnedSongs ?? []).filter((x) => x !== id) } }))
 }
 
 export async function setBackground(file: Blob | null): Promise<void> {

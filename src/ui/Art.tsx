@@ -49,10 +49,11 @@ export function PlaylistArt({ playlist, ...rest }: { playlist: Playlist } & Omit
   return <Art blobKey="" v={undefined} seed={playlist.id} {...rest} />
 }
 
-/** The profile photo, else the first letter of the name. */
+/** The profile photo (always its still: lists and bars never animate), else the first letter of the name. */
 export function Avatar({ size }: { size: number }) {
   const profile = useLibrary((s) => s.profile)
-  const url = useBlobUrl('avatar', profile.avatar)
+  const animated = !!profile.avatarKind && profile.avatarKind !== 'image'
+  const url = useBlobUrl(animated ? 'avatar-still' : 'avatar', profile.avatar)
   const initial = profile.name.trim().charAt(0).toUpperCase()
   // Without a photo: --fill-2 made opaque, so it looks the same over the banner, the page and a wallpaper.
   const background = url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
