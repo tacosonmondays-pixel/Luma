@@ -138,7 +138,7 @@ async function audio(res: ServerResponse, id: string): Promise<void> {
       [
         '-f', 'bestaudio[ext=m4a]/bestaudio',
         '--no-playlist', '--no-progress', '--no-warnings',
-        '--js-runtimes', `node:${process.execPath}`,
+        '--js-runtimes', jsRuntime(),
         '-o', join(dir, '%(id)s.%(ext)s'),
         '--', `https://www.youtube.com/watch?v=${id}`,
       ],
@@ -173,6 +173,9 @@ async function cover(res: ServerResponse, id: string, small: boolean): Promise<v
 }
 
 // ── yt-dlp ──────────────────────────────────────────────────────────────
+
+/** The JavaScript runtime yt-dlp needs for YouTube, as `name:path`. This Node by default; Luma.exe sets a Deno. */
+const jsRuntime = () => process.env.LUMA_JS_RUNTIME || `node:${process.execPath}`
 
 /**
  * Run yt-dlp, without a shell and without the user's yt-dlp config (it could add files or skip downloads).

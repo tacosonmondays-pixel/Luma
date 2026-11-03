@@ -2,6 +2,14 @@
 
 A clean music player for your iPhone and computer. Search, save songs into the app, and play them offline.
 
+## Windows
+
+Download [Luma.exe](https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe) and run it. Nothing else to install: the first run downloads the tools it uses (yt-dlp and Deno), then Luma opens in your browser. Closing its window stops Luma.
+
+The exe is unsigned, so Windows shows "Windows protected your PC". Click **More info**, then **Run anyway**.
+
+(Free code signing for open-source projects exists, from the [SignPath Foundation](https://signpath.org), if we want it later.)
+
 ## Set up
 
 1. Install [Node.js](https://nodejs.org) 22.18 or newer.
