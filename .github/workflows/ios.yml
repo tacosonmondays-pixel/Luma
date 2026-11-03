@@ -1,5 +1,6 @@
 # Builds an unsigned Luma.ipa for sideloading (Signulous, AltStore, SideStore, Sideloadly re-sign it).
-# Every run uploads it as the Luma-ipa artifact; v* tags also attach it to the tag's GitHub Release.
+# Every run uploads it as the Luma-ipa artifact; v* tags also attach it to the tag's GitHub Release, and
+# pushes to the main branches refresh the "test-build" prerelease (a fixed download link).
 
 name: iOS
 
@@ -87,3 +88,15 @@ jobs:
             gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA" ||
             gh release view "$TAG" > /dev/null
           gh release upload "$TAG" ios/build/Luma.ipa --clobber
+
+      # A fixed download link for the newest build of the main branches, without making a version:
+      # https://github.com/tacosonmondays-pixel/Luma/releases/download/test-build/Luma.ipa
+      - name: Publish the test build
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/claude/elegant-sagan-6gjqzc')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view test-build > /dev/null 2>&1 ||
+            gh release create test-build --prerelease --title "Test build" --notes "Newest iPhone build." --target "$GITHUB_SHA"
+          gh release upload test-build ios/build/Luma.ipa --clobber
+          gh release edit test-build --notes "Newest iPhone build, from ${GITHUB_SHA::7}."
