@@ -1,0 +1,46 @@
+/* Dark themes. Each one only replaces tokens; `luma` is the plain :root in base.css. Y2K lives in y2k.css.
+   Palettes: Catppuccin Mocha, Nord and Rosé Pine (MIT, see licenses/). Black is our own. */
+
+:root[data-theme='black'] {
+  --bg: #000000;
+  --surface: #0e0e10;
+  --surface-2: #18181b;
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.6);
+  --text-3: rgba(255, 255, 255, 0.3);
+  --theme-accent: #a596ff;
+  --glass: rgba(0, 0, 0, 0.72);
+}
+
+:root[data-theme='mocha'] {
+  --bg: #1e1e2e;
+  --surface: #313244;
+  --surface-2: #45475a;
+  --text: #cdd6f4;
+  --text-2: #a6adc8;
+  --text-3: #6c7086;
+  --theme-accent: #cba6f7;
+  --glass: rgba(30, 30, 46, 0.76);
+}
+
+:root[data-theme='fjord'] {
+  --bg: #2e3440;
+  --surface: #3b4252;
+  --surface-2: #434c5e;
+  --text: #eceff4;
+  --text-2: rgba(216, 222, 233, 0.66);
+  --text-3: rgba(216, 222, 233, 0.34);
+  --theme-accent: #88c0d0;
+  --glass: rgba(46, 52, 64, 0.78);
+}
+
+:root[data-theme='rose'] {
+  --bg: #191724;
+  --surface: #1f1d2e;
+  --surface-2: #26233a;
+  --text: #e0def4;
+  --text-2: #908caa;
+  --text-3: #6e6a86;
+  --theme-accent: #ebbcba;
+  --glass: rgba(25, 23, 36, 0.76);
+}

@@ -1,4 +1,8 @@
-/* Design tokens, reset and the app shell. Feature styles live next to it: player.css, library.css, search.css. */
+@import './themes.css';
+
+/* Design tokens, reset and the app shell. Feature styles live next to it: player.css, library.css, search.css.
+   Themes (themes.css) replace the color tokens. `--accent` follows the current song's cover (appearance.ts sets it
+   inline on <html>); without one it is the theme's own accent. */
 
 :root {
   color-scheme: dark;
@@ -12,7 +16,8 @@
   --text: #f5f5f7;
   --text-2: rgba(235, 235, 245, 0.62);
   --text-3: rgba(235, 235, 245, 0.32);
-  --accent: #a596ff;
+  --theme-accent: #a596ff;
+  --accent: var(--theme-accent);
   --danger: #ff6b63;
   --glass: rgba(22, 22, 26, 0.74);
   --blur: blur(28px) saturate(1.8);
@@ -151,7 +156,10 @@ a {
 
 .side-link.active {
   color: var(--text);
-  background: var(--fill);
+  background-color: color-mix(in oklab, var(--accent) 18%, var(--fill));
+  transition:
+    background-color 600ms var(--ease),
+    color 140ms;
 }
 
 .side-profile {
@@ -263,7 +271,7 @@ a {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(rgba(10, 10, 12, 0.82), rgba(10, 10, 12, 0.9)); /* text stays readable on bright images */
+  background: linear-gradient(color-mix(in srgb, var(--bg) 74%, transparent), color-mix(in srgb, var(--bg) 90%, transparent)); /* text stays readable on bright images */
 }
 
 /* ── Shared pieces ─────────────────────────────────────────────────── */
