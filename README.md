@@ -2,6 +2,8 @@
 
 A clean music player for your iPhone and computer. Search, save songs into the app, and play them offline.
 
+Links: [Get Luma](https://tacosonmondays-pixel.github.io/Luma/get/) · [Terms](https://tacosonmondays-pixel.github.io/Luma/terms/) · [Privacy](https://tacosonmondays-pixel.github.io/Luma/privacy/)
+
 ## Windows
 
 Download [Luma.exe](https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe) and run it. Nothing else to install: the first run downloads the tools it uses (yt-dlp and Deno), then Luma opens in your browser. Closing its window stops Luma.
