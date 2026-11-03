@@ -149,7 +149,8 @@ export function Search() {
   useEffect(() => {
     if (last.response || last.status === 'loading') return
     let live = true
-    void detect().then((problem) => live && setStatus((s) => (s === 'loading' ? s : (problem ?? 'idle'))))
+    // A search answers for itself; a late check must not replace its outcome.
+    void detect().then((problem) => live && !abort.current && setStatus(problem ?? 'idle'))
     return () => {
       live = false
       abort.current?.abort()
