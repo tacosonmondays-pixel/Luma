@@ -154,9 +154,11 @@ export function Search() {
   useEffect(() => {
     if (last.response || last.status === 'loading') return
     let live = true
+    // A search answers for itself; a late health check must not replace its outcome.
+    const apply = (next: Status) => live && !abort.current && setStatus(next)
     health().then(
-      (h) => live && setStatus((s) => (s === 'loading' ? s : h.ytdlp ? 'idle' : 'missing')),
-      (e) => live && setStatus((s) => (s === 'loading' ? s : statusOf(e))),
+      (h) => apply(h.ytdlp ? 'idle' : 'missing'),
+      (e) => apply(statusOf(e)),
     )
     return () => {
       live = false

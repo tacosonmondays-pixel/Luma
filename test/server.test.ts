@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ChildProcess, SpawnOptions } from 'node:child_process'
 import { createServer } from 'node:http'
 import type { Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
@@ -7,16 +8,28 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { api } from '../server/api.ts'
 
+// Run the fake yt-dlp (a .cjs file) through Node, which also works where scripts can't be run directly (Windows).
+// Keep every child, to check that it was killed.
+const children = vi.hoisted((): ChildProcess[] => [])
+vi.mock('node:child_process', async (importOriginal) => {
+  const cp = await importOriginal<typeof import('node:child_process')>()
+  const spawn = (command: string, args: string[], options: SpawnOptions) => {
+    const child = command.endsWith('.cjs') ? cp.spawn(process.execPath, [command, ...args], options) : cp.spawn(command, args, options)
+    children.push(child)
+    return child
+  }
+  return { ...cp, spawn }
+})
+
 // A fake yt-dlp: logs its argv as one JSON line, then answers with canned data.
 // Magic targets: "fail" exits 1, "garbage" prints invalid JSON, "slowslowslo" never finishes.
-const FAKE_YTDLP = `#!/usr/bin/env node
-const fs = require('node:fs')
+const FAKE_YTDLP = `const fs = require('node:fs')
 const args = process.argv.slice(2)
 fs.appendFileSync(process.env.FAKE_YTDLP_LOG, JSON.stringify(args) + '\\n')
 const target = args[args.length - 1]
 const print = (value) => process.stdout.write(JSON.stringify(value))
 
-if (args[0] === '--version') {
+if (args.includes('--version')) {
   console.log('2026.10.20')
 } else if (target.includes('fail')) {
   console.error('  ERROR: boom  ')
@@ -68,7 +81,7 @@ beforeAll(async () => {
   tmp = mkdtempSync(join(tmpdir(), 'luma-test-'))
   fake = join(tmp, 'yt-dlp.cjs')
   log = join(tmp, 'calls.log')
-  writeFileSync(fake, FAKE_YTDLP, { mode: 0o755 })
+  writeFileSync(fake, FAKE_YTDLP)
   process.env.FAKE_YTDLP_LOG = log
   server = createServer((req, res) =>
     api(req, res, () => {
@@ -105,7 +118,7 @@ describe('health', () => {
     process.env.LUMA_YTDLP = fake
     r = await get(`${base}/api/health`)
     expect(await r.json()).toEqual({ ok: true, ytdlp: '2026.10.20' })
-    expect(calls()).toEqual([['--version']])
+    expect(calls()).toEqual([['--ignore-config', '--version']])
 
     process.env.LUMA_YTDLP = join(tmp, 'missing')
     r = await get(`${base}/api/health`)
@@ -115,7 +128,7 @@ describe('health', () => {
 })
 
 describe('search', () => {
-  const flags = ['--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', '200', '--']
+  const flags = ['--ignore-config', '--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', '200', '--']
 
   it('searches by relevance by default and maps and filters the results', async () => {
     const r = await search({ q: '  daft punk  ' })
@@ -140,7 +153,7 @@ describe('search', () => {
     const r = await search({ q: 'daft punk & co', sort: 'popular' })
     expect(r.status).toBe(200)
     expect(calls()).toEqual([
-      [...flags.slice(0, 4), '30', '--', 'https://www.youtube.com/results?search_query=daft%20punk%20%26%20co&sp=CAM%253D'],
+      [...flags.slice(0, -2), '30', '--', 'https://www.youtube.com/results?search_query=daft%20punk%20%26%20co&sp=CAM%253D'],
     ])
     expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
   })
@@ -155,10 +168,15 @@ describe('search', () => {
     expect(calls()).toEqual([[...flags, 'ytsearch30:--exec rm']])
   })
 
-  it('passes a YouTube video link through as-is, ignoring sort', async () => {
+  it('passes a YouTube video link through, ignoring sort', async () => {
     const r = await search({ q: 'https://youtu.be/dQw4w9WgXcQ?si=x', sort: 'recent' })
     expect(calls()).toEqual([[...flags, 'https://youtu.be/dQw4w9WgXcQ?si=x']])
     expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
+  })
+
+  it('passes on the parsed link, so yt-dlp sees the host that was checked', async () => {
+    expect((await search({ q: 'http://youtube.com\\@192.168.1.1:8080/admin' })).status).toBe(200)
+    expect(calls()).toEqual([[...flags, 'http://youtube.com/@192.168.1.1:8080/admin']])
   })
 
   it('returns the playlist title for a playlist link', async () => {
@@ -206,6 +224,15 @@ describe('search', () => {
     expect(await r.json()).toEqual({ error: 'failed' })
   })
 
+  it('kills yt-dlp when the client leaves early', async () => {
+    const abort = new AbortController()
+    const request = get(`${base}/api/search?q=slowslowslo`, { signal: abort.signal }).catch(() => 'aborted')
+    await vi.waitFor(() => expect(calls()).toHaveLength(1))
+    abort.abort()
+    expect(await request).toBe('aborted')
+    await vi.waitFor(() => expect(children.at(-1)?.signalCode).toBe('SIGTERM'), { timeout: 3000 })
+  })
+
   it('answers 503 ytdlp-missing when yt-dlp is not installed', async () => {
     process.env.LUMA_YTDLP = join(tmp, 'missing')
     const r = await search({ q: 'x' })
@@ -229,6 +256,7 @@ describe('audio', () => {
     const dir = outDir()
     expect(dirname(dir)).toBe(tmpdir())
     expect(calls()).toEqual([[
+      '--ignore-config',
       '-f', 'bestaudio[ext=m4a]/bestaudio',
       '--no-playlist', '--no-progress', '--no-warnings',
       '--js-runtimes', `node:${process.execPath}`,
