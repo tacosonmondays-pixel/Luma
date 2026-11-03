@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { deletePlaylist, renamePlaylist, setPlaylistCover, takeNameFocus, useLibrary } from '../lib/library.ts'
+import { useDownloads } from '../lib/helper.ts'
 import { navigate } from '../lib/router.ts'
+import { refreshPlaylist } from '../lib/save.ts'
+import { downloadable, downloadMissing } from '../lib/source.ts'
 import { PlaylistArt } from '../ui/Art.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { IconButton, pickFiles } from '../ui/kit.tsx'
@@ -21,7 +24,21 @@ function HeaderWash({ playlist }: { playlist: PlaylistData }) {
   return null
 }
 
+/** Download Missing: shown while the playlist has saved songs a downloader can fetch, quiet while they download. */
+function DownloadMissing({ playlist }: { playlist: PlaylistData }) {
+  const missing = useLibrary(() => downloadable(playlist.trackIds).join())
+  const busy = useDownloads((s) => !!missing && missing.split(',').every((id) => s[id] !== undefined && s[id] !== 'error'))
+  if (!missing) return null
+  return (
+    <button type="button" className="pill download-missing" disabled={busy} onClick={() => downloadMissing(playlist.trackIds, playlist.youtubeId)}>
+      <Icon name="download" size={18} />
+      Download Missing
+    </button>
+  )
+}
+
 export function Playlist({ id }: { id: string }) {
+  const [refresh, setRefresh] = useState<'busy' | 'failed'>()
   const playlist = useLibrary((s) => s.playlists.find((p) => p.id === id))
   const [name, setName] = useState(playlist?.name ?? '')
   const input = useRef<HTMLInputElement>(null)
@@ -39,8 +56,17 @@ export function Playlist({ id }: { id: string }) {
   if (!playlist) return null
   const empty = playlist.trackIds.length === 0
 
+  const refreshFromYouTube = () => {
+    setRefresh('busy')
+    refreshPlaylist(id).then(
+      () => setRefresh(undefined),
+      () => setRefresh('failed'),
+    )
+  }
+
   const more = (anchor: HTMLElement) =>
     openMenu(anchor, [
+      ...(playlist.youtubeId ? [{ label: 'Refresh from YouTube', icon: 'refresh' as const, onSelect: refreshFromYouTube }] : []),
       {
         label: 'Change Cover',
         icon: 'image',
@@ -84,8 +110,26 @@ export function Playlist({ id }: { id: string }) {
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
           <div className="playlist-actions">
-            {!empty && <PlayPills ids={playlist.trackIds} />}
-            <IconButton icon="more" label="More" onClick={(e) => more(e.currentTarget)} />
+            {!empty && (
+              <PlayPills ids={playlist.trackIds}>
+                <DownloadMissing playlist={playlist} />
+              </PlayPills>
+            )}
+            {refresh === 'busy' ? (
+              <span className="icon-btn playlist-refreshing" aria-label="Refreshing">
+                <span className="spinner" />
+              </span>
+            ) : (
+              <IconButton
+                icon={refresh === 'failed' ? 'alert' : 'more'}
+                label={refresh === 'failed' ? 'More (refresh failed)' : 'More'}
+                className={refresh === 'failed' ? 'error' : ''}
+                onClick={(e) => {
+                  setRefresh(undefined)
+                  more(e.currentTarget)
+                }}
+              />
+            )}
           </div>
         </div>
       </header>

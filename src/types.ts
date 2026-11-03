@@ -13,7 +13,7 @@ export interface Track {
   cover?: number // blob `cover:<id>`
   canvas?: number // blob `canvas:<id>`: a looping image/GIF/video shown behind the Canvas player style
   canvasKind?: MediaKind
-  missing?: true // synced from another device: the metadata is here, the audio isn't (download it again)
+  missing?: true // saved (from YouTube) or synced from another device: the metadata is here, the audio isn't yet
 }
 
 export interface Playlist {
@@ -22,6 +22,7 @@ export interface Playlist {
   trackIds: string[]
   createdAt: number
   cover?: number // blob `playlist-cover:<id>`
+  youtubeId?: string // linked to this YouTube playlist: Refresh from YouTube adds its new songs
 }
 
 // ── Profile ─────────────────────────────────────────────────────────────

@@ -230,26 +230,6 @@
   animation: pop 220ms var(--spring);
 }
 
-.ring circle {
-  fill: none;
-  stroke-width: 2;
-}
-
-.ring-track {
-  stroke: var(--fill-2);
-}
-
-.ring-fill {
-  stroke: var(--accent);
-  stroke-linecap: round;
-  transform: rotate(-90deg);
-  transform-origin: center;
-  transition: stroke-dashoffset 200ms linear;
-}
-
-.state-btn > .ring.spin {
-  animation: spin 900ms linear infinite;
-}
 
 /* ── Tiles ─────────────────────────────────────────────────────────── */
 
@@ -496,8 +476,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .spinner,
-  .state-btn > .ring.spin {
+  .spinner {
     animation-duration: 1.4s !important;
     animation-iteration-count: infinite !important;
   }

@@ -8,6 +8,7 @@ import { askedSearch, clearSearch } from '../lib/search-link.ts'
 import { cleanTitle } from '../lib/titles.ts'
 import { Icon, type IconName } from '../ui/Icon.tsx'
 import { Link, pickFiles } from '../ui/kit.tsx'
+import { Ring } from '../ui/Ring.tsx'
 import { Segmented } from '../ui/Segmented.tsx'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 import '../styles/search.css'
@@ -406,34 +407,5 @@ function StateButton({
     >
       {view}
     </button>
-  )
-}
-
-const R = 9.5
-const C = 2 * Math.PI * R
-
-function Ring({ progress, size }: { progress: number | null; size: number }) {
-  const indeterminate = progress === null
-  return (
-    <svg
-      className={`ring${indeterminate ? ' spin' : ''}`}
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      role="progressbar"
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={indeterminate ? undefined : Math.round(progress * 100)}
-    >
-      <circle className="ring-track" cx="12" cy="12" r={R} />
-      <circle
-        className="ring-fill"
-        cx="12"
-        cy="12"
-        r={R}
-        strokeDasharray={C}
-        strokeDashoffset={indeterminate ? C * 0.72 : C * (1 - progress)}
-      />
-    </svg>
   )
 }

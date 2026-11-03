@@ -101,7 +101,8 @@ export async function addTrack(track: Track, audio: Blob, cover?: Blob | null, a
 /** In the library with its audio (not just synced metadata). */
 export const isDownloaded = (track: Track | undefined): track is Track => !!track && !track.missing
 
-/** Songs synced from another device, without audio: they show as not downloaded. Each goes where its date puts it. */
+/** Songs without audio, synced from another device or saved from YouTube: they show as not downloaded until they
+ *  are. Each goes where its date puts it; songs already in the library are left as they are. */
 export function addSyncedTracks(list: Track[]): void {
   if (!list.length) return
   setState((s) => {
@@ -172,10 +173,12 @@ export function takeNameFocus(id: string): boolean {
   return true
 }
 
-export function createPlaylist(trackIds: string[] = []): string {
+/** A new playlist. One made from a YouTube playlist keeps its id in `youtubeId` (and its name). */
+export function createPlaylist(trackIds: string[] = [], from?: { name: string; youtubeId: string }): string {
   const id = uid()
-  const name = 'New Playlist'
-  setState((s) => ({ playlists: [...s.playlists, { id, name, trackIds: [...new Set(trackIds)], createdAt: Date.now() }] }))
+  const playlist: Playlist = { id, name: from?.name.trim() || 'New Playlist', trackIds: [...new Set(trackIds)], createdAt: Date.now() }
+  if (from) playlist.youtubeId = from.youtubeId
+  setState((s) => ({ playlists: [...s.playlists, playlist] }))
   return id
 }
 

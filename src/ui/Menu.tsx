@@ -16,6 +16,7 @@ import {
 import { processMedia } from '../lib/media.ts'
 import { playNext, setOpen } from '../lib/player.ts'
 import { navigate } from '../lib/router.ts'
+import { downloadable, downloadSaved } from '../lib/source.ts'
 import { Icon, type IconName } from './Icon.tsx'
 import { pickFiles } from './kit.tsx'
 import '../styles/library.css'
@@ -76,13 +77,20 @@ const pickCanvas = (trackId: string) =>
     await setTrackCanvas(trackId, await processMedia(file, 'canvas')).catch(() => {})
   }).catch(() => {})
 
-/** The song menu used everywhere: Play Next, Add to Playlist, Pin, Change Cover, Canvas, Remove from Playlist, Delete. */
+/** The song menu used everywhere: Play Next (or Download, for a saved song), Add to Playlist, Pin, Change Cover,
+ *  Canvas, Remove from Playlist, Delete. */
 export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, playlistId?: string): void {
   const { playlists, profile, tracks } = useLibrary.getState()
   const pinned = !!profile.pinnedSongs?.includes(trackId)
   const hasCanvas = !!tracks[trackId]?.canvas
+  // A saved song can't play yet: it offers Download (when a downloader can fetch it) instead of Play Next.
+  const first: MenuItem[] = !tracks[trackId]?.missing
+    ? [{ label: 'Play Next', icon: 'play-next', onSelect: () => playNext(trackId) }]
+    : downloadable([trackId]).length
+      ? [{ label: 'Download', icon: 'download', onSelect: () => void downloadSaved(trackId) }]
+      : []
   const items: MenuItem[] = [
-    { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(trackId) },
+    ...first,
     {
       label: 'Add to Playlist',
       icon: 'add-to-playlist',

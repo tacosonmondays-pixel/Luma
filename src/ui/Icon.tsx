@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 // 24×24 icons. Filled glyphs for transport controls, 2px strokes for everything else.
-// pin, unpin (pin-off), film, sparkles, none (ban), tick (check) and share are Lucide paths (ISC, licenses/lucide.txt).
+// pin, unpin (pin-off), film, sparkles, none (ban), tick (check), refresh (refresh-cw) and share are Lucide paths (ISC, licenses/lucide.txt).
 const filled = {
   play: <path d="M7.5 5.1v13.8a1 1 0 0 0 1.53.85l10.9-6.9a1 1 0 0 0 0-1.7L9.03 4.25A1 1 0 0 0 7.5 5.1Z" />,
   pause: (
@@ -121,6 +121,7 @@ const stroked = {
     </>
   ),
   tick: <path d="M20 6 9 17l-5-5" />,
+  refresh: <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16M8 16H3v5" />,
 } satisfies Record<string, ReactNode>
 
 export type IconName = keyof typeof filled | keyof typeof stroked

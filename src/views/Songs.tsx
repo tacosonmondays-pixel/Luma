@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { importFiles, useImport } from '../lib/files.ts'
 import { useLibrary } from '../lib/library.ts'
 import { playTracks, shufflePlay } from '../lib/player.ts'
@@ -7,8 +8,9 @@ import { IconButton, pickFiles } from '../ui/kit.tsx'
 import { TrackList } from '../ui/TrackList.tsx'
 import '../styles/library.css'
 
-export function PlayPills({ ids }: { ids: string[] }) {
-  const empty = ids.length === 0
+/** Play and Shuffle, for the songs that are downloaded. `children`: more pills after them (Download Missing). */
+export function PlayPills({ ids, children }: { ids: string[]; children?: ReactNode }) {
+  const empty = useLibrary((s) => !ids.some((id) => s.tracks[id] && !s.tracks[id].missing))
   return (
     <div className="play-pills">
       <button type="button" className="pill" disabled={empty} onClick={() => playTracks(ids)}>
@@ -19,6 +21,7 @@ export function PlayPills({ ids }: { ids: string[] }) {
         <Icon name="shuffle" size={18} />
         Shuffle
       </button>
+      {children}
     </div>
   )
 }

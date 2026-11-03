@@ -43,9 +43,9 @@ export function setYouTubeKey(key: string): void {
 
 // ── Requests ─────────────────────────────────────────────────────────────
 
-/** `key`: missing, invalid or not allowed here. `quota`: the daily limit is used up. */
+/** `key`: missing, invalid or not allowed here. `auth`: the sign-in token expired. `quota`: the daily limit is used up. */
 export class YouTubeError extends Error {
-  code: 'key' | 'quota' | 'not-found' | 'offline' | 'failed'
+  code: 'key' | 'auth' | 'quota' | 'not-found' | 'offline' | 'failed'
   constructor(code: YouTubeError['code']) {
     super(code)
     this.code = code
@@ -59,12 +59,16 @@ interface GoogleError {
   error?: { errors?: { reason?: string }[]; details?: { reason?: string }[]; status?: string }
 }
 
-async function get<T>(method: string, params: Record<string, string>, signal?: AbortSignal): Promise<T> {
+/** With `token` (YouTube sign-in, google.ts) the request is the owner's own, which also reaches their private
+ *  playlists and Liked videos; without it, it uses the API key. */
+async function get<T>(method: string, params: Record<string, string>, signal?: AbortSignal, token?: string): Promise<T> {
   const key = useYouTubeKey.getState().trim()
-  if (!key) throw new YouTubeError('key')
+  if (!key && !token) throw new YouTubeError('key')
+  const query = new URLSearchParams(token ? params : { ...params, key })
+  const headers: HeadersInit = token ? { ...HEADERS, Authorization: `Bearer ${token}` } : HEADERS
   let r: Response
   try {
-    r = await fetch(`${API}${method}?${new URLSearchParams({ ...params, key })}`, { headers: HEADERS, signal })
+    r = await fetch(`${API}${method}?${query}`, { headers, signal })
   } catch (e) {
     if (signal?.aborted) throw e
     throw new YouTubeError('offline')
@@ -73,6 +77,7 @@ async function get<T>(method: string, params: Record<string, string>, signal?: A
   const body = (await r.json().catch(() => null)) as GoogleError | null
   const reasons = [...(body?.error?.errors ?? []), ...(body?.error?.details ?? [])].map((e) => e.reason).join(' ')
   if (QUOTA.test(reasons)) throw new YouTubeError('quota')
+  if (token && r.status === 401) throw new YouTubeError('auth')
   if (r.status === 403 || BAD_KEY.test(reasons)) throw new YouTubeError('key')
   throw new YouTubeError(r.status === 404 ? 'not-found' : 'failed')
 }
@@ -108,10 +113,10 @@ export function decodeEntities(text: string): string {
 }
 
 /** videos.list for up to 50 ids at a time, in the given order. Private and deleted videos drop out. */
-async function videos(ids: string[], part: string, signal?: AbortSignal): Promise<Map<string, Video>> {
+async function videos(ids: string[], part: string, signal?: AbortSignal, token?: string): Promise<Map<string, Video>> {
   const found = new Map<string, Video>()
   for (let i = 0; i < ids.length; i += 50) {
-    const { items = [] } = await get<{ items?: Video[] }>('videos', { part, id: ids.slice(i, i + 50).join(','), maxResults: '50' }, signal)
+    const { items = [] } = await get<{ items?: Video[] }>('videos', { part, id: ids.slice(i, i + 50).join(','), maxResults: '50' }, signal, token)
     for (const v of items) found.set(v.id, v)
   }
   return found
@@ -124,12 +129,12 @@ const toResult = (v: Video, snippet = v.snippet): SearchResult => ({
   duration: parseDuration(v.contentDetails?.duration),
 })
 
-async function videoResults(ids: string[], signal?: AbortSignal): Promise<SearchResult[]> {
-  const found = await videos(ids, 'snippet,contentDetails', signal)
+async function videoResults(ids: string[], signal?: AbortSignal, token?: string): Promise<SearchResult[]> {
+  const found = await videos(ids, 'snippet,contentDetails', signal, token)
   return ids.flatMap((id) => (found.has(id) ? [toResult(found.get(id)!)] : []))
 }
 
-async function playlist(list: string, signal?: AbortSignal): Promise<SearchResponse> {
+async function playlist(list: string, signal?: AbortSignal, token?: string): Promise<SearchResponse> {
   const ids: string[] = []
   let pageToken = ''
   do {
@@ -137,6 +142,7 @@ async function playlist(list: string, signal?: AbortSignal): Promise<SearchRespo
       'playlistItems',
       { part: 'contentDetails', playlistId: list, maxResults: '50', ...(pageToken && { pageToken }) },
       signal,
+      token,
     )
     for (const item of page.items ?? []) {
       const id = item.contentDetails?.videoId
@@ -145,8 +151,8 @@ async function playlist(list: string, signal?: AbortSignal): Promise<SearchRespo
     pageToken = page.nextPageToken ?? ''
   } while (pageToken && ids.length < PLAYLIST_LIMIT)
   const [info, results] = await Promise.all([
-    get<{ items?: { snippet?: { title?: string } }[] }>('playlists', { part: 'snippet', id: list }, signal),
-    videoResults(ids.slice(0, PLAYLIST_LIMIT), signal),
+    get<{ items?: { snippet?: { title?: string } }[] }>('playlists', { part: 'snippet', id: list }, signal, token),
+    videoResults(ids.slice(0, PLAYLIST_LIMIT), signal, token),
   ])
   return { results, playlist: info.items?.[0]?.snippet?.title ?? '' }
 }
@@ -169,20 +175,23 @@ export function parseLink(q: string): { video?: string; list?: string } | null {
   return video || list ? { video, list } : {}
 }
 
+/** The songs of a parsed link: its playlist (with the title), else its video. */
+export async function lookup(link: { video?: string; list?: string }, signal?: AbortSignal, token?: string): Promise<SearchResponse> {
+  if (link.list) {
+    try {
+      return await playlist(link.list, signal, token)
+    } catch (e) {
+      // Mixes (list=RD…) aren't real playlists; fall back to the video in the link.
+      if (!(e instanceof YouTubeError && e.code === 'not-found' && link.video)) throw e
+    }
+  }
+  return { results: link.video ? await videoResults([link.video], signal, token) : [] }
+}
+
 /** Same answers as the helper's /api/search. */
 export async function search(q: string, sort: SearchSort, signal?: AbortSignal): Promise<SearchResponse> {
   const link = parseLink(q)
-  if (link) {
-    if (link.list) {
-      try {
-        return await playlist(link.list, signal)
-      } catch (e) {
-        // Mixes (list=RD…) aren't real playlists; fall back to the video in the link.
-        if (!(e instanceof YouTubeError && e.code === 'not-found' && link.video)) throw e
-      }
-    }
-    return { results: link.video ? await videoResults([link.video], signal) : [] }
-  }
+  if (link) return lookup(link, signal)
 
   const { items = [] } = await get<{ items?: { id?: { videoId?: string }; snippet?: Snippet }[] }>(
     'search',
@@ -203,4 +212,44 @@ export async function search(q: string, sort: SearchSort, signal?: AbortSignal):
 /** Thumbnails straight from YouTube, best first: 320×180 for lists and dense grids, else the largest. */
 export function thumbnails(id: string, small: boolean): string[] {
   return (small ? ['mqdefault'] : ['maxresdefault', 'hqdefault']).map((size) => `https://i.ytimg.com/vi/${id}/${size}.jpg`)
+}
+
+// ── The owner's playlists (YouTube sign-in) ──────────────────────────────
+
+export interface MyPlaylist {
+  id: string
+  title: string
+  thumbnail?: string
+}
+
+const LIKES_TITLE = 'Liked Videos'
+
+/** The signed-in owner's playlists, Liked videos first (channels.list → relatedPlaylists.likes). */
+export async function myPlaylists(token: string, signal?: AbortSignal): Promise<MyPlaylist[]> {
+  interface Thumbs { default?: { url?: string }; medium?: { url?: string } }
+  const [channels, lists] = await Promise.all([
+    get<{ items?: { contentDetails?: { relatedPlaylists?: { likes?: string } } }[] }>('channels', { part: 'contentDetails', mine: 'true' }, signal, token),
+    (async () => {
+      const all: { id: string; snippet?: { title?: string; thumbnails?: Thumbs } }[] = []
+      let pageToken = ''
+      do {
+        const page = await get<{ items?: typeof all; nextPageToken?: string }>(
+          'playlists',
+          { part: 'snippet', mine: 'true', maxResults: '50', ...(pageToken && { pageToken }) },
+          signal,
+          token,
+        )
+        all.push(...(page.items ?? []))
+        pageToken = page.nextPageToken ?? ''
+      } while (pageToken && all.length < 500)
+      return all
+    })(),
+  ])
+  const likes = channels.items?.[0]?.contentDetails?.relatedPlaylists?.likes
+  const mine = lists.map((p) => ({
+    id: p.id,
+    title: decodeEntities(p.snippet?.title ?? ''),
+    thumbnail: p.snippet?.thumbnails?.medium?.url ?? p.snippet?.thumbnails?.default?.url,
+  }))
+  return likes ? [{ id: likes, title: LIKES_TITLE }, ...mine.filter((p) => p.id !== likes)] : mine
 }

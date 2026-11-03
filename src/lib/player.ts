@@ -147,18 +147,23 @@ export function restore(): void {
   if (id !== undefined && loaded === undefined) void load(id, false, getState().position)
 }
 
+/** Play `ids` from `index`. Songs that aren't downloaded are left out (and `index` follows the song it named). */
 export function playTracks(ids: string[], index = 0): void {
-  const queue = Q.start(ids, index, getState().shuffle)
+  const tracks = useLibrary.getState().tracks
+  const list = Q.playable(ids, tracks)
+  const at = ids[index] !== undefined && list.includes(ids[index]) ? list.indexOf(ids[index]) : 0
+  const queue = Q.start(list, at, getState().shuffle)
   setState({ queue })
   void load(currentId(), true)
 }
 
 export function shufflePlay(ids: string[]): void {
-  setState({ shuffle: true, queue: Q.start(ids, -1, true) })
+  setState({ shuffle: true, queue: Q.start(Q.playable(ids, useLibrary.getState().tracks), -1, true) })
   void load(currentId(), true)
 }
 
 export function playNext(id: string): void {
+  if (!Q.playable([id], useLibrary.getState().tracks).length) return
   const empty = currentId() === undefined
   setState((s) => ({ queue: Q.insertNext(s.queue, id) }))
   if (empty) void load(currentId(), true)

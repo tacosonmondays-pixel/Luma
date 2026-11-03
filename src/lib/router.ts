@@ -7,6 +7,7 @@ export type Route =
   | { name: 'search' }
   | { name: 'you' }
   | { name: 'user'; handle: string } // someone's public profile, /u/<handle>
+  | { name: 'save' } // /save?u=<YouTube link>: save its songs (the extension, luma://save, links)
 
 /** Where the app is served: '/' from the helper, '/Luma/' on GitHub Pages. Always ends in '/'. */
 const BASE = import.meta.env.BASE_URL
@@ -28,6 +29,7 @@ export function parse(path: string): Route {
   if (first === 'search') return { name: 'search' }
   if (first === 'you') return { name: 'you' }
   if (first === 'u' && second) return { name: 'user', handle: decodeURIComponent(second) }
+  if (first === 'save') return { name: 'save' }
   return { name: 'songs' }
 }
 
