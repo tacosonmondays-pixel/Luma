@@ -1,0 +1,345 @@
+/* Search: the field, the sort control and the result rows. */
+
+.search .search-title {
+  display: none;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-field {
+  flex: 1;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 8px 0 10px;
+  border-radius: var(--r);
+  background: var(--fill);
+  color: var(--text-2);
+  cursor: text;
+  transition: background 140ms;
+}
+
+.search-field:focus-within {
+  background: var(--fill-2);
+}
+
+.search-field > .icon,
+.search-field > .spinner {
+  flex: none;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-field input::placeholder {
+  color: var(--text-2);
+}
+
+.search-field input::-webkit-search-cancel-button,
+.search-field input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-3);
+  color: var(--bg);
+  animation: fade 140ms var(--ease);
+}
+
+.search-clear .icon {
+  stroke-width: 3;
+}
+
+.spinner {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid var(--fill-2);
+  border-top-color: var(--text-2);
+  animation: spin 700ms linear infinite;
+}
+
+/* ── Segmented control ─────────────────────────────────────────────── */
+
+.segmented {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 200px;
+  height: 32px;
+  padding: 2px;
+  border-radius: 9px;
+  background: var(--fill);
+}
+
+.segmented button {
+  position: relative;
+  z-index: 1;
+  border-radius: 7px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color 160ms;
+}
+
+.segmented button[aria-checked='true'] {
+  color: var(--text);
+}
+
+.segmented-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  width: calc(50% - 2px);
+  border-radius: 7px;
+  background: var(--fill-2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 240ms var(--ease);
+}
+
+.segmented[data-at='recent'] .segmented-thumb {
+  transform: translateX(100%);
+}
+
+/* ── Results ───────────────────────────────────────────────────────── */
+
+.search-results {
+  transition: opacity 160ms;
+}
+
+.search-results.stale {
+  opacity: 0.5;
+}
+
+.search-playlist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 12px;
+}
+
+.search-playlist h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.search-playlist .pill {
+  flex: none;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.search-playlist .pill:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.results {
+  list-style: none;
+  padding: 0;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--r);
+  animation: fade 200ms var(--ease) both;
+  transition: background 140ms;
+}
+
+.result:hover {
+  background: var(--hover);
+}
+
+.result-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 4px 8px 8px;
+  text-align: left;
+  border-radius: var(--r);
+  transition: transform 140ms var(--ease);
+}
+
+.result-main:active {
+  transform: scale(0.985);
+}
+
+.result-art {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  background: var(--surface-2);
+}
+
+.result-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 200ms;
+}
+
+.result-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.result-title {
+  font-weight: 500;
+}
+
+.result.current .result-title {
+  color: var(--accent);
+}
+
+.result-artist {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.result-time {
+  flex: none;
+  color: var(--text-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-state {
+  margin-right: 4px;
+}
+
+.result .result-state.saved {
+  color: var(--accent);
+}
+
+.result .result-state.error {
+  color: var(--danger);
+}
+
+.result-state > * {
+  animation: pop 220ms var(--spring);
+}
+
+.ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+
+.ring-track {
+  stroke: var(--fill-2);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 200ms linear;
+}
+
+.result-state > .ring.spin {
+  animation: spin 900ms linear infinite;
+}
+
+.search-empty .icon {
+  color: var(--text-3);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (max-width: 899px) {
+  .search .search-title {
+    display: flex;
+  }
+
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .search-field {
+    max-width: none;
+  }
+
+  .segmented {
+    width: auto;
+  }
+
+  .result {
+    margin: 0 -8px;
+  }
+
+  .result:hover {
+    background: none;
+  }
+}
+
+@media (hover: none) {
+  .result .result-state:hover {
+    background: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .result-state > .ring.spin {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
