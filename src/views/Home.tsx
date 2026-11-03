@@ -89,7 +89,7 @@ export function Home() {
           )}
         </div>
       )}
-      {editing && <EditHome mixTitle={mixTitle} hideMix={mode === 'phone'} onClose={() => setEditing(false)} />}
+      {editing && <EditHome mixTitle={mixTitle} omit={[...(mode === 'phone' ? ['mix'] : [])]} onClose={() => setEditing(false)} />}
     </section>
   )
 }

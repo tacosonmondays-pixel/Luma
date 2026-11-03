@@ -1,28 +1,22 @@
-import type { CSSProperties } from 'react'
 import { useLibrary } from '../lib/library.ts'
 import type { Route } from '../lib/router.ts'
 import { Avatar, PlaylistArt } from './Art.tsx'
 import { Icon } from './Icon.tsx'
 import { Link } from './kit.tsx'
-import { profileColors } from './profile/colors.ts'
-import { NameStyle } from './profile/NameStyle.tsx'
-import '../styles/profile.css'
+import { Nameplate, plateClass } from './People.tsx'
 
 const is = (on: boolean) => (on ? ' active' : '')
 
 export function Sidebar({ route }: { route: Route }) {
   const playlists = useLibrary((s) => s.playlists)
   const profile = useLibrary((s) => s.profile)
-  const name = profile.name.trim()
-  const style = name ? profile.nameStyle : undefined
   return (
     <nav className="sidebar">
       {/* The nameplate: the name style's plate and font, at rest. */}
-      <Link to="/you" className={`side-link side-profile${style ? ` plate plate-${style}` : ''}${is(route.name === 'you')}`}>
-        <span className="side-plate-vars" style={profileColors(profile, false) as CSSProperties}>
+      <Link to="/you" className={`side-link side-profile${plateClass(profile)}${is(route.name === 'you')}`}>
+        <Nameplate person={profile}>
           <Avatar size={28} />
-          <NameStyle name={name || 'You'} style={style} rest className="ns-plate" />
-        </span>
+        </Nameplate>
       </Link>
       <Link to="/" className={`side-link${is(route.name === 'home')}`}>
         <Icon name="home" size={20} />

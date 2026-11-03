@@ -1,4 +1,5 @@
-/* The sign-in sheet (Account.tsx): a bottom sheet on phones, a small centered card on desktop. */
+/* Sheets (Sheet.tsx, the sign-in sheet in Account.tsx, Edit Home, YouTube): a bottom sheet on phones, a small centered
+   card on desktop. */
 
 .sheet-scrim {
   position: fixed;
@@ -86,6 +87,56 @@
 .sheet-submit:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+/* A list in a sheet (YouTube's playlists): rows of a 44px thumbnail, a title and a button. */
+.sheet-list {
+  list-style: none;
+  margin: 0 -8px;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 0 0 8px;
+  border-radius: var(--r);
+}
+
+@media (hover: hover) {
+  .sheet-row:hover {
+    background: var(--hover);
+  }
+}
+
+.sheet-thumb {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  color: rgba(255, 255, 255, 0.85);
+  background: var(--fill);
+}
+
+.sheet-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Loading, empty or failed: one glyph or button in the middle. */
+.sheet-state {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  color: var(--text-3);
 }
 
 .spinner {

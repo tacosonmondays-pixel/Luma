@@ -273,7 +273,7 @@ try {
     apiCalls.length = 0
     await row.click()
     await page.getByRole('dialog', { name: 'YouTube' }).waitFor()
-    await page.locator('.yt-list').first().waitFor()
+    await page.locator('.sheet-row').first().waitFor()
     assert.deepEqual(await page.locator('.yt-title').allTextContents(), ['Liked Videos', 'Road Trip', 'Sunday Morning & Coffee', 'Gym'])
     assert.equal(await page.evaluate(() => window.__gisPrompt), 'consent')
     assert.ok(apiCalls.every((c) => c.auth === 'Bearer owner-token' && !c.params.key))

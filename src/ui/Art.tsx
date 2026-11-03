@@ -61,13 +61,31 @@ export function Avatar({ size }: { size: number }) {
   const profile = useLibrary((s) => s.profile)
   const animated = !!profile.avatarKind && profile.avatarKind !== 'image'
   const url = useBlobUrl(animated ? 'avatar-still' : 'avatar', profile.avatar)
-  const initial = profile.name.trim().charAt(0).toUpperCase()
+  return <Round src={url} crop={profile.avatarCrop} letter={profile.name} size={size} />
+}
+
+/** What PersonAvatar needs of someone: `avatar` is their photo's still (a URL), `crop` its placement. */
+export interface AvatarPerson {
+  name: string
+  handle: string
+  avatar?: string
+  crop?: Crop
+}
+
+/** Someone's photo (always the still, so lists never animate), else the first letter of their name or handle. */
+export function PersonAvatar({ person, size }: { person: AvatarPerson; size: number }) {
+  return <Round src={person.avatar} crop={person.crop} letter={person.name.trim() || person.handle} size={size} />
+}
+
+/** A round photo placed by its crop, else `letter`'s first character, else the user icon. */
+function Round({ src, crop, letter, size }: { src?: string; crop?: Crop; letter: string; size: number }) {
+  const initial = letter.trim().charAt(0).toUpperCase()
   // Without a photo: --fill-2 made opaque, so it looks the same over the banner, the page and a wallpaper.
-  const background = url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
+  const background = src ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
   return (
     <div className="art round crop-box" style={{ width: size, height: size, background }}>
-      {url ? (
-        <CropImg src={url} crop={profile.avatarCrop} />
+      {src ? (
+        <CropImg src={src} crop={crop} />
       ) : initial ? (
         <span className="avatar-initial" style={{ fontSize: size * 0.42 }}>
           {initial}

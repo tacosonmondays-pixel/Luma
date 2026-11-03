@@ -104,10 +104,13 @@ export function over(top: RGB, alpha: number, under: RGB): RGB {
 
 // ── The card's CSS variables ────────────────────────────────────────────
 
-/** The colors in use: the user's pick, else those from the avatar or banner, else none (the cover accent). */
-export const colorsOf = (profile: Profile) => profile.colors ?? profile.autoColors
+/** A profile's colors: yours, or someone's. */
+type Colors = Pick<Profile, 'colors' | 'autoColors'>
 
-export function profileColors(profile: Profile, withBackdrop: boolean): CSSProperties {
+/** The colors in use: the user's pick, else those from the avatar or banner, else none (the cover accent). */
+export const colorsOf = (profile: Colors) => profile.colors ?? profile.autoColors
+
+export function profileColors(profile: Colors, withBackdrop: boolean): CSSProperties {
   const pair = colorsOf(profile)
   const vars: Record<string, string> = pair
     ? {
