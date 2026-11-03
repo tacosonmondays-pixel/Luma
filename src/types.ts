@@ -11,6 +11,8 @@ export interface Track {
   source: 'youtube' | 'file'
   addedAt: number
   cover?: number // blob `cover:<id>`
+  canvas?: number // blob `canvas:<id>`: a looping image/GIF/video shown behind the Canvas player style
+  canvasKind?: MediaKind
 }
 
 export interface Playlist {
@@ -21,10 +23,46 @@ export interface Playlist {
   cover?: number // blob `playlist-cover:<id>`
 }
 
+// ── Profile ─────────────────────────────────────────────────────────────
+
+export type MediaKind = 'image' | 'animated' | 'video'
+export type FrameId = 'halo' | 'aurora' | 'vinyl' | 'orbit' | 'equalizer' | 'laurel' | 'blossoms' | 'sparkles'
+export type EffectId = 'petals' | 'snow' | 'sparkles' | 'stars' | 'notes' | 'fireflies'
+export type NameStyleId =
+  | 'shimmer' | 'aurora' | 'chrome' | 'neon' | 'glitch' | 'wave' | 'pop' | 'sparkle' | 'outline' | 'pixel' | 'script'
+
 export interface Profile {
   name: string
-  avatar?: number // blob `avatar`
-  banner?: number // blob `banner`
+  avatar?: number // blob `avatar` (+ `avatar-still` when avatarKind is 'animated')
+  avatarKind?: MediaKind // undefined = 'image'; never 'video' (videos become GIFs through the GIF maker)
+  banner?: number // blob `banner` (+ `banner-still`)
+  bannerKind?: MediaKind // never 'video'
+  backdrop?: number // blob `backdrop` (+ `backdrop-still`): the card's own background (not the app wallpaper `background`)
+  backdropKind?: MediaKind
+  colors?: [string, string] // '#rrggbb' top, bottom; undefined = Auto
+  autoColors?: [string, string] // from the avatar's still (else the banner's)
+  frame?: FrameId
+  effect?: EffectId
+  nameStyle?: NameStyleId
+  bio?: string // up to 190 characters
+  pinnedSongs?: string[] // up to 5 track ids, newest first
+  pinnedPlaylists?: string[] // up to 6 playlist ids
+}
+
+// ── Listening ───────────────────────────────────────────────────────────
+
+/** One listen, logged by plays.ts: [track id, started at (ms since epoch), listened ms]. */
+export type Play = [id: string, at: number, ms: number]
+
+export type BadgeId =
+  | 'first-spin' | 'hours' | 'streak' | 'on-repeat' | 'night-owl' | 'early-bird'
+  | 'marathon' | 'explorer' | 'crate-digger' | 'curator' | 'founder'
+export type Tier = 1 | 2 | 3 | 4 // bronze, silver, gold, holo
+export interface Badge {
+  id: BadgeId
+  tier: Tier
+  name: string
+  fresh: boolean
 }
 
 export interface Background {

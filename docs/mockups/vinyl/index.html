@@ -1,0 +1,867 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120b08">
+<title>Luma Vinyl</title>
+<style>
+@property --base { syntax: '<color>'; inherits: true; initial-value: #120b08; }
+@property --glow { syntax: '<color>'; inherits: true; initial-value: #c8562f; }
+@property --glow2 { syntax: '<color>'; inherits: true; initial-value: #e8a24a; }
+@property --accent { syntax: '<color>'; inherits: true; initial-value: #ffb380; }
+
+:root {
+  color-scheme: dark;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --swing: cubic-bezier(0.45, 0, 0.2, 1);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+html.frame { --safe-top: 54px; --safe-bottom: 30px; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: #0a0a0c; }
+body { color: #fff; overflow: hidden; overscroll-behavior: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+.icon { display: block; }
+
+/* ── Room ───────────────────────────────────────────────────────── */
+
+.np {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--base);
+  transition: --base 900ms ease, --glow 900ms ease, --glow2 900ms ease, --accent 900ms ease;
+}
+
+/* The page wash: cover colours, no blur. */
+.room {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 70% at 50% -10%, color-mix(in oklab, var(--glow) 34%, transparent), transparent 70%),
+    radial-gradient(90% 60% at 100% 105%, color-mix(in oklab, var(--glow2) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--glow) 12%, var(--base)), var(--base) 75%);
+}
+.room::after {
+  /* film grain, static */
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Sheet ──────────────────────────────────────────────────────── */
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  height: 100%;
+  padding: calc(var(--safe-top) + 6px) 24px calc(var(--safe-bottom) + 22px);
+}
+
+.top {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 44px;
+  margin-left: -10px;
+}
+
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.8);
+  transition: transform 140ms var(--ease), background 140ms, color 140ms;
+}
+.icon-btn:active { transform: scale(0.88); }
+@media (hover: hover) { .icon-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.08); } }
+
+/* ── Deck ───────────────────────────────────────────────────────── */
+
+.stage {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  margin: 0 -24px;
+  padding-top: 40px;
+  container-type: size;
+}
+
+.deck {
+  position: relative;
+  width: min(100cqw, 100cqh);
+  aspect-ratio: 1;
+  container-type: inline-size;
+}
+
+/* Warm pool of light under the record, tinted by the cover. */
+.glow {
+  position: absolute;
+  left: -30cqw;
+  top: -26cqw;
+  width: 152cqw;
+  height: 152cqw;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--glow) 58%, transparent), color-mix(in oklab, var(--glow) 22%, transparent) 55%, transparent);
+  transition: opacity 1200ms ease;
+}
+.np:not(.playing) .glow { opacity: 0.6; }
+
+/* Record geometry, in deck units: centre (46.1, 52), radius 40. */
+.record {
+  position: absolute;
+  left: 6.1cqw;
+  top: 12cqw;
+  width: 80cqw;
+  height: 80cqw;
+  border-radius: 50%;
+  background: #0b0b0c;
+  box-shadow:
+    0 0.4cqw 0.8cqw rgba(0, 0, 0, 0.5),
+    0 6cqw 12cqw -2cqw rgba(0, 0, 0, 0.7),
+    0 0 0 0.25cqw rgba(0, 0, 0, 0.6);
+}
+
+.grooves,
+.sheen,
+.spin,
+.label,
+.spindle {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.grooves { inset: 0; width: 100%; height: 100%; }
+
+/* Only the label turns: concentric grooves look the same at any angle. */
+.spin {
+  inset: 29%;
+  will-change: transform;
+}
+
+.label {
+  inset: 0;
+  overflow: hidden;
+  box-shadow: 0 0 0 0.15cqw rgba(0, 0, 0, 0.55);
+  transition: opacity 180ms ease;
+}
+.label svg { display: block; width: 100%; height: 100%; }
+.label::after {
+  /* matte paper: soft edge shading */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 62%, rgba(0, 0, 0, 0.22) 100%);
+}
+.label.swap { opacity: 0; }
+
+/* Fixed reflections: the lamp does not turn with the record. */
+.sheen {
+  inset: 0;
+  pointer-events: none;
+  background:
+    conic-gradient(from 0deg,
+      transparent 0deg 96deg,
+      rgba(255, 255, 255, 0.02) 110deg,
+      rgba(255, 255, 255, 0.07) 124deg,
+      rgba(255, 255, 255, 0.12) 135deg,
+      rgba(255, 255, 255, 0.07) 146deg,
+      rgba(255, 255, 255, 0.02) 160deg,
+      transparent 174deg 276deg,
+      color-mix(in oklab, var(--accent) 5%, transparent) 290deg,
+      color-mix(in oklab, var(--accent) 17%, transparent) 304deg,
+      color-mix(in oklab, var(--accent) 28%, transparent) 315deg,
+      color-mix(in oklab, var(--accent) 17%, transparent) 326deg,
+      color-mix(in oklab, var(--accent) 5%, transparent) 340deg,
+      transparent 354deg),
+    radial-gradient(circle at 30% 26%, rgba(255, 255, 255, 0.07), transparent 48%);
+  -webkit-mask: radial-gradient(circle, transparent 0 21.2%, #000 22% 99%, transparent 99.6%);
+  mask: radial-gradient(circle, transparent 0 21.2%, #000 22% 99%, transparent 99.6%);
+}
+
+.spindle {
+  left: 50%;
+  top: 50%;
+  width: 2.6cqw;
+  height: 2.6cqw;
+  margin: -1.3cqw 0 0 -1.3cqw;
+  background: radial-gradient(circle at 38% 34%, #fdfdfd, #b9b9be 38%, #6c6c72 70%, #3b3b40);
+  box-shadow: 0 0.2cqw 0.5cqw rgba(0, 0, 0, 0.6);
+}
+
+/* ── Tonearm ────────────────────────────────────────────────────── */
+
+/* Pivot at (90, 10); rotate 0 hangs straight down. */
+.arm,
+.arm-shadow,
+.arm-base {
+  position: absolute;
+  left: 90cqw;
+  top: 10cqw;
+  width: 0;
+  height: 0;
+}
+
+.arm-base::before {
+  content: '';
+  position: absolute;
+  left: -4.6cqw;
+  top: -4.6cqw;
+  width: 9.2cqw;
+  height: 9.2cqw;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #34343a, #18181b 70%);
+  box-shadow:
+    inset 0 0 0 0.12cqw rgba(255, 255, 255, 0.07),
+    0 0.6cqw 1.6cqw rgba(0, 0, 0, 0.55);
+}
+
+.arm svg,
+.arm-shadow svg {
+  position: absolute;
+  left: -10cqw;
+  top: -10cqw;
+  width: 20cqw;
+  height: 72cqw;
+  overflow: visible;
+}
+
+.arm,
+.arm-shadow {
+  rotate: var(--a, -4deg);
+  will-change: rotate;
+  transition: rotate 820ms var(--swing);
+}
+
+.arm { scale: 1.012; transition: rotate 820ms var(--swing), scale 260ms ease; }
+.np.down .arm { scale: 1; }
+
+.arm-shadow {
+  translate: 1.8cqw 2.6cqw;
+  opacity: 0.3;
+  transition: rotate 820ms var(--swing), translate 260ms ease, opacity 260ms ease;
+}
+.np.down .arm-shadow { translate: 0.55cqw 0.9cqw; opacity: 0.6; }
+
+/* ── Meta, scrubber, transport ──────────────────────────────────── */
+
+.panel { flex: none; display: flex; flex-direction: column; }
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+.text { flex: 1; min-width: 0; }
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.artist {
+  font-size: 17px;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.more {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.12);
+}
+@media (hover: hover) { .more:hover { background: rgba(255, 255, 255, 0.2); } }
+
+.range {
+  --h: 4px;
+  --fill: rgba(255, 255, 255, 0.72);
+  --rest: rgba(255, 255, 255, 0.2);
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+}
+.range::-webkit-slider-runnable-track {
+  height: var(--h);
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill) var(--p, 0%), var(--rest) var(--p, 0%));
+  transition: height 160ms var(--ease);
+}
+.range::-moz-range-track {
+  height: var(--h);
+  border-radius: 999px;
+  background: linear-gradient(to right, var(--fill) var(--p, 0%), var(--rest) var(--p, 0%));
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: calc((var(--h) - 12px) / 2);
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0;
+}
+.range::-moz-range-thumb { width: 12px; height: 12px; border: 0; border-radius: 50%; background: #fff; opacity: 0; }
+@media (pointer: coarse) {
+  .range { height: 32px; }
+  .range::-webkit-slider-thumb { width: 40px; height: 40px; margin-top: calc((var(--h) - 40px) / 2); background: transparent; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .range:hover { --fill: #fff; }
+  .range:hover::-webkit-slider-thumb { opacity: 1; }
+}
+
+.scrub {
+  display: grid;
+  grid-template-areas: 'bar bar' 'elapsed remaining';
+  margin-top: 18px;
+}
+.scrub .range { grid-area: bar; }
+.scrub.dragging .range { --h: 9px; --fill: #fff; }
+.time {
+  margin-top: -2px;
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.5);
+}
+.time.left { grid-area: elapsed; }
+.time.right { grid-area: remaining; text-align: right; }
+.scrub.dragging .time { color: rgba(255, 255, 255, 0.85); }
+
+.transport {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px -6px 0;
+}
+.mode { position: relative; color: rgba(255, 255, 255, 0.62); }
+.mode.on { color: var(--accent); }
+.mode.on::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.skip { width: 64px; height: 64px; color: #fff; }
+.play { display: inline-grid; place-items: center; width: 76px; height: 76px; color: #fff; }
+.play .swap {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  transition: opacity 160ms, transform 220ms var(--ease);
+}
+.np.playing .play .swap.p,
+.np:not(.playing) .play .swap.z { opacity: 0; transform: scale(0.6); }
+
+.volume { display: none; }
+
+/* ── Desktop ────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .sheet {
+    max-width: none;
+    display: grid;
+    grid-template-columns: minmax(0, 700px) 360px;
+    grid-template-rows: 1fr;
+    align-items: center;
+    justify-content: center;
+    column-gap: 72px;
+    padding: 40px 56px;
+  }
+  .top { position: absolute; top: 18px; left: 26px; margin: 0; }
+  .stage { height: min(700px, calc(100vh - 120px)); margin: 0; padding: 0; }
+  .panel { padding-bottom: 8px; }
+  .title { font-size: 28px; letter-spacing: -0.02em; line-height: 1.2; }
+  .artist { font-size: 19px; margin-top: 2px; }
+  .meta { margin-top: 0; }
+  .scrub { margin-top: 28px; }
+  .transport { margin-top: 14px; }
+  .volume { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+  .vol-icon { display: inline-grid; place-items: center; width: 28px; height: 28px; color: rgba(255, 255, 255, 0.55); }
+  .skip, .play { border-radius: 50%; transition: background 140ms, transform 140ms var(--ease); }
+  .skip:hover, .play:hover { background: rgba(255, 255, 255, 0.08); }
+  .skip:active, .play:active { transform: scale(0.9); }
+}
+
+/* ── Phone frame (screenshots only) ─────────────────────────────── */
+
+.status, .home { display: none; }
+html.frame .status {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 54px;
+  padding: 4px 30px 0 46px;
+  font: 600 17px/1 Inter, system-ui, sans-serif;
+  letter-spacing: -0.01em;
+  pointer-events: none;
+}
+html.frame .status .island {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 124px;
+  height: 36px;
+  margin-left: -62px;
+  border-radius: 20px;
+  background: #000;
+}
+html.frame .status .sys { display: flex; align-items: center; gap: 6px; }
+html.frame .home {
+  display: block;
+  position: fixed;
+  left: 50%;
+  bottom: 8px;
+  z-index: 5;
+  width: 136px;
+  height: 5px;
+  margin-left: -68px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arm, .arm-shadow, .label, .glow, .play .swap { transition: none !important; }
+  .np { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="status" aria-hidden="true">
+  <span>9:41</span>
+  <span class="island"></span>
+  <span class="sys">
+    <svg width="18" height="12" viewBox="0 0 18 12" fill="#fff"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+    <svg width="16" height="12" viewBox="0 0 16 12" fill="#fff"><path d="M8 2.6c2.2 0 4.2.8 5.7 2.2l1.1-1.1A9.6 9.6 0 0 0 8 1 9.6 9.6 0 0 0 1.2 3.7l1.1 1.1A8 8 0 0 1 8 2.6Zm0 3.1c1.4 0 2.6.5 3.5 1.3l1.1-1.1A6.5 6.5 0 0 0 8 4.1 6.5 6.5 0 0 0 3.4 5.9L4.5 7c.9-.8 2.1-1.3 3.5-1.3Zm0 3.1c.6 0 1.1.2 1.4.5L8 10.9 6.6 9.3c.3-.3.8-.5 1.4-.5Z"/></svg>
+    <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.8" fill="none" stroke="rgba(255,255,255,.4)"/><rect x="2.5" y="2.5" width="19" height="8" rx="2" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2Z" fill="rgba(255,255,255,.4)"/></svg>
+  </span>
+</div>
+
+<div class="np playing down" id="np" role="dialog" aria-label="Now Playing">
+  <div class="room"></div>
+  <div class="sheet">
+    <div class="top">
+      <button class="icon-btn" aria-label="Close">
+        <svg class="icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="stage">
+      <div class="deck" id="deck">
+        <div class="glow"></div>
+        <div class="record">
+          <canvas class="grooves" id="grooves"></canvas>
+          <div class="sheen"></div>
+          <div class="spin" id="spin"><div class="label" id="label"></div></div>
+          <div class="spindle"></div>
+        </div>
+
+        <div class="arm-base"></div>
+        <div class="arm-shadow" aria-hidden="true">
+          <svg viewBox="-100 -100 200 720">
+            <defs><filter id="sh" x="-1" y="-1" width="3" height="3"><feGaussianBlur stdDeviation="7"/></filter></defs>
+            <g fill="#000" filter="url(#sh)">
+              <rect x="-24" y="-92" width="48" height="58" rx="10"/>
+              <rect x="-6" y="-30" width="12" height="470" rx="6"/>
+              <rect x="-17" y="428" width="34" height="86" rx="8"/>
+            </g>
+          </svg>
+        </div>
+        <div class="arm" aria-hidden="true">
+          <svg viewBox="-100 -100 200 720">
+            <defs>
+              <linearGradient id="rod" x1="0" x2="1">
+                <stop offset="0" stop-color="#5d5d63"/>
+                <stop offset=".38" stop-color="#f6f6f8"/>
+                <stop offset=".7" stop-color="#a3a3a9"/>
+                <stop offset="1" stop-color="#4c4c51"/>
+              </linearGradient>
+              <linearGradient id="weight" x1="0" x2="1">
+                <stop offset="0" stop-color="#3a3a3f"/>
+                <stop offset=".34" stop-color="#d9d9de"/>
+                <stop offset=".62" stop-color="#8b8b91"/>
+                <stop offset="1" stop-color="#2e2e33"/>
+              </linearGradient>
+              <linearGradient id="head" x1="0" x2="1">
+                <stop offset="0" stop-color="#121214"/>
+                <stop offset=".45" stop-color="#2e2e33"/>
+                <stop offset="1" stop-color="#0f0f11"/>
+              </linearGradient>
+              <radialGradient id="bearing" cx=".42" cy=".38" r=".7">
+                <stop offset="0" stop-color="#ffffff"/>
+                <stop offset=".45" stop-color="#b8b8be"/>
+                <stop offset="1" stop-color="#55555b"/>
+              </radialGradient>
+            </defs>
+            <!-- counterweight -->
+            <rect x="-24" y="-92" width="48" height="58" rx="10" fill="url(#weight)"/>
+            <rect x="-24" y="-46" width="48" height="4" fill="rgba(0,0,0,.35)"/>
+            <!-- rod -->
+            <rect x="-5.5" y="-34" width="11" height="476" rx="5.5" fill="url(#rod)"/>
+            <!-- headshell -->
+            <path d="M-13 432h26a4 4 0 0 1 4 4v68a10 10 0 0 1-10 10h-14a10 10 0 0 1-10-10v-68a4 4 0 0 1 4-4Z" fill="url(#head)" stroke="rgba(255,255,255,.14)" stroke-width="1.5"/>
+            <path d="M17 446c8 0 14-3 19-9" fill="none" stroke="url(#rod)" stroke-width="5" stroke-linecap="round"/>
+            <rect x="-9" y="486" width="18" height="16" rx="3" fill="#c98f5a" id="cart"/>
+            <!-- bearing -->
+            <circle r="25" fill="url(#bearing)"/>
+            <circle r="25" fill="none" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>
+            <circle r="10" fill="#1b1b1e"/>
+            <circle r="10" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="meta">
+        <div class="text">
+          <h2 class="title" id="title"></h2>
+          <p class="artist" id="artist"></p>
+        </div>
+        <button class="icon-btn more" aria-label="More">
+          <svg class="icon" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+        </button>
+      </div>
+
+      <div class="scrub" id="scrub">
+        <input class="range" id="pos" type="range" min="0" max="228" step="any" value="0" aria-label="Position">
+        <span class="time left" id="elapsed">0:00</span>
+        <span class="time right" id="remain">&minus;0:00</span>
+      </div>
+
+      <div class="transport">
+        <button class="icon-btn mode" id="shuffle" aria-label="Shuffle">
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22M18 2l4 4-4 4M2 6h1.9c1.5 0 2.9.9 3.6 2.2M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8M18 14l4 4-4 4"/></svg>
+        </button>
+        <button class="icon-btn skip" id="prev" aria-label="Previous">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 6.6v10.8a1 1 0 0 1-1.55.83L12.5 13.4v4a1 1 0 0 1-1.55.83l-8.04-5.4a1 1 0 0 1 0-1.66l8.04-5.4a1 1 0 0 1 1.55.83v4l7.45-4.83a1 1 0 0 1 1.55.83Z"/></svg>
+        </button>
+        <button class="play" id="play" aria-label="Pause">
+          <span class="swap p"><svg class="icon" width="46" height="46" viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 5.1v13.8a1 1 0 0 0 1.53.85l10.9-6.9a1 1 0 0 0 0-1.7L9.03 4.25A1 1 0 0 0 7.5 5.1Z"/></svg></span>
+          <span class="swap z"><svg class="icon" width="46" height="46" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4.2" height="15" rx="1.3"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.3"/></svg></span>
+        </button>
+        <button class="icon-btn skip" id="next" aria-label="Next">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 6.6v10.8a1 1 0 0 0 1.55.83L11.5 13.4v4a1 1 0 0 0 1.55.83l8.04-5.4a1 1 0 0 0 0-1.66l-8.04-5.4A1 1 0 0 0 11.5 6.6v4L4.05 5.77A1 1 0 0 0 2.5 6.6Z"/></svg>
+        </button>
+        <button class="icon-btn mode" id="repeat" aria-label="Repeat">
+          <svg class="icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+      </div>
+
+      <div class="volume">
+        <span class="vol-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5ZM16 9a5 5 0 0 1 0 6"/></svg></span>
+        <input class="range" id="vol" type="range" min="0" max="1" step="0.01" value="0.7" aria-label="Volume">
+        <span class="vol-icon"><svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5ZM16 9a5 5 0 0 1 0 6M19.4 18.4a9 9 0 0 0 0-12.8"/></svg></span>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="home" aria-hidden="true"></div>
+
+<script>
+// Fictional songs with original, hand-drawn covers.
+const SONGS = [
+  {
+    title: 'Slow Bloom',
+    artist: 'Ines Harrow',
+    duration: 228,
+    palette: { base: '#140c09', glow: '#c9582f', glow2: '#eaa64c', accent: '#ffb27c' },
+    cover: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ee9050"/><stop offset="1" stop-color="#b9412a"/></linearGradient></defs>
+      <rect width="100" height="100" fill="url(#c1)"/>
+      <circle cx="36" cy="36" r="24" fill="#f7e4c4"/>
+      <path d="M100 100H44a56 56 0 0 1 56-56Z" fill="#2b1d33"/>
+      <circle cx="76" cy="76" r="9" fill="#f2b23d"/>
+      <path d="M8 74c9-6 18-6 27 0s18 6 27 0" fill="none" stroke="#f7e4c4" stroke-width="2.4" stroke-linecap="round"/>
+      <path d="M8 82c9-6 18-6 27 0" fill="none" stroke="#f7e4c4" stroke-width="2.4" stroke-linecap="round" opacity=".55"/>
+    </svg>`,
+  },
+  {
+    title: 'Paper Tides',
+    artist: 'The Low Lanterns',
+    duration: 201,
+    palette: { base: '#06100f', glow: '#1f7f7c', glow2: '#e2a84b', accent: '#8de2d6' },
+    cover: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="c2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f5a63"/><stop offset="1" stop-color="#0a2d36"/></linearGradient></defs>
+      <rect width="100" height="100" fill="url(#c2)"/>
+      <circle cx="72" cy="26" r="8" fill="#f4e7d0"/>
+      <g fill="none" stroke-width="7">
+        <path d="M8 100a42 42 0 0 1 84 0" stroke="#f2c14e"/>
+        <path d="M18 100a32 32 0 0 1 64 0" stroke="#e9765b"/>
+        <path d="M28 100a22 22 0 0 1 44 0" stroke="#f4e7d0"/>
+      </g>
+    </svg>`,
+  },
+  {
+    title: 'Night Swim',
+    artist: 'Marlo Vey',
+    duration: 254,
+    palette: { base: '#0d0914', glow: '#7a3c94', glow2: '#d55a7d', accent: '#f2a9d4' },
+    cover: `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="c3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b1949"/><stop offset="1" stop-color="#7a2c5f"/></linearGradient></defs>
+      <rect width="100" height="100" fill="url(#c3)"/>
+      <path d="M62 18a24 24 0 1 0 20 38 20 20 0 1 1-20-38Z" fill="#ffb6c9"/>
+      <g fill="#fff"><circle cx="22" cy="24" r="1.2"/><circle cx="34" cy="14" r=".9"/><circle cx="16" cy="44" r=".9"/><circle cx="86" cy="18" r="1"/></g>
+      <g stroke="#ffb6c9" stroke-width="2" stroke-linecap="round" opacity=".7"><path d="M14 74h30"/><path d="M52 74h34"/><path d="M24 82h52" opacity=".6"/><path d="M36 90h28" opacity=".4"/></g>
+    </svg>`,
+  },
+]
+
+const $ = (id) => document.getElementById(id)
+const np = $('np'), label = $('label'), pos = $('pos'), scrub = $('scrub')
+const reduce = matchMedia('(prefers-reduced-motion: reduce)')
+
+const state = { index: 0, time: 76, playing: true, shuffle: false, repeat: false }
+
+// ── Geometry (deck units 0..1): record centre, radius, arm pivot, arm length ──
+const C = { x: 0.461, y: 0.52 }, R = 0.4, P = { x: 0.9, y: 0.1 }, L = 0.5
+const REST = -4 // degrees, arm parked beside the record
+const R_OUT = R * 0.955, R_IN = R * 0.47 // first and last groove
+
+/** Arm angle that puts the needle on the groove at radius r. Positive turns clockwise, toward the record. */
+function angleFor(r) {
+  let lo = 0, hi = 70
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2, t = (mid * Math.PI) / 180
+    const nx = P.x - L * Math.sin(t), ny = P.y + L * Math.cos(t)
+    if (Math.hypot(nx - C.x, ny - C.y) > r) lo = mid
+    else hi = mid
+  }
+  return (lo + hi) / 2
+}
+
+let armDeg = REST
+function setArm(deg) {
+  armDeg = deg
+  np.style.setProperty('--a', deg.toFixed(2) + 'deg')
+}
+function armForTime() {
+  const p = Math.min(1, state.time / SONGS[state.index].duration)
+  return angleFor(R_OUT + (R_IN - R_OUT) * p)
+}
+
+// ── Grooves: drawn once into a canvas, never repainted while spinning ──
+function drawGrooves() {
+  const cv = $('grooves')
+  const css = cv.getBoundingClientRect().width
+  const dpr = Math.min(window.devicePixelRatio || 1, 3)
+  const W = Math.round(css * dpr)
+  if (!W || cv.width === W) return
+  cv.width = cv.height = W
+  const ctx = cv.getContext('2d')
+  const c = W / 2, r = W / 2
+  const base = ctx.createRadialGradient(c, c, 0, c, c, r)
+  base.addColorStop(0, '#151517')
+  base.addColorStop(1, '#0a0a0b')
+  ctx.fillStyle = base
+  ctx.beginPath(); ctx.arc(c, c, r, 0, Math.PI * 2); ctx.fill()
+
+  let seed = 11
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const gaps = [0.585, 0.665, 0.795, 0.875].map((f) => f * r)
+  const step = Math.max(1, dpr * 0.75)
+  ctx.lineWidth = Math.max(0.6, dpr * 0.4)
+  for (let rr = r * 0.47; rr < r * 0.965; rr += step) {
+    if (gaps.some((g) => Math.abs(rr - g) < dpr * 2.4)) continue
+    const k = rr / r
+    const env = 0.55 + 0.45 * Math.sin(k * 61) * Math.sin(k * 13 + 1.1)
+    const a = 0.025 + 0.06 * env * (0.6 + 0.4 * rnd())
+    ctx.strokeStyle = `rgba(255,255,255,${a.toFixed(3)})`
+    ctx.beginPath(); ctx.arc(c, c, rr, 0, Math.PI * 2); ctx.stroke()
+  }
+  // quiet bands between songs on the record
+  for (const g of gaps) {
+    ctx.lineWidth = dpr * 1.8
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'
+    ctx.beginPath(); ctx.arc(c, c, g, 0, Math.PI * 2); ctx.stroke()
+    ctx.lineWidth = Math.max(0.6, dpr * 0.5)
+    ctx.strokeStyle = 'rgba(255,255,255,.035)'
+    ctx.beginPath(); ctx.arc(c, c, g + dpr * 1.2, 0, Math.PI * 2); ctx.stroke()
+  }
+  // run-out rings and the lip of the record
+  ctx.lineWidth = Math.max(0.6, dpr * 0.5)
+  for (const f of [0.445, 0.455]) {
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'
+    ctx.beginPath(); ctx.arc(c, c, r * f, 0, Math.PI * 2); ctx.stroke()
+  }
+  ctx.lineWidth = dpr * 1.2
+  ctx.strokeStyle = 'rgba(255,255,255,.09)'
+  ctx.beginPath(); ctx.arc(c, c, r - dpr * 1.6, 0, Math.PI * 2); ctx.stroke()
+}
+
+// ── Spin: one compositor animation; only its speed is eased ──
+const REV = 3600 // ms per turn, a calm take on 33⅓
+const spin = $('spin').animate([{ transform: 'rotate(0turn)' }, { transform: 'rotate(1turn)' }], { duration: REV, iterations: Infinity })
+spin.playbackRate = 1
+let rampFrame = 0
+function ramp(to, ms) {
+  cancelAnimationFrame(rampFrame)
+  if (reduce.matches) {
+    spin.pause() // reduced motion: the label never turns
+    return
+  }
+  if (to > 0 && spin.playState !== 'running') spin.play()
+  const from = spin.playbackRate, t0 = performance.now()
+  const tick = (now) => {
+    const k = Math.min(1, (now - t0) / ms)
+    // speeding up: smooth; slowing down: coasts like a heavy platter
+    const e = to > from ? k * k * (3 - 2 * k) : 1 - (1 - k) * (1 - k)
+    spin.playbackRate = Math.max(0.0001, from + (to - from) * e)
+    if (k < 1) rampFrame = requestAnimationFrame(tick)
+    else if (to === 0) spin.pause()
+  }
+  rampFrame = requestAnimationFrame(tick)
+}
+
+// ── Render ──
+const fmt = (s) => { s = Math.max(0, Math.round(s)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
+function renderTime() {
+  const d = SONGS[state.index].duration
+  pos.max = d
+  if (!scrub.classList.contains('dragging')) pos.value = state.time
+  pos.style.setProperty('--p', (state.time / d) * 100 + '%')
+  $('elapsed').textContent = fmt(state.time)
+  $('remain').textContent = '\u2212' + fmt(d - state.time)
+}
+
+function renderSong(animate) {
+  const s = SONGS[state.index]
+  for (const [k, v] of Object.entries(s.palette)) np.style.setProperty('--' + k, v)
+  document.querySelector('meta[name=theme-color]').content = s.palette.base
+  $('title').textContent = s.title
+  $('artist').textContent = s.artist
+  if (animate && !reduce.matches) {
+    label.classList.add('swap')
+    setTimeout(() => { label.innerHTML = s.cover; label.classList.remove('swap') }, 180)
+  } else label.innerHTML = s.cover
+  renderTime()
+}
+
+let timers = []
+const later = (fn, ms) => timers.push(setTimeout(fn, reduce.matches ? 0 : ms))
+const clearLater = () => { timers.forEach(clearTimeout); timers = [] }
+
+function setPlaying(on) {
+  state.playing = on
+  clearLater()
+  np.classList.toggle('playing', on)
+  $('play').setAttribute('aria-label', on ? 'Pause' : 'Play')
+  if (on) {
+    ramp(1, 700) // platter starts first
+    setArm(armForTime()) // arm swings over, still lifted
+    later(() => np.classList.add('down'), 760) // then the needle drops
+  } else {
+    np.classList.remove('down') // lift first
+    later(() => setArm(REST), 180) // then swing home
+    ramp(0, 1500)
+  }
+}
+
+function go(dir) {
+  const n = SONGS.length
+  state.index = state.shuffle && dir > 0 ? (state.index + 1 + Math.floor(Math.random() * (n - 1))) % n : (state.index + dir + n) % n
+  state.time = 0
+  renderSong(true)
+  if (state.playing) {
+    clearLater()
+    np.classList.remove('down') // lift, move back to the first groove, drop
+    later(() => setArm(armForTime()), 160)
+    later(() => np.classList.add('down'), 940)
+  }
+}
+
+// ── Wire up ──
+$('play').onclick = () => setPlaying(!state.playing)
+$('next').onclick = () => go(1)
+$('prev').onclick = () => (state.time > 3 ? ((state.time = 0), renderTime(), state.playing && setArm(armForTime())) : go(-1))
+$('shuffle').onclick = (e) => { state.shuffle = !state.shuffle; e.currentTarget.classList.toggle('on', state.shuffle) }
+$('repeat').onclick = (e) => { state.repeat = !state.repeat; e.currentTarget.classList.toggle('on', state.repeat) }
+
+pos.addEventListener('pointerdown', () => scrub.classList.add('dragging'))
+const endDrag = () => scrub.classList.remove('dragging')
+pos.addEventListener('pointerup', endDrag)
+pos.addEventListener('pointercancel', endDrag)
+pos.addEventListener('input', () => {
+  state.time = Number(pos.value)
+  renderTime()
+  if (state.playing) setArm(armForTime()) // the needle follows the scrubber
+})
+
+const vol = $('vol')
+const paintVol = () => vol.style.setProperty('--p', vol.value * 100 + '%')
+vol.addEventListener('input', paintVol)
+paintVol()
+
+let last = performance.now()
+setInterval(() => {
+  const now = performance.now(), dt = (now - last) / 1000
+  last = now
+  if (!state.playing) return
+  state.time += dt
+  if (state.time >= SONGS[state.index].duration) {
+    if (state.repeat) state.time = 0
+    else return go(1)
+  }
+  renderTime()
+  // the needle creeps inward about 0.1° a second; nudge it only when it has drifted enough to see
+  const target = armForTime()
+  if (Math.abs(target - armDeg) > 0.3) setArm(target)
+}, 250)
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') { e.preventDefault(); setPlaying(!state.playing) }
+})
+
+// Initial paint
+renderSong(false)
+setArm(armForTime())
+drawGrooves()
+new ResizeObserver(drawGrooves).observe($('grooves'))
+
+// Hooks for the screenshot script
+window.__luma = { state, spin, setPlaying, go, setArm, armForTime, REST }
+</script>
+</body>
+</html>

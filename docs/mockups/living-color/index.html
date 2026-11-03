@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Living Color</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0c;
+  --text: #f5f5f7;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --st: env(safe-area-inset-top, 0px);
+  --sb: env(safe-area-inset-bottom, 0px);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; background: #000; }
+body { color: var(--text); overflow: hidden; overscroll-behavior: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; touch-action: manipulation; }
+svg { display: block; }
+
+@property --h { syntax: '<length>'; inherits: true; initial-value: 3px; }
+
+/* ── Living background ───────────────────────────────────────────── */
+
+.np { position: fixed; inset: 0; overflow: hidden; background: #000; color: #fff; outline: none; }
+
+.bg { position: absolute; inset: 0; pointer-events: none; contain: strict; }
+.scene { position: absolute; inset: 0; }
+.scene.entering { opacity: 0; }
+.blob {
+  position: absolute;
+  display: block;
+  will-change: transform;
+}
+
+/* Legibility: a quiet vignette, slightly deeper at the bottom where the controls sit. */
+.shade {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 50% 38%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.22) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.1) 45%, rgba(0, 0, 0, 0.34));
+  transition: opacity 900ms var(--ease);
+}
+.dim {
+  position: absolute;
+  inset: 0;
+  background: #000;
+  opacity: 0;
+  transition: opacity 900ms var(--ease);
+}
+.np:not(.playing) .dim { opacity: 0.16; }
+
+/* Static grain stops banding in the dark gradients. It never animates. */
+.grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.07;
+  background-size: 180px 180px;
+}
+
+/* ── Sheet ───────────────────────────────────────────────────────── */
+
+.sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 460px;
+  height: 100%;
+  margin: 0 auto;
+  padding: calc(var(--st) + 2px) 24px calc(var(--sb) + 58px);
+}
+
+.top { flex: none; display: flex; align-items: center; justify-content: center; height: 30px; }
+
+.grabber { display: grid; place-items: center; width: 72px; height: 30px; }
+.grabber span {
+  width: 38px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.36);
+  transition: background 160ms;
+}
+.grabber:active span { background: rgba(255, 255, 255, 0.6); }
+
+.close { display: none; }
+
+.stage {
+  flex: 1 1 0;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px 0 6px;
+  container-type: size;
+}
+
+.art {
+  position: relative;
+  width: min(100cqw, 100cqh);
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  transform: scale(0.86);
+  box-shadow: 0 18px 40px -14px rgba(0, 0, 0, 0.5);
+  transition: transform 460ms var(--ease), box-shadow 460ms var(--ease);
+}
+.np.playing .art {
+  transform: none;
+  box-shadow: 0 34px 70px -16px rgba(0, 0, 0, 0.62), 0 8px 22px -10px rgba(0, 0, 0, 0.4);
+  transition: transform 680ms var(--spring), box-shadow 680ms var(--ease);
+}
+.art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+}
+.art img { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.art img.in { animation: art-in 380ms var(--ease) both; }
+.art img.out { animation: art-out 300ms var(--ease) both; }
+@keyframes art-in { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 14px)) scale(0.985); } }
+@keyframes art-out { to { opacity: 0; transform: translateX(calc(var(--dir, 1) * -14px)) scale(0.985); } }
+
+.controls { flex: none; }
+
+.meta { display: flex; align-items: center; gap: 14px; margin-top: 30px; }
+.text { flex: 1; min-width: 0; }
+.text.swap { animation: text-in 380ms var(--ease) both; }
+@keyframes text-in { from { opacity: 0; transform: translateY(4px); } }
+.title, .artist { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.title { font-size: 21px; font-weight: 650; letter-spacing: -0.018em; line-height: 1.24; }
+.artist { margin-top: 1px; font-size: 19px; font-weight: 400; letter-spacing: -0.01em; line-height: 1.3; color: rgba(255, 255, 255, 0.6); }
+
+.more {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.13);
+  color: rgba(255, 255, 255, 0.86);
+  transition: background 160ms, transform 140ms var(--ease);
+}
+.more:active { transform: scale(0.88); }
+
+/* ── Time bar ────────────────────────────────────────────────────── */
+
+.scrub { margin-top: 26px; }
+.range {
+  --h: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: none;
+  transition: --h 220ms var(--ease);
+}
+.range:focus { outline: none; }
+.range::-webkit-slider-runnable-track {
+  height: var(--h);
+  border-radius: 999px;
+  background: linear-gradient(to right, rgba(255, 255, 255, var(--fa, 0.78)) var(--p, 0%), rgba(255, 255, 255, 0.17) var(--p, 0%));
+}
+.range::-moz-range-track {
+  height: var(--h);
+  border-radius: 999px;
+  background: linear-gradient(to right, rgba(255, 255, 255, var(--fa, 0.78)) var(--p, 0%), rgba(255, 255, 255, 0.17) var(--p, 0%));
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 40px;
+  height: 40px;
+  margin-top: calc((var(--h) - 40px) / 2);
+  border: 0;
+  background: transparent;
+}
+.range::-moz-range-thumb { width: 40px; height: 40px; border: 0; background: transparent; }
+.scrub.dragging .range { --h: 7px; --fa: 1; }
+
+.times {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1px;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: rgba(255, 255, 255, 0.46);
+  transition: color 180ms;
+}
+.scrub.dragging .times { color: rgba(255, 255, 255, 0.86); }
+
+/* ── Transport ───────────────────────────────────────────────────── */
+
+.transport { display: flex; align-items: center; justify-content: space-between; margin: 18px -8px 0; }
+
+.btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  -webkit-touch-callout: none;
+  user-select: none;
+  transition: transform 140ms var(--ease), background 160ms, color 160ms;
+}
+.btn:active { transform: scale(0.86); }
+
+.mode { width: 46px; height: 46px; color: rgba(255, 255, 255, 0.5); }
+.mode.on { color: #fff; }
+.mode::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 160ms, transform 220ms var(--ease);
+}
+.mode.on::after { opacity: 1; transform: none; }
+
+.skip { width: 66px; height: 66px; color: #fff; }
+.play { width: 82px; height: 82px; color: #fff; }
+.play:active { transform: scale(0.9); }
+.play .g { grid-area: 1 / 1; display: grid; place-items: center; transition: opacity 160ms, transform 240ms var(--ease); }
+.np.playing .play .g-play, .np:not(.playing) .play .g-pause { opacity: 0; transform: scale(0.6); }
+
+/* ── Volume (desktop only: iOS volume is hardware-only) ─────────── */
+
+.volume { display: none; align-items: center; gap: 10px; margin-top: 18px; color: rgba(255, 255, 255, 0.5); }
+.volume .range { flex: 1; }
+.volume .vi { display: grid; place-items: center; width: 26px; height: 26px; flex: none; transition: color 140ms; }
+.volume .vi:hover { color: #fff; }
+
+/* ── Device chrome for phone screenshots only (?device) ─────────── */
+
+.device { display: none; }
+.is-device { --st: 59px; --sb: 34px; }
+.is-device .device { display: block; }
+.is-device .status { display: flex; }
+.status {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 5;
+  height: 54px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 30px 0 46px;
+  font-family: -apple-system, 'SF Pro Text', Inter, system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.status .icons { display: flex; align-items: center; gap: 6px; }
+.island { position: absolute; top: 11px; left: 50%; z-index: 6; width: 124px; height: 36px; margin-left: -62px; border-radius: 20px; background: #000; }
+.home { position: absolute; bottom: 8px; left: 50%; z-index: 6; width: 136px; height: 5px; margin-left: -68px; border-radius: 3px; background: rgba(255, 255, 255, 0.88); }
+
+/* ── Desktop ─────────────────────────────────────────────────────── */
+
+@media (min-width: 900px) {
+  .sheet {
+    --art: min(560px, 62vh, 42vw);
+    display: grid;
+    grid-template-columns: var(--art) 380px;
+    align-content: center;
+    justify-content: center;
+    align-items: center;
+    column-gap: clamp(56px, 7vw, 104px);
+    max-width: none;
+    padding: 0 56px;
+  }
+  .top { position: absolute; top: 22px; left: 22px; height: auto; }
+  .grabber { display: none; }
+  .close {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: rgba(255, 255, 255, 0.72);
+    transition: background 160ms, color 160ms;
+  }
+  .close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  .stage { padding: 0; container-type: normal; }
+  .art { width: var(--art); border-radius: 14px; }
+  .meta { margin-top: 0; }
+  .title { font-size: 30px; font-weight: 700; letter-spacing: -0.024em; line-height: 1.2; }
+  .artist { margin-top: 2px; font-size: 22px; }
+  .more { width: 34px; height: 34px; }
+  .scrub { margin-top: 34px; }
+  .range { height: 18px; }
+  .range::-webkit-slider-thumb { width: 12px; height: 12px; margin-top: calc((var(--h) - 12px) / 2); border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); opacity: 0; transition: opacity 140ms; }
+  .range:hover::-webkit-slider-thumb, .range:active::-webkit-slider-thumb { opacity: 1; }
+  .range:hover { --fa: 1; }
+  .times { font-size: 12px; margin-top: 4px; }
+  .transport { margin-top: 20px; }
+  .volume { display: flex; }
+  .btn:hover { background: rgba(255, 255, 255, 0.09); }
+  .more:hover { background: rgba(255, 255, 255, 0.2); }
+  .mode:hover { color: rgba(255, 255, 255, 0.85); }
+  .mode.on:hover { color: #fff; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art, .np.playing .art { transition: box-shadow 200ms; }
+  .art img.in, .art img.out, .text.swap { animation-duration: 1ms; }
+  .range { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="np playing" id="np" role="dialog" aria-modal="true" aria-label="Now Playing" tabindex="-1">
+  <div class="bg" aria-hidden="true">
+    <div class="scenes" id="scenes"></div>
+    <div class="shade"></div>
+    <div class="dim"></div>
+    <div class="grain" id="grain"></div>
+  </div>
+
+  <div class="device island"></div>
+  <div class="device status" aria-hidden="true">
+    <span>9:41</span>
+    <span class="icons">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="#fff"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="5" y="5.5" width="3" height="6.5" rx="1"/><rect x="10" y="3" width="3" height="9" rx="1"/><rect x="15" y="0" width="3" height="12" rx="1"/></svg>
+      <svg width="16" height="12" viewBox="0 0 16 12" fill="#fff"><path d="M8 2.6c2.2 0 4.2.85 5.7 2.25l1.1-1.12A9.6 9.6 0 0 0 8 1 9.6 9.6 0 0 0 1.2 3.73L2.3 4.85A8 8 0 0 1 8 2.6Zm0 3.2c1.3 0 2.5.5 3.4 1.33l1.12-1.13A6.4 6.4 0 0 0 8 4.2c-1.74 0-3.33.7-4.52 1.8L4.6 7.13A4.8 4.8 0 0 1 8 5.8Zm0 3.2c-.5 0-.96.18-1.32.5L8 10.85 9.32 9.5A1.95 1.95 0 0 0 8 9Z"/></svg>
+      <svg width="27" height="13" viewBox="0 0 27 13" fill="none"><rect x=".5" y=".5" width="23" height="12" rx="3.8" stroke="#fff" stroke-opacity=".4"/><rect x="2" y="2" width="20" height="9" rx="2.5" fill="#fff"/><path d="M25 4.5v4c.8-.3 1.3-1.1 1.3-2s-.5-1.7-1.3-2Z" fill="#fff" fill-opacity=".45"/></svg>
+    </span>
+  </div>
+  <div class="device home"></div>
+
+  <div class="sheet">
+    <div class="top">
+      <button class="grabber" aria-label="Close"><span></span></button>
+      <button class="close" aria-label="Close">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+    </div>
+
+    <div class="stage">
+      <div class="art" id="art"></div>
+    </div>
+
+    <div class="controls">
+      <div class="meta">
+        <div class="text" id="text">
+          <h2 class="title" id="title"></h2>
+          <p class="artist" id="artist"></p>
+        </div>
+        <button class="more" aria-label="More">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+        </button>
+      </div>
+
+      <div class="scrub" id="scrub">
+        <input class="range" id="pos" type="range" min="0" max="1" step="any" value="0" aria-label="Position">
+        <div class="times"><span id="elapsed">0:00</span><span id="remaining">-0:00</span></div>
+      </div>
+
+      <div class="transport">
+        <button class="btn mode" id="shuffle" aria-label="Shuffle">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 18h1.4c1.3 0 2.5-.6 3.3-1.7l6.1-8.6c.7-1.1 2-1.7 3.3-1.7H22M18 2l4 4-4 4M2 6h1.9c1.5 0 2.9.9 3.6 2.2M22 18h-5.9c-1.3 0-2.6-.7-3.3-1.8l-.5-.8M18 14l4 4-4 4"/></svg>
+        </button>
+        <button class="btn skip" id="prev" aria-label="Previous">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M21.5 6.6v10.8a1 1 0 0 1-1.55.83L12.5 13.4v4a1 1 0 0 1-1.55.83l-8.04-5.4a1 1 0 0 1 0-1.66l8.04-5.4a1 1 0 0 1 1.55.83v4l7.45-4.83a1 1 0 0 1 1.55.83Z"/></svg>
+        </button>
+        <button class="btn play" id="play" aria-label="Pause">
+          <span class="g g-play"><svg width="46" height="46" viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 5.1v13.8a1 1 0 0 0 1.53.85l10.9-6.9a1 1 0 0 0 0-1.7L9.03 4.25A1 1 0 0 0 7.5 5.1Z"/></svg></span>
+          <span class="g g-pause"><svg width="46" height="46" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4.5" width="4.2" height="15" rx="1.3"/><rect x="13.8" y="4.5" width="4.2" height="15" rx="1.3"/></svg></span>
+        </button>
+        <button class="btn skip" id="next" aria-label="Next">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor"><path d="M2.5 6.6v10.8a1 1 0 0 0 1.55.83L11.5 13.4v4a1 1 0 0 0 1.55.83l8.04-5.4a1 1 0 0 0 0-1.66l-8.04-5.4A1 1 0 0 0 11.5 6.6v4L4.05 5.77A1 1 0 0 0 2.5 6.6Z"/></svg>
+        </button>
+        <button class="btn mode" id="repeat" aria-label="Repeat">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4M3 11v-1a4 4 0 0 1 4-4h14M7 22l-4-4 4-4M21 13v1a4 4 0 0 1-4 4H3"/></svg>
+        </button>
+      </div>
+
+      <div class="volume">
+        <button class="vi" id="mute" aria-label="Mute">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5ZM16 9a5 5 0 0 1 0 6"/></svg>
+        </button>
+        <input class="range" id="vol" type="range" min="0" max="1" step="0.01" value="0.72" aria-label="Volume">
+        <button class="vi" id="loud" aria-label="Full volume">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5ZM16 9a5 5 0 0 1 0 6M19.4 18.4a9 9 0 0 0 0-12.8"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── Original covers, drawn as SVG (fictional songs and artists) ── */
+
+const GRAIN = `<filter id="n" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .34 0 0 0 -.15"/></filter>`
+
+const COVERS = [
+  // Low Tide Hours: a sun sinking into a violet sea.
+  `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#170b3d"/><stop offset=".3" stop-color="#4a1a6e"/><stop offset=".52" stop-color="#b7306f"/><stop offset=".64" stop-color="#f0605e"/><stop offset=".7" stop-color="#ff9a5a"/></linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff4d2"/><stop offset=".7" stop-color="#ffc46e"/><stop offset="1" stop-color="#ff9050"/></linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2f8c"/><stop offset="1" stop-color="#0c1240"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb070" stop-opacity=".55"/><stop offset="1" stop-color="#ffb070" stop-opacity="0"/></radialGradient>
+    ${GRAIN}</defs>
+    <rect width="600" height="600" fill="url(#sky)"/>
+    <circle cx="300" cy="400" r="230" fill="url(#glow)"/>
+    <circle cx="300" cy="404" r="116" fill="url(#sun)"/>
+    <rect y="404" width="600" height="196" fill="url(#sea)"/>
+    <g fill="#ffcf92"><rect x="206" y="420" width="188" height="5" rx="2.5" opacity=".75"/><rect x="232" y="437" width="136" height="4" rx="2" opacity=".55"/><rect x="256" y="453" width="88" height="4" rx="2" opacity=".4"/><rect x="278" y="469" width="44" height="3" rx="1.5" opacity=".28"/></g>
+    <path d="M0 486c90-16 180 18 300 0s210-16 300 0v114H0Z" fill="#1d2475" opacity=".9"/>
+    <path d="M0 528c110-18 220 20 330 0s200-14 270 2v70H0Z" fill="#151a5c"/>
+    <path d="M0 568c130-14 250 16 370 0s180-10 230 2v30H0Z" fill="#0e1244"/>
+    <rect width="600" height="600" filter="url(#n)"/></svg>`,
+
+  // Glasshouse: nested arches in green and gold.
+  `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f4635"/><stop offset="1" stop-color="#082a20"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8d27a"/><stop offset="1" stop-color="#e5794c"/></linearGradient>
+    <linearGradient id="mint" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8ecc8"/><stop offset="1" stop-color="#3fae86"/></linearGradient>
+    ${GRAIN}</defs>
+    <rect width="600" height="600" fill="url(#bg)"/>
+    <circle cx="468" cy="124" r="30" fill="#ffeccb"/>
+    <path d="M140 600V316a160 160 0 0 1 320 0v284Z" fill="url(#gold)"/>
+    <path d="M178 600V316a122 122 0 0 1 244 0v284Z" fill="#11533f"/>
+    <path d="M214 600V316a86 86 0 0 1 172 0v284Z" fill="url(#mint)"/>
+    <path d="M250 600V316a50 50 0 0 1 100 0v284Z" fill="#0b3428"/>
+    <rect y="548" width="600" height="52" fill="#d9774a"/>
+    <rect y="548" width="600" height="3" fill="#f6bd78" opacity=".7"/>
+    <rect width="600" height="600" filter="url(#n)"/></svg>`,
+
+  // Night Swim: ripples spreading across dark water.
+  `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><defs>
+    <radialGradient id="bg" cx=".56" cy=".62" r=".8"><stop offset="0" stop-color="#1b3a96"/><stop offset=".55" stop-color="#0e1a5a"/><stop offset="1" stop-color="#060a26"/></radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#52dcff"/><stop offset="1" stop-color="#9a5cff"/></linearGradient>
+    <radialGradient id="glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff6fb0" stop-opacity=".7"/><stop offset="1" stop-color="#ff6fb0" stop-opacity="0"/></radialGradient>
+    ${GRAIN}</defs>
+    <rect width="600" height="600" fill="url(#bg)"/>
+    <g fill="none" stroke="url(#ring)" stroke-width="2.4">${Array.from({ length: 13 }, (_, k) => `<ellipse cx="336" cy="392" rx="${34 + k * 38}" ry="${13 + k * 15}" opacity="${(0.95 - k * 0.07).toFixed(2)}"/>`).join('')}</g>
+    <circle cx="336" cy="392" r="90" fill="url(#glow)"/>
+    <circle cx="336" cy="386" r="13" fill="#ff7ab8"/>
+    <circle cx="146" cy="130" r="38" fill="#dfe6ff" opacity=".92"/>
+    <circle cx="162" cy="120" r="34" fill="#0b1650"/>
+    <rect width="600" height="600" filter="url(#n)"/></svg>`,
+]
+
+const TRACKS = [
+  { title: 'Low Tide Hours', artist: 'Mara Vell', duration: 222 },
+  { title: 'Glasshouse', artist: 'Noor Ellery', duration: 248 },
+  { title: 'Night Swim', artist: 'Odd Harbor', duration: 197 },
+].map((t, i) => ({ ...t, cover: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(COVERS[i]) }))
+
+/* ── Baking: cover → tiny, pre-blurred, color-boosted bitmaps ───────
+   Runs once per song on a 36px canvas (~1ms). Nothing blurs at runtime:
+   the layers below are plain bitmaps that only rotate and drift. */
+
+const BAKE = 36
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = reject
+    img.src = src
+  })
+}
+
+function blur(px, w, h, r) {
+  // Three box passes approximate a gaussian. Edges clamp.
+  const tmp = new Float32Array(px.length)
+  const pass = (src, dst, horizontal) => {
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        let R = 0, G = 0, B = 0, A = 0, n = 0
+        for (let k = -r; k <= r; k++) {
+          const xx = horizontal ? Math.min(w - 1, Math.max(0, x + k)) : x
+          const yy = horizontal ? y : Math.min(h - 1, Math.max(0, y + k))
+          const j = (yy * w + xx) * 4
+          R += src[j]; G += src[j + 1]; B += src[j + 2]; A += src[j + 3]; n++
+        }
+        const i = (y * w + x) * 4
+        dst[i] = R / n; dst[i + 1] = G / n; dst[i + 2] = B / n; dst[i + 3] = A / n
+      }
+  }
+  for (let p = 0; p < 3; p++) { pass(px, tmp, true); pass(tmp, px, false) }
+}
+
+function tone(px) {
+  // More saturation, and lightness squeezed into a band white text reads on.
+  for (let i = 0; i < px.length; i += 4) {
+    let r = px[i] / 255, g = px[i + 1] / 255, b = px[i + 2] / 255
+    const max = Math.max(r, g, b), min = Math.min(r, g, b)
+    let l = (max + min) / 2, s = 0, hh = 0
+    if (max !== min) {
+      const d = max - min
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+      hh = max === r ? (g - b) / d + (g < b ? 6 : 0) : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+      hh /= 6
+    }
+    s = Math.min(1, s * 1.22 + 0.04)
+    l = 0.12 + l * 0.54
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s, p = 2 * l - q
+    const f = (t) => { t = (t + 1) % 1; return t < 1 / 6 ? p + (q - p) * 6 * t : t < 1 / 2 ? q : t < 2 / 3 ? p + (q - p) * (2 / 3 - t) * 6 : p }
+    px[i] = f(hh + 1 / 3) * 255; px[i + 1] = f(hh) * 255; px[i + 2] = f(hh - 1 / 3) * 255
+  }
+}
+
+function bake(img, crop, round) {
+  const c = document.createElement('canvas')
+  c.width = c.height = BAKE
+  const ctx = c.getContext('2d', { willReadFrequently: true })
+  ctx.imageSmoothingQuality = 'high'
+  const s = img.naturalWidth || 600
+  ctx.drawImage(img, crop[0] * s, crop[1] * s, crop[2] * s, crop[3] * s, 0, 0, BAKE, BAKE)
+  const data = ctx.getImageData(0, 0, BAKE, BAKE)
+  const px = new Float32Array(data.data)
+  blur(px, BAKE, BAKE, 2)
+  tone(px)
+  if (round) {
+    // Soft circular falloff, so rotating copies never show an edge.
+    for (let y = 0; y < BAKE; y++)
+      for (let x = 0; x < BAKE; x++) {
+        const d = Math.hypot(x + 0.5 - BAKE / 2, y + 0.5 - BAKE / 2) / (BAKE / 2)
+        const a = Math.max(0, Math.min(1, (1 - d) / 0.55))
+        px[(y * BAKE + x) * 4 + 3] = 255 * a * a * (3 - 2 * a)
+      }
+  }
+  for (let i = 0; i < px.length; i++) data.data[i] = px[i]
+  ctx.putImageData(data, 0, 0)
+  return c
+}
+
+/* Four copies: one fills the screen, three float over it at their own pace. */
+const LAYERS = [
+  { crop: [0, 0, 1, 1], size: 170, x: 50, y: 50, period: 150, dir: 1, orbit: 0, op: 1, base: true },
+  { crop: [0, 0, 0.62, 0.62], size: 118, x: 18, y: 22, period: 64, dir: -1, orbit: 9, op: 0.95 },
+  { crop: [0.38, 0.38, 0.62, 0.62], size: 124, x: 84, y: 78, period: 82, dir: 1, orbit: 11, op: 0.95 },
+  { crop: [0.18, 0.3, 0.64, 0.64], size: 92, x: 62, y: 40, period: 48, dir: -1, orbit: 13, op: 0.8 },
+]
+
+const reduce = matchMedia('(prefers-reduced-motion: reduce)')
+let anims = []
+let rate = 1
+let seed = 7
+const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+
+function keyframes(L) {
+  const frames = []
+  for (let k = 0; k <= 24; k++) {
+    const t = k / 24, a = t * Math.PI * 2
+    frames.push({ transform: `translate(${(Math.cos(a) * L.orbit).toFixed(2)}vmax, ${(Math.sin(a * L.dir) * L.orbit).toFixed(2)}vmax) rotate(${(t * 360 * L.dir).toFixed(1)}deg)` })
+  }
+  return frames
+}
+
+async function buildScene(track) {
+  const img = await loadImage(track.cover)
+  const scene = document.createElement('div')
+  scene.className = 'scene'
+  const made = []
+  for (const L of LAYERS) {
+    const c = bake(img, L.crop, !L.base)
+    c.className = 'blob' + (L.base ? ' base' : '')
+    c.style.cssText = `left:${L.x}%;top:${L.y}%;width:${L.size}vmax;height:${L.size}vmax;margin:${-L.size / 2}vmax 0 0 ${-L.size / 2}vmax;opacity:${L.op}`
+    scene.appendChild(c)
+    made.push([c, L])
+  }
+  return { scene, made }
+}
+
+function animate(made) {
+  const list = []
+  for (const [c, L] of made) {
+    if (reduce.matches) {
+      c.style.transform = `rotate(${Math.round(rand() * 360)}deg)`
+      continue
+    }
+    const a = c.animate(keyframes(L), { duration: L.period * 1000, iterations: Infinity, easing: 'linear' })
+    a.currentTime = rand() * L.period * 1000
+    a.playbackRate = rate
+    list.push(a)
+  }
+  return list
+}
+
+let sceneToken = 0
+async function showScene(track, instant) {
+  const token = ++sceneToken
+  const { scene, made } = await buildScene(track)
+  if (token !== sceneToken) return
+  const host = document.getElementById('scenes')
+  const old = [...host.children]
+  const fresh = animate(made)
+  host.appendChild(scene)
+  if (instant || reduce.matches) {
+    old.forEach((o) => o.remove())
+    anims.forEach((a) => a.cancel())
+    anims = fresh
+    return
+  }
+  const fade = scene.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 1100, easing: 'ease' })
+  const prev = anims
+  anims = [...prev, ...fresh]
+  fade.onfinish = () => {
+    old.forEach((o) => o.remove())
+    prev.forEach((a) => a.cancel())
+    anims = fresh
+  }
+}
+
+/* Slow the drift on pause instead of stopping it: ease the playback rate. */
+let rateFrame = 0
+function easeRate(target) {
+  cancelAnimationFrame(rateFrame)
+  if (reduce.matches) return
+  const from = rate, t0 = performance.now(), D = 1400
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / D)
+    rate = from + (target - from) * (1 - Math.pow(1 - k, 3))
+    anims.forEach((a) => (a.playbackRate = rate))
+    if (k < 1) rateFrame = requestAnimationFrame(step)
+  }
+  rateFrame = requestAnimationFrame(step)
+}
+
+/* Grain tile, drawn once. */
+;(() => {
+  const g = `<svg xmlns="http://www.w3.org/2000/svg" width="180" height="180"><filter id="f"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1.4 -.55"/></filter><rect width="180" height="180" filter="url(#f)"/></svg>`
+  document.getElementById('grain').style.backgroundImage = `url("data:image/svg+xml;charset=utf-8,${encodeURIComponent(g)}")`
+})()
+
+/* ── Player state (simulated) ──────────────────────────────────── */
+
+const $ = (id) => document.getElementById(id)
+const np = $('np'), art = $('art'), pos = $('pos'), scrub = $('scrub')
+const q = new URLSearchParams(location.search)
+if (q.has('device')) document.documentElement.classList.add('is-device')
+
+let index = Math.max(0, Math.min(TRACKS.length - 1, Number(q.get('track') || 1) - 1))
+let time = Number(q.get('t') || 74)
+let playing = q.get('state') !== 'paused'
+let dragging = false
+let shuffle = q.has('shuffle'), repeat = false
+
+const fmt = (s) => {
+  s = Math.max(0, Math.round(s))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
+function renderTime() {
+  const d = TRACKS[index].duration
+  const v = dragging ? Number(pos.value) : time
+  if (!dragging) pos.value = String(time)
+  pos.style.setProperty('--p', `${(v / d) * 100}%`)
+  $('elapsed').textContent = fmt(v)
+  $('remaining').textContent = '\u2212' + fmt(d - Math.round(v))
+}
+
+function setTrack(i, dir) {
+  index = (i + TRACKS.length) % TRACKS.length
+  const t = TRACKS[index]
+  time = 0
+  pos.max = String(t.duration)
+  // Cover: the old one slides out, the new one in.
+  const img = new Image()
+  img.alt = ''
+  img.draggable = false
+  img.src = t.cover
+  if (dir) {
+    art.style.setProperty('--dir', dir)
+    ;[...art.querySelectorAll('img')].forEach((o) => {
+      o.className = 'out'
+      o.addEventListener('animationend', () => o.remove(), { once: true })
+    })
+    img.className = 'in'
+  } else art.replaceChildren()
+  art.appendChild(img)
+  $('title').textContent = t.title
+  $('artist').textContent = t.artist
+  const text = $('text')
+  if (dir) { text.classList.remove('swap'); void text.offsetWidth; text.classList.add('swap') }
+  showScene(t, !dir)
+  renderTime()
+}
+
+function setPlaying(p) {
+  playing = p
+  np.classList.toggle('playing', p)
+  $('play').setAttribute('aria-label', p ? 'Pause' : 'Play')
+  easeRate(p ? 1 : 0.18)
+}
+
+$('play').onclick = () => setPlaying(!playing)
+$('next').onclick = () => setTrack(index + 1, 1)
+$('prev').onclick = () => (time > 3 ? ((time = 0), renderTime()) : setTrack(index - 1, -1))
+$('shuffle').onclick = (e) => e.currentTarget.classList.toggle('on', (shuffle = !shuffle))
+$('repeat').onclick = (e) => e.currentTarget.classList.toggle('on', (repeat = !repeat))
+$('shuffle').classList.toggle('on', shuffle)
+
+pos.addEventListener('pointerdown', () => { dragging = true; scrub.classList.add('dragging') })
+pos.addEventListener('input', () => { if (!dragging) time = Number(pos.value); renderTime() })
+const commit = () => {
+  if (!dragging) return
+  dragging = false
+  scrub.classList.remove('dragging')
+  time = Number(pos.value)
+  renderTime()
+}
+pos.addEventListener('pointerup', commit)
+pos.addEventListener('pointercancel', commit)
+pos.addEventListener('lostpointercapture', commit)
+pos.addEventListener('change', commit)
+
+const vol = $('vol')
+const paintVol = () => vol.style.setProperty('--p', `${vol.value * 100}%`)
+vol.addEventListener('input', paintVol)
+$('mute').onclick = () => { vol.value = 0; paintVol() }
+$('loud').onclick = () => { vol.value = 1; paintVol() }
+paintVol()
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); setPlaying(!playing) }
+  if (e.target === pos) return
+  if (e.key === 'ArrowRight') { time = Math.min(TRACKS[index].duration, time + 5); renderTime() }
+  if (e.key === 'ArrowLeft') { time = Math.max(0, time - 5); renderTime() }
+})
+
+let last = performance.now()
+function tick(now) {
+  const dt = (now - last) / 1000
+  last = now
+  if (playing && !dragging) {
+    time += dt
+    if (time >= TRACKS[index].duration) {
+      if (repeat) time = 0
+      else setTrack(index + 1, 1)
+    }
+    renderTime()
+  }
+  requestAnimationFrame(tick)
+}
+
+setTrack(index, 0)
+time = Number(q.get('t') || 74)
+renderTime()
+np.classList.toggle('playing', playing)
+$('play').setAttribute('aria-label', playing ? 'Pause' : 'Play')
+rate = playing ? 1 : 0.18
+requestAnimationFrame(tick)
+</script>
+</body>
+</html>

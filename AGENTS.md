@@ -33,7 +33,8 @@ Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper u
 Design
 - Simple purpose, simple architecture, simple design, simple implementation. References: Apple Music, Spotify, Linear, Apple Notes.
 - No taglines, helper text or secondary labels (counts, subtitles, descriptions). If a screen needs them to make sense, fix the layout.
-- Icon-only buttons carry an `aria-label`. Dark theme only. Colors, radii and easing come from the tokens in `base.css`.
+- Icon-only buttons carry an `aria-label`. Dark themes, plus the light Y2K theme. Colors, radii and easing come from the tokens in `base.css`.
+- Customization (themes, cover colors, player styles, the profile, badges) follows `docs/customization-spec.md`; its mockups are in `docs/mockups/`. Third-party files (fonts, icon paths, palettes) get a license file in `licenses/`.
 - Motion is quick and subtle (press scale, slide, fade) and respects `prefers-reduced-motion`.
 
 Code
