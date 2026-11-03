@@ -396,6 +396,25 @@ a {
   border-radius: 50%;
 }
 
+/* A cropped profile image or video (lib/crop.ts): sized to cover its .crop-box times the zoom, with the focus point
+   at the box's center, clamped so no edge shows. The crop sheet draws the same numbers in pixels. The box must be
+   positioned and clip its overflow. */
+.crop-box {
+  container-type: size;
+}
+
+.crop-box > .crop {
+  --cw: calc(max(100cqw, 100cqh * var(--ca)) * var(--cz));
+  --ch: calc(max(100cqh, 100cqw / var(--ca)) * var(--cz));
+  position: absolute;
+  top: clamp(calc(100cqh - var(--ch)), calc(50cqh - var(--cy) * var(--ch)), 0px);
+  left: clamp(calc(100cqw - var(--cw)), calc(50cqw - var(--cx) * var(--cw)), 0px);
+  width: var(--cw);
+  height: var(--ch);
+  max-width: none;
+  object-fit: fill;
+}
+
 .avatar-initial {
   font-weight: 600;
   color: var(--text);

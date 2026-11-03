@@ -3,8 +3,9 @@
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 import { useBlobUrl } from '../../lib/blobs.ts'
+import { useCrop } from '../../lib/crop.ts'
 import type { ProfileSlot } from '../../lib/library.ts'
-import type { MediaKind, Profile } from '../../types.ts'
+import type { Crop, MediaKind, Profile } from '../../types.ts'
 
 export interface ShownMedia {
   url: string
@@ -45,8 +46,10 @@ export function playingSlots(media: CardMedia, live: boolean): Set<ProfileSlot> 
   return on
 }
 
-export function ProfileMedia({ media, play, className }: { media: ShownMedia; play: boolean; className?: string }) {
+/** One slot's media, placed by its crop inside the parent `.crop-box`. */
+export function ProfileMedia({ media, play, crop, className }: { media: ShownMedia; play: boolean; crop?: Crop; className?: string }) {
   const ref = useRef<HTMLVideoElement>(null)
+  const { onLoad, onLoadedMetadata, ...placed } = useCrop(crop, className)
   useEffect(() => {
     const video = ref.current
     if (!video) return
@@ -58,7 +61,8 @@ export function ProfileMedia({ media, play, className }: { media: ShownMedia; pl
     return (
       <video
         ref={ref}
-        className={className}
+        {...placed}
+        onLoadedMetadata={onLoadedMetadata}
         src={media.url}
         poster={media.still}
         muted
@@ -71,5 +75,5 @@ export function ProfileMedia({ media, play, className }: { media: ShownMedia; pl
       />
     )
   const src = media.kind === 'animated' && !play ? (media.still ?? media.url) : media.url
-  return <img className={className} src={src} alt="" draggable={false} />
+  return <img {...placed} onLoad={onLoad} src={src} alt="" draggable={false} />
 }

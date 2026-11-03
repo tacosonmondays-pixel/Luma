@@ -196,11 +196,11 @@ export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, on
       <i className="pc-ring" aria-hidden="true" />
       <article className={`pc${backdrop ? ' has-backdrop' : ''}`} data-still={live ? undefined : ''}>
         {backdrop && (
-          <div className="pc-backdrop" aria-hidden="true">
-            <ProfileMedia media={backdrop} play={plays.has('backdrop')} />
+          <div className="pc-backdrop crop-box" aria-hidden="true">
+            <ProfileMedia media={backdrop} play={plays.has('backdrop')} crop={profile.backdropCrop} />
           </div>
         )}
-        <div className="pc-banner">{banner && <ProfileMedia media={banner} play={plays.has('banner')} />}</div>
+        <div className="pc-banner crop-box">{banner && <ProfileMedia media={banner} play={plays.has('banner')} crop={profile.bannerCrop} />}</div>
         {(onEdit || onShare) && (
           <div className="pc-actions">
             {onShare && (
@@ -216,7 +216,7 @@ export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, on
           </div>
         )}
         <div className="pc-avatar">
-          <div className="pc-photo">{avatar ? <ProfileMedia media={avatar} play={plays.has('avatar')} /> : <Initial name={profile.name} />}</div>
+          <div className="pc-photo crop-box">{avatar ? <ProfileMedia media={avatar} play={plays.has('avatar')} crop={profile.avatarCrop} /> : <Initial name={profile.name} />}</div>
           <Frame id={profile.frame} live={live} />
           {playing && (
             <span className="pc-dot" aria-hidden="true">

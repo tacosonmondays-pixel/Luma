@@ -116,6 +116,7 @@
 }
 
 .pc-banner {
+  position: relative;
   aspect-ratio: 3 / 1;
   overflow: hidden;
   background: linear-gradient(135deg, var(--pa-raw), var(--pb-raw));
@@ -158,6 +159,7 @@
 }
 
 .pc-photo {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -1336,6 +1338,7 @@
 }
 
 .pe-thumb {
+  position: relative;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -1458,6 +1461,7 @@
 }
 
 .pe-photo {
+  position: relative;
   display: grid;
   place-items: center;
   width: 100%;
@@ -1678,5 +1682,137 @@ input.pe-field {
   .pe-scrim.closing .pe,
   .pe-scrim.wide.closing .pe {
     animation: fade-out 120ms ease forwards;
+  }
+}
+
+/* ── The crop sheet (ImageCrop.tsx) ────────────────────────────────── */
+
+.ic {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: #000;
+  color: #fff;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: contain;
+  animation: ic-in 220ms var(--ease);
+}
+
+.ic.closing {
+  opacity: 0;
+  transition: opacity 180ms var(--ease);
+}
+
+.ic-head {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(44px + var(--safe-top));
+  padding: var(--safe-top) calc(16px + var(--safe-right)) 0 calc(16px + var(--safe-left));
+}
+
+.ic-cancel,
+.ic-done {
+  height: 44px;
+  font-size: 17px;
+  transition: opacity 140ms;
+}
+
+.ic-cancel {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ic-done {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ic-cancel:active,
+.ic-done:active {
+  opacity: 0.6;
+}
+
+.ic-done:disabled {
+  opacity: 0.5;
+}
+
+.ic-stage {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.ic-stage:active {
+  cursor: grabbing;
+}
+
+/* Sized to cover the frame at 1×; the zoom and position are its transform, set once a frame while dragging. */
+.ic-media {
+  position: absolute;
+  max-width: none;
+  transform-origin: 0 0;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.ic-media.measuring {
+  visibility: hidden;
+}
+
+.ic-media.easing {
+  transition: transform 260ms var(--ease);
+}
+
+/* The frame in the slot's shape; its huge shadow dims everything outside it. */
+.ic-frame {
+  position: absolute;
+  box-shadow:
+    0 0 0 1.5px rgba(255, 255, 255, 0.9),
+    0 0 0 100vmax rgba(0, 0, 0, 0.6);
+  pointer-events: none;
+}
+
+.ic-frame-avatar {
+  border-radius: 50%;
+}
+
+.ic-frame-banner {
+  border-radius: 12px;
+}
+
+.ic-frame-backdrop {
+  border-radius: 20px;
+}
+
+.ic-foot {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 14px calc(32px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(32px + var(--safe-left));
+}
+
+.ic-zoom.range {
+  max-width: 320px;
+}
+
+@keyframes ic-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ic,
+  .ic.closing,
+  .ic-media.easing {
+    animation: none;
+    transition: none;
   }
 }

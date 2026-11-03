@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react'
 import { useBlobUrl } from '../lib/blobs.ts'
+import { useCrop } from '../lib/crop.ts'
 import { gradientFor } from '../lib/format.ts'
 import { useLibrary } from '../lib/library.ts'
 import { Icon } from './Icon.tsx'
-import type { Playlist, Track, Version } from '../types.ts'
+import type { Crop, Playlist, Track, Version } from '../types.ts'
 
 interface ArtProps {
   blobKey: string
@@ -49,6 +50,12 @@ export function PlaylistArt({ playlist, ...rest }: { playlist: Playlist } & Omit
   return <Art blobKey="" v={undefined} seed={playlist.id} {...rest} />
 }
 
+/** A profile image placed by its crop. Its parent is the `.crop-box`. */
+export function CropImg({ src, crop }: { src: string; crop?: Crop }) {
+  const { onLoadedMetadata: _, ...props } = useCrop(crop)
+  return <img src={src} alt="" draggable={false} {...props} />
+}
+
 /** The profile photo (always its still: lists and bars never animate), else the first letter of the name. */
 export function Avatar({ size }: { size: number }) {
   const profile = useLibrary((s) => s.profile)
@@ -58,9 +65,9 @@ export function Avatar({ size }: { size: number }) {
   // Without a photo: --fill-2 made opaque, so it looks the same over the banner, the page and a wallpaper.
   const background = url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
   return (
-    <div className="art round" style={{ width: size, height: size, background }}>
+    <div className="art round crop-box" style={{ width: size, height: size, background }}>
       {url ? (
-        <img src={url} alt="" draggable={false} />
+        <CropImg src={url} crop={profile.avatarCrop} />
       ) : initial ? (
         <span className="avatar-initial" style={{ fontSize: size * 0.42 }}>
           {initial}
