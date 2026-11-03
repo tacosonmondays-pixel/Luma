@@ -511,6 +511,7 @@
   }
 
   .search-field {
+    flex: none; /* in the stacked bar, flex: 1 would override the 38px height */
     max-width: none;
   }
 
