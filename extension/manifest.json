@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Luma for YouTube",
+  "version": "1.0.0",
+  "description": "Save YouTube songs and playlists to Luma.",
+  "icons": { "16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png" },
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["https://www.youtube.com/*", "https://music.youtube.com/*", "http://localhost:4848/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*", "https://music.youtube.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": { "default_title": "Luma for YouTube", "default_icon": { "16": "icons/icon-16.png", "32": "icons/icon-32.png" } }
+}

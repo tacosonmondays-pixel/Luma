@@ -1,5 +1,7 @@
 // Pure play-queue logic. No DOM, no stores — unit tested in test/queue.test.ts.
 
+import type { Track } from '../types.ts'
+
 export type Repeat = 'off' | 'all' | 'one'
 
 export interface Queue {
@@ -77,4 +79,9 @@ export function insertNext(q: Queue, id: string): Queue {
     original.splice(original.indexOf(current) + 1, 0, id)
   }
   return { ids, index: base.index, original }
+}
+
+/** The ids that can play: in the library with their audio. Saved and synced songs that aren't downloaded are skipped. */
+export function playable(ids: readonly string[], tracks: Record<string, Track | undefined>): string[] {
+  return ids.filter((id) => tracks[id] && !tracks[id].missing)
 }

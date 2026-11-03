@@ -4,9 +4,9 @@ import { navigate } from './router.ts'
 
 let pending: string | undefined
 
-export function searchFor(query: string): void {
+export function searchFor(query: string, replace = false): void {
   pending = query
-  navigate('/search')
+  navigate('/search', replace)
 }
 
 /** The query to run as Search opens. Search clears it once it runs. */

@@ -428,3 +428,62 @@
   padding-left: 8px;
   color: var(--text-3);
 }
+
+.track-missing .ring,
+.track-missing .icon {
+  display: block;
+}
+
+.track-missing.error {
+  color: var(--danger);
+}
+
+/* Download progress (Ring.tsx): Search's buttons and saved songs. */
+.ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+
+.ring-track {
+  stroke: var(--fill-2);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 200ms linear;
+}
+
+.ring.spin {
+  animation: ring-spin 900ms linear infinite;
+}
+
+@keyframes ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring.spin {
+    animation-duration: 1.4s;
+  }
+}
+
+/* A playlist with saved songs: Download Missing joins Play and Shuffle (on its own row on phones). */
+.play-pills {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 899px) {
+  .play-pills .pill.download-missing {
+    flex-basis: 100%;
+  }
+}
+
+.playlist-refreshing {
+  display: grid;
+  place-items: center;
+}

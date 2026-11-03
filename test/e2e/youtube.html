@@ -1,0 +1,147 @@
+<!doctype html>
+<!-- A stand-in for YouTube's watch and playlist pages, for test/e2e/extension.mjs: the element names and ids the
+     extension looks for (ytd-watch-metadata #top-level-buttons-computed, like-button-view-model, yt-page-header-
+     renderer yt-flexible-actions-view-model, ytmusic-*), single-page navigation with yt-navigate-finish, and
+     re-rendered button rows. Served at https://www.youtube.com/* and music.youtube.com/* by Playwright routes. -->
+<html dark lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YouTube</title>
+    <style>
+      html { background: #0f0f0f; color: #f1f1f1; font-family: Roboto, Arial, sans-serif; }
+      body { margin: 0; }
+      .masthead { display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 16px; font-weight: 700; letter-spacing: -0.5px; }
+      .masthead i { display: inline-block; width: 28px; height: 20px; border-radius: 6px; background: #f00; }
+      ytd-app, ytd-watch-flexy, ytd-browse, ytmusic-app { display: block; }
+      [hidden] { display: none !important; }
+      .page { max-width: 1280px; margin: 0 auto; padding: 0 24px 24px; }
+      .player { aspect-ratio: 16 / 9; border-radius: 12px; background: linear-gradient(135deg, #2b2440, #45213a); }
+      h1 { margin: 12px 0 8px; font-size: 20px; line-height: 28px; font-weight: 700; }
+      ytd-watch-metadata #top-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+      .owner { display: flex; align-items: center; gap: 12px; }
+      .avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; }
+      .channel { font-weight: 500; }
+      #top-level-buttons-computed { display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; }
+      #top-level-buttons-computed > * + * { margin-left: 8px; }
+      yt-flexible-actions-view-model, .action-buttons, .middle-controls-buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .yt-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 0; border-radius: 18px; background: rgba(255, 255, 255, 0.1); color: #f1f1f1; font: 500 14px Roboto, Arial, sans-serif; cursor: pointer; }
+      .yt-btn.white { background: #f1f1f1; color: #0f0f0f; }
+      .yt-btn[aria-pressed='true'] { background: rgba(255, 255, 255, 0.25); }
+      .seg { display: inline-flex; }
+      .seg .yt-btn:first-child { border-radius: 18px 0 0 18px; }
+      .seg .yt-btn + .yt-btn { border-radius: 0 18px 18px 0; border-left: 1px solid rgba(255, 255, 255, 0.2); }
+      .header { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; margin-top: 16px; border-radius: 16px; background: linear-gradient(180deg, #3a2d55, #1a1a1a); }
+      .header .cover { width: 280px; max-width: 100%; aspect-ratio: 16 / 9; border-radius: 12px; background: linear-gradient(135deg, #8b7dff, #ff7ab6); }
+      .header h1 { font-size: 28px; margin-top: 0; }
+      .meta { color: #aaa; font-size: 14px; margin-bottom: 16px; }
+      ytmusic-player-bar { position: fixed; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; height: 72px; background: #212121; }
+      ytmusic-like-button-renderer { display: inline-flex; gap: 4px; }
+    </style>
+  </head>
+  <body>
+    <div class="masthead"><i></i>YouTube</div>
+    <ytd-app>
+      <ytd-watch-flexy id="watch" hidden>
+        <div class="page">
+          <div class="player"></div>
+          <ytd-watch-metadata>
+            <h1 id="video-title">Song</h1>
+            <div id="top-row">
+              <div class="owner"><div class="avatar"></div><div class="channel">Artist</div><button class="yt-btn white">Subscribe</button></div>
+              <div id="actions"><div id="menu"><ytd-menu-renderer><div id="top-level-buttons-computed"></div></ytd-menu-renderer></div></div>
+            </div>
+          </ytd-watch-metadata>
+        </div>
+      </ytd-watch-flexy>
+      <ytd-browse id="playlist" page-subtype="playlist" hidden>
+        <div class="page">
+          <yt-page-header-renderer>
+            <div class="header">
+              <div class="cover"></div>
+              <div>
+                <h1 id="playlist-title">Road Trip</h1>
+                <div class="meta">Owner · 12 videos</div>
+                <yt-flexible-actions-view-model></yt-flexible-actions-view-model>
+              </div>
+            </div>
+          </yt-page-header-renderer>
+        </div>
+      </ytd-browse>
+    </ytd-app>
+    <ytmusic-player-bar id="music-bar" hidden>
+      <div class="middle-controls-buttons">
+        <ytmusic-like-button-renderer like-status="INDIFFERENT">
+          <div id="button-shape-like"><button class="yt-btn" aria-pressed="false" aria-label="Like">👍</button></div>
+          <div id="button-shape-dislike"><button class="yt-btn" aria-label="Dislike">👎</button></div>
+        </ytmusic-like-button-renderer>
+      </div>
+    </ytmusic-player-bar>
+    <script>
+      // Which videos "the owner" already liked, as YouTube would render them.
+      const liked = new Set(['bbbbbbbbbbb'])
+      const music = location.hostname === 'music.youtube.com'
+
+      // YouTube re-renders the button row on every navigation: the old row (and anything added to it) goes away.
+      function renderButtons(video) {
+        const row = document.querySelector('#top-level-buttons-computed')
+        row.innerHTML = ''
+        const seg = document.createElement('segmented-like-dislike-button-view-model')
+        seg.className = 'seg'
+        seg.innerHTML = '<like-button-view-model><button class="yt-btn" aria-label="like this video">👍 12K</button></like-button-view-model><button class="yt-btn" aria-label="Dislike">👎</button>'
+        const like = seg.querySelector('like-button-view-model button')
+        like.setAttribute('aria-pressed', String(liked.has(video)))
+        like.addEventListener('click', () => {
+          const on = like.getAttribute('aria-pressed') !== 'true'
+          // YouTube updates the button after its request returns.
+          setTimeout(() => like.setAttribute('aria-pressed', String(on)), 150)
+        })
+        const share = document.createElement('button')
+        share.className = 'yt-btn'
+        share.textContent = '↗ Share'
+        row.append(seg, share)
+      }
+
+      function renderMusicLike(video) {
+        const renderer = document.querySelector('ytmusic-like-button-renderer')
+        const button = renderer.querySelector('#button-shape-like button')
+        const set = (on) => {
+          renderer.setAttribute('like-status', on ? 'LIKE' : 'INDIFFERENT')
+          button.setAttribute('aria-pressed', String(on))
+        }
+        set(liked.has(video))
+        button.onclick = () => setTimeout(() => set(renderer.getAttribute('like-status') !== 'LIKE'), 150)
+      }
+
+      function render() {
+        const params = new URLSearchParams(location.search)
+        const watch = location.pathname === '/watch'
+        const playlist = location.pathname === '/playlist' || location.pathname.startsWith('/browse/VL')
+        document.getElementById('watch').hidden = !watch || music
+        document.getElementById('playlist').hidden = !playlist
+        document.getElementById('music-bar').hidden = !music
+        if (watch && !music) {
+          document.getElementById('video-title').textContent = `Song ${params.get('v')}`
+          renderButtons(params.get('v'))
+        }
+        if (watch && music) renderMusicLike(params.get('v'))
+        if (playlist) {
+          const actions = document.querySelector('yt-flexible-actions-view-model')
+          actions.innerHTML = '<button class="yt-btn white">▶ Play all</button><button class="yt-btn">⤮ Shuffle</button>'
+        }
+      }
+
+      /** Single-page navigation, the way YouTube does it: pushState, re-render, then yt-navigate-finish. */
+      window.ytGo = (url) => {
+        history.pushState(null, '', url)
+        document.dispatchEvent(new CustomEvent('yt-navigate-start', { bubbles: true }))
+        setTimeout(() => {
+          render()
+          document.dispatchEvent(new CustomEvent('yt-navigate-finish', { bubbles: true }))
+        }, 50)
+      }
+
+      render()
+    </script>
+  </body>
+</html>

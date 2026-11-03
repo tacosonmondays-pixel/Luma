@@ -1,0 +1,94 @@
+/* "Save to Luma": shaped like YouTube's own tonal buttons (Share, Download), with Luma's mark. */
+
+.luma-save {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 16px 0 10px;
+  border: 0;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.05);
+  color: #0f0f0f;
+  font-family: 'Roboto', 'Arial', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 36px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 100ms, transform 100ms;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The watch page's row spaces its buttons with margins; the playlist header's actions with a gap. */
+.luma-save-watch {
+  margin-left: 8px;
+}
+
+html[dark] .luma-save,
+.luma-save.luma-music {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f1f1f1;
+}
+
+.luma-save:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+html[dark] .luma-save:hover,
+.luma-save.luma-music:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.luma-save:active {
+  transform: scale(0.96);
+}
+
+.luma-save:focus-visible {
+  outline: 2px solid #3ea6ff;
+  outline-offset: 2px;
+}
+
+.luma-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+}
+
+.luma-mark {
+  width: 24px;
+  height: 24px;
+}
+
+.luma-save.luma-done .luma-icon {
+  color: #ff7ab6;
+}
+
+/* YouTube Music's player bar: a round icon button like its own Like/Dislike. */
+ytmusic-player-bar .luma-save {
+  width: 40px;
+  height: 40px;
+  margin-left: 4px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 50%;
+  background: transparent;
+}
+
+ytmusic-player-bar .luma-save .luma-label {
+  display: none;
+}
+
+/* YouTube Music's playlist and album headers: its buttons are taller there. */
+.luma-save-playlist.luma-music {
+  height: 40px;
+  border-radius: 20px;
+  line-height: 40px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .luma-save {
+    transition: none;
+  }
+}

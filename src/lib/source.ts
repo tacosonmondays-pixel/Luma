@@ -5,6 +5,7 @@
 import { create } from 'zustand'
 import * as helper from './helper.ts'
 import { importFiles } from './files.ts'
+import { useLibrary } from './library.ts'
 import * as youtube from './youtube.ts'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 
@@ -34,7 +35,7 @@ export async function detect(): Promise<Problem | null> {
   }
 }
 
-async function mode(): Promise<Mode> {
+export async function mode(): Promise<Mode> {
   if (!useSource.getState().mode) await detect()
   return useSource.getState().mode!
 }
@@ -97,4 +98,57 @@ export function downloadAll(results: SearchResult[], query: string): void {
     if (list) return runShortcut(`https://www.youtube.com/playlist?list=${list}`)
   }
   void helper.downloadAll(results)
+}
+
+// ── Saved songs ──────────────────────────────────────────────────────────
+// A saved song is in the library without its audio (`Track.missing`): saved from a YouTube link, a linked
+// playlist, or synced from another device. It downloads with whichever downloader there is.
+
+export const watchUrl = (id: string) => `https://www.youtube.com/watch?v=${id}`
+export const playlistUrl = (list: string) => `https://www.youtube.com/playlist?list=${list}`
+
+/** Liked videos (LL…) and Watch Later (WL) need the owner's sign-in; yt-dlp in a-Shell can't list them. */
+const isPrivateList = (list: string) => /^(LL|WL)/.test(list)
+
+/** Saved songs among `ids` that a downloader can fetch (YouTube ones; an imported file can't come back that way). */
+export function downloadable(ids: readonly string[]): string[] {
+  const { tracks } = useLibrary.getState()
+  return ids.filter((id) => tracks[id]?.missing && tracks[id].source === 'youtube')
+}
+
+const resultOf = (id: string): SearchResult => {
+  const t = useLibrary.getState().tracks[id]!
+  return { id, title: t.title, channel: t.artist, duration: t.duration }
+}
+
+/**
+ * Download a saved song. With the helper, resolves true once it is saved. Without it, opens the Shortcut and
+ * resolves false: the song arrives through Import and fills in where it is. Call it from the tap (iOS asks
+ * before opening Shortcuts, and only for a tap).
+ */
+export function downloadSaved(id: string): Promise<boolean> {
+  if (!downloadable([id]).length) return Promise.resolve(false)
+  const run = (m: Mode) => {
+    if (m === 'phone') {
+      runShortcut(watchUrl(id))
+      return false
+    }
+    return helper.downloadTrack(resultOf(id))
+  }
+  const known = useSource.getState().mode
+  return known ? Promise.resolve(run(known)) : mode().then(run)
+}
+
+/** Download Missing: every saved song in `ids`. On the phone, a linked playlist goes to the Shortcut whole
+ *  (Import skips what is already here); otherwise the Shortcut takes one song at a time, so the first one goes. */
+export function downloadMissing(ids: readonly string[], list?: string): void {
+  const missing = downloadable(ids)
+  if (!missing.length) return
+  const run = (m: Mode) => {
+    if (m === 'phone') return runShortcut(list && !isPrivateList(list) ? playlistUrl(list) : watchUrl(missing[0]))
+    void helper.downloadAll(missing.map(resultOf))
+  }
+  const known = useSource.getState().mode
+  if (known) run(known)
+  else void mode().then(run)
 }

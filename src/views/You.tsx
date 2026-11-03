@@ -8,6 +8,7 @@ import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
 import { profileLink, useAccount } from '../lib/account.ts'
 import { AccountRows } from '../ui/Account.tsx'
 import { Appearance } from '../ui/Appearance.tsx'
+import { YouTubeRow } from '../ui/YouTube.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { pickFiles } from '../ui/kit.tsx'
 import { ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
@@ -98,6 +99,7 @@ export function You() {
             </button>
           )}
           <YouTubeKey />
+          <YouTubeRow />
           <AccountRows />
         </div>
       </div>

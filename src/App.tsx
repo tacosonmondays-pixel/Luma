@@ -12,6 +12,7 @@ import { useCardVideo } from './ui/profile/ProfileMedia.tsx'
 import { PlayerBar } from './ui/PlayerBar.tsx'
 import { Playlist } from './views/Playlist.tsx'
 import { Playlists } from './views/Playlists.tsx'
+import { Save } from './views/Save.tsx'
 import { Search } from './views/Search.tsx'
 import { Songs } from './views/Songs.tsx'
 import { User } from './views/User.tsx'
@@ -31,6 +32,8 @@ function View({ route }: { route: Route }) {
       return <You />
     case 'user':
       return <User handle={route.handle} />
+    case 'save':
+      return <Save />
   }
 }
 
