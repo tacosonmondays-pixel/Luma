@@ -8,12 +8,13 @@ import { stat } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { getAssetKeys, getRawAsset, isSea } from 'node:sea'
+// A namespace import: getAssetKeys only exists in newer Node 22 releases, and a named import of it would crash npm start there.
+import * as sea from 'node:sea'
 import { fileURLToPath } from 'node:url'
 import { api, ytdlpVersion } from './api.ts'
 
 // Luma.exe embeds the built app (see scripts/build-exe.mjs); otherwise it is read from dist/.
-const SEA = isSea()
+const SEA = sea.isSea()
 const DIST = SEA ? '' : fileURLToPath(new URL('../dist/', import.meta.url))
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -60,8 +61,8 @@ async function serveStatic(req: IncomingMessage, res: ServerResponse): Promise<v
 /** A file of the built app by its path in dist/, such as "assets/index.js", or null. */
 async function appFile(name: string): Promise<{ size: number; open: () => Readable } | null> {
   if (SEA) {
-    if (!getAssetKeys().includes(name)) return null
-    const data = Buffer.from(getRawAsset(name))
+    if (!sea.getAssetKeys().includes(name)) return null
+    const data = Buffer.from(sea.getRawAsset(name))
     return { size: data.length, open: () => Readable.from([data]) }
   }
   const file = join(DIST, name)
