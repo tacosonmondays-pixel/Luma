@@ -149,6 +149,20 @@ describe('search', () => {
     expect(calls()).toEqual([[...flags, 'ytsearchdate30:daft punk']])
   })
 
+  it('searches by view count with sort=popular, through a results link', async () => {
+    const r = await search({ q: 'daft punk & co', sort: 'popular' })
+    expect(r.status).toBe(200)
+    expect(calls()).toEqual([
+      [...flags.slice(0, 5), '30', '--', 'https://www.youtube.com/results?search_query=daft%20punk%20%26%20co&sp=CAM%253D'],
+    ])
+    expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
+  })
+
+  it('passes a link through as-is with sort=popular', async () => {
+    expect((await search({ q: 'https://youtu.be/dQw4w9WgXcQ', sort: 'popular' })).status).toBe(200)
+    expect(calls()).toEqual([[...flags, 'https://youtu.be/dQw4w9WgXcQ']])
+  })
+
   it('never lets a query be read as an option', async () => {
     expect((await search({ q: '--exec rm' })).status).toBe(200)
     expect(calls()).toEqual([[...flags, 'ytsearch30:--exec rm']])
@@ -180,7 +194,7 @@ describe('search', () => {
     ['no q', {}],
     ['an empty q', { q: '   ' }],
     ['a too-long q', { q: 'a'.repeat(501) }],
-    ['a bad sort', { q: 'x', sort: 'popular' }],
+    ['a bad sort', { q: 'x', sort: 'views' }],
     ['a non-YouTube link', { q: 'https://example.com/watch?v=dQw4w9WgXcQ' }],
     ['a look-alike host', { q: 'https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ' }],
     ['a broken link', { q: 'https://' }],
@@ -297,6 +311,27 @@ describe('cover', () => {
       'https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg',
       'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
     ])
+  })
+
+  it('serves the 320×180 image with small=1, falling back to hqdefault', async () => {
+    const fetch = vi.fn(async (url: string) =>
+      url.endsWith('/hqdefault.jpg') ? new Response(jpeg) : new Response('nope', { status: 404 }),
+    )
+    vi.stubGlobal('fetch', fetch)
+    const r = await get(`${base}/api/cover/dQw4w9WgXcQ?small=1`)
+    expect(r.status).toBe(200)
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(jpeg)
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual([
+      'https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg',
+      'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+    ])
+  })
+
+  it('stops at mqdefault with small=1 when it exists', async () => {
+    const fetch = vi.fn(async (_url: string) => new Response(jpeg))
+    vi.stubGlobal('fetch', fetch)
+    expect((await get(`${base}/api/cover/dQw4w9WgXcQ?small=1`)).status).toBe(200)
+    expect(fetch.mock.calls.map(([url]) => url)).toEqual(['https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg'])
   })
 
   it('answers 404 when neither image exists', async () => {
