@@ -1,0 +1,66 @@
+# Builds Luma.exe and attaches it to the GitHub Release for the tag.
+# Download link: https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release, such as v1.0.0 (created at this commit if new). Defaults to the selected tag.
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - name: Check the tag
+        run: '[[ $TAG == v* ]] || { echo "::error::Run this on a v* tag, or give a tag such as v1.0.0"; exit 1; }'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The exe ships this Node. scripts/build-exe.mjs follows the SEA docs for this version.
+          node-version: 22.23.4
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx vite build
+      - run: npm run exe
+
+      # Run it as a user would: first run downloads yt-dlp and Deno, then the app and /api/health answer.
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $luma = Start-Process build\Luma.exe -PassThru -RedirectStandardOutput luma.log -RedirectStandardError luma.err
+          $health = $null
+          foreach ($i in 1..60) {
+            Start-Sleep 5
+            try { $health = Invoke-RestMethod http://localhost:4848/api/health } catch {}
+            if ($health.ytdlp) { break }
+          }
+          try {
+            if (-not $health.ytdlp) { throw 'yt-dlp did not come up' }
+            if (-not (Test-Path "$env:LOCALAPPDATA\Luma\bin\deno.exe")) { throw 'deno.exe is missing' }
+            $page = Invoke-WebRequest http://localhost:4848/ -UseBasicParsing
+            if ($page.Content -notmatch '<div id="root">') { throw 'the app is not served' }
+          } finally {
+            Stop-Process $luma
+            Get-Content luma.log, luma.err
+          }
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
+          gh release upload "$TAG" build/Luma.exe --clobber
