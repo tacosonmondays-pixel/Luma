@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { useDownloads, type DownloadState } from '../lib/helper.ts'
 import { formatTime } from '../lib/format.ts'
 import { isDownloaded, useLibrary } from '../lib/library.ts'
@@ -8,6 +8,7 @@ import { askedSearch, clearSearch } from '../lib/search-link.ts'
 import { cleanTitle } from '../lib/titles.ts'
 import { Icon, type IconName } from '../ui/Icon.tsx'
 import { Link, pickFiles } from '../ui/kit.tsx'
+import { Segmented } from '../ui/Segmented.tsx'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 import '../styles/search.css'
 
@@ -89,39 +90,6 @@ function LayoutGlyph({ layout }: { layout: Layout }) {
     <svg className="icon" width={20} height={20} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
       {shapes}
     </svg>
-  )
-}
-
-/** A segmented control: one thumb that slides between equal segments. */
-function Segmented<T extends string | number>({
-  label,
-  options,
-  value,
-  onChange,
-  render,
-  className = '',
-}: {
-  label: string
-  options: readonly T[]
-  value: T
-  onChange: (value: T) => void
-  render: (option: T) => { content: ReactNode; label?: string }
-  className?: string
-}) {
-  const index = Math.max(0, options.indexOf(value))
-  const style = { '--n': options.length, '--i': index } as CSSProperties
-  return (
-    <div className={`segmented ${className}`} role="radiogroup" aria-label={label} style={style}>
-      <span className="segmented-thumb" aria-hidden="true" />
-      {options.map((option) => {
-        const { content, label: name } = render(option)
-        return (
-          <button key={option} type="button" role="radio" aria-checked={option === value} aria-label={name} onClick={() => onChange(option)}>
-            {content}
-          </button>
-        )
-      })}
-    </div>
   )
 }
 
@@ -272,7 +240,7 @@ function Body({ status, response, layout }: { status: Status; response: SearchRe
       </div>
     )
   if (status === 'quota') return <Empty text="Daily limit reached" />
-  if (status === 'failed') return <Empty text="No results" />
+  if (status === 'failed') return <Empty icon="alert" text="Search failed" />
   if (!response) return null
   if (!response.results.length) return <Empty text="No results" />
   return (

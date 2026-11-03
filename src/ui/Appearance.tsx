@@ -1,5 +1,6 @@
 import { PLAYER_STYLES, THEMES, setCoverColors, setPlayerStyle, setTheme, useAppearance } from '../lib/appearance.ts'
 import '../styles/appearance.css'
+import { Segmented } from './Segmented.tsx'
 
 /** Theme, Cover Colors and Player Style: one settings group, no heading. The You page places it. */
 export function Appearance() {
@@ -28,21 +29,15 @@ export function Appearance() {
         <input type="checkbox" role="switch" className="switch" checked={coverColors} onChange={(e) => setCoverColors(e.target.checked)} />
       </label>
       <div className="group-row">
-        <span id="appearance-style">Player Style</span>
-        <div className="segmented" role="radiogroup" aria-labelledby="appearance-style">
-          {PLAYER_STYLES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              role="radio"
-              aria-checked={playerStyle === s.id}
-              className={playerStyle === s.id ? 'on' : undefined}
-              onClick={() => setPlayerStyle(s.id)}
-            >
-              {s.name}
-            </button>
-          ))}
-        </div>
+        <span>Player Style</span>
+        <Segmented
+          label="Player Style"
+          className="player-style"
+          options={PLAYER_STYLES.map((s) => s.id)}
+          value={playerStyle}
+          onChange={setPlayerStyle}
+          render={(id) => ({ content: PLAYER_STYLES.find((s) => s.id === id)!.name })}
+        />
       </div>
     </div>
   )

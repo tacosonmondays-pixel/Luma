@@ -116,46 +116,7 @@
   transform: translateX(20px);
 }
 
-/* ── Segmented control ── */
-
-.segmented {
-  display: flex;
-  padding: 2px;
-  border-radius: 9px;
-  background: var(--fill);
-}
-
-.segmented button {
-  position: relative;
-  min-width: 64px;
-  height: 30px;
-  padding: 0 12px;
-  border-radius: 7px;
-  color: var(--text-2);
-  font-size: 13px;
-  font-weight: 600;
-  transition:
-    background-color 200ms var(--ease),
-    color 160ms;
-}
-
-.segmented button:hover {
-  color: var(--text);
-}
-
-.segmented button.on {
-  background: var(--surface-2);
-  color: var(--text);
-  box-shadow:
-    0 3px 8px rgba(0, 0, 0, 0.12),
-    0 0 0 0.5px rgba(255, 255, 255, 0.08);
-}
-
-/* A 44px tall hit area on touch screens. */
-@media (pointer: coarse) {
-  .segmented button::before {
-    content: '';
-    position: absolute;
-    inset: -7px 0;
-  }
+/* Player Style uses the shared segmented control (segmented.css). */
+.segmented.player-style {
+  grid-auto-columns: 72px;
 }

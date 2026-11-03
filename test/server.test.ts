@@ -39,7 +39,9 @@ if (args.includes('--version')) {
 } else if (target.includes('slowslowslo')) {
   setTimeout(() => {}, 60000)
 } else if (args.includes('--dump-single-json')) {
-  if (target.startsWith('ytsearch')) {
+  if (target.includes('nothing%20new') && target.includes('EgIIAw')) {
+    print({ _type: 'playlist', id: 'results', title: 'results', entries: [] })
+  } else if (target.startsWith('ytsearch')) {
     print({ _type: 'playlist', id: target, title: target, entries: [
       { ie_key: 'Youtube', id: 'aaaaaaaaaaa', title: 'Song A', channel: 'Artist A', uploader: 'Up A', duration: 201.6 },
       { ie_key: 'YoutubeTab', id: 'UCaaaaaaaaaaaaaaaaaaaaaa', title: 'A channel' },
@@ -144,9 +146,20 @@ describe('search', () => {
     })
   })
 
-  it('searches by date with sort=recent', async () => {
-    expect((await search({ q: 'daft punk', sort: 'recent' })).status).toBe(200)
-    expect(calls()).toEqual([[...flags, 'ytsearchdate30:daft punk']])
+  const page = (q: string, sp: string) => [...flags.slice(0, -2), '30', '--', `https://www.youtube.com/results?search_query=${q}&sp=${sp}`]
+
+  it('finds this week\'s uploads with sort=recent (YouTube no longer sorts by upload date)', async () => {
+    const r = await search({ q: 'daft punk', sort: 'recent' })
+    expect(r.status).toBe(200)
+    expect(calls()).toEqual([page('daft%20punk', 'EgIIAw%253D%253D')])
+    expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
+  })
+
+  it('widens sort=recent to this month when nothing was uploaded this week', async () => {
+    const r = await search({ q: 'nothing new', sort: 'recent' })
+    expect(r.status).toBe(200)
+    expect(calls()).toEqual([page('nothing%20new', 'EgIIAw%253D%253D'), page('nothing%20new', 'EgIIBA%253D%253D')])
+    expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
   })
 
   it('searches by view count with sort=popular, through a results link', async () => {
