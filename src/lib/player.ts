@@ -77,7 +77,15 @@ async function load(id: string | undefined, play: boolean, at = 0): Promise<void
   lastTime = at
   audio.src = URL.createObjectURL(blob)
   if (previous.startsWith('blob:')) URL.revokeObjectURL(previous)
-  if (at > 0) audio.addEventListener('loadedmetadata', () => mine === token && void (audio.currentTime = at), { once: true })
+  // The resume point applies to this load only; a newer load (another song) starts from 0.
+  if (at > 0)
+    audio.addEventListener(
+      'loadedmetadata',
+      () => {
+        if (mine === token) audio.currentTime = at
+      },
+      { once: true },
+    )
   syncMediaSession()
   if (play) audio.play().catch(() => {})
 }

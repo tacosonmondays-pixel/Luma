@@ -145,12 +145,12 @@ export function MenuHost() {
     const vw = document.documentElement.clientWidth
     const vh = window.innerHeight
     const h = el.offsetHeight
-    const top0 = safe.top + MARGIN
-    const bottom0 = vh - safe.bottom - MARGIN
+    const minTop = safe.top + MARGIN
+    const maxBottom = vh - safe.bottom - MARGIN
     const point = at.left === at.right
     const left = Math.min(Math.max(point ? at.left : at.right - WIDTH, safe.left + MARGIN), vw - safe.right - MARGIN - WIDTH)
-    const above = menu.above ?? (at.bottom + GAP + h > bottom0 && at.top - GAP - h >= top0)
-    const top = Math.min(Math.max(above ? at.top - GAP - h : at.bottom + GAP, top0), bottom0 - h)
+    const above = menu.above ?? (at.bottom + GAP + h > maxBottom && at.top - GAP - h >= minTop)
+    const top = Math.min(Math.max(above ? at.top - GAP - h : at.bottom + GAP, minTop), maxBottom - h)
     setPlace({ left, top, above })
   }, [menu])
 
@@ -180,9 +180,10 @@ export function MenuHost() {
         e.preventDefault()
         const items = [...(ref.current?.querySelectorAll<HTMLElement>('.menu-item') ?? [])]
         const i = items.indexOf(document.activeElement as HTMLElement)
-        const last = items.length - 1
-        const down = e.key === 'ArrowDown'
-        const to = e.key === 'Home' ? 0 : e.key === 'End' ? last : i < 0 ? (down ? 0 : last) : (i + (down ? 1 : -1) + items.length) % items.length
+        const n = items.length
+        let to = e.key === 'ArrowDown' ? (i + 1) % n : i < 0 ? n - 1 : (i - 1 + n) % n
+        if (e.key === 'Home') to = 0
+        if (e.key === 'End') to = n - 1
         items[to]?.focus()
       }
     }

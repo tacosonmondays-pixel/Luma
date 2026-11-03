@@ -48,9 +48,9 @@ function useShortcuts() {
     let pointer = false
     let clickFocused = false
     const onPointer = () => (pointer = true)
+    const onKeyboard = () => (pointer = false)
     const onFocus = () => (clickFocused = pointer)
     const onKey = (e: KeyboardEvent) => {
-      pointer = false
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
       if (e.key === 'Escape') return setOpen(false)
       const target = e.target as HTMLElement
@@ -64,10 +64,12 @@ function useShortcuts() {
       else if (e.key === 'ArrowRight') seek(audio.currentTime + 5)
     }
     window.addEventListener('pointerdown', onPointer, true)
+    window.addEventListener('keydown', onKeyboard, true) // also for keys an open menu keeps to itself
     window.addEventListener('focusin', onFocus, true)
     window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('pointerdown', onPointer, true)
+      window.removeEventListener('keydown', onKeyboard, true)
       window.removeEventListener('focusin', onFocus, true)
       window.removeEventListener('keydown', onKey)
     }

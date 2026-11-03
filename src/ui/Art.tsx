@@ -54,9 +54,10 @@ export function Avatar({ size }: { size: number }) {
   const profile = useLibrary((s) => s.profile)
   const url = useBlobUrl('avatar', profile.avatar)
   const initial = profile.name.trim().charAt(0).toUpperCase()
+  // Without a photo: --fill-2 made opaque, so it looks the same over the banner, the page and a wallpaper.
+  const background = url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
   return (
-    // Opaque, so it looks the same over the banner, the page and a wallpaper.
-    <div className="art round" style={{ width: size, height: size, background: url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)' }}>
+    <div className="art round" style={{ width: size, height: size, background }}>
       {url ? (
         <img src={url} alt="" draggable={false} />
       ) : initial ? (
