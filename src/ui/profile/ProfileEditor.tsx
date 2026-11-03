@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { MAX_PINNED_PLAYLISTS, PROFILE_SLOTS, saveProfile, useLibrary, type ProfileSlot } from '../../lib/library.ts'
 import { errorLabel, processMedia, type Media } from '../../lib/media.ts'
-import type { EffectId, FrameId, NameStyleId, Profile } from '../../types.ts'
-import { PlaylistArt, TrackArt } from '../Art.tsx'
+import type { Crop, EffectId, FrameId, NameStyleId, Profile } from '../../types.ts'
+import { CropImg, PlaylistArt, TrackArt } from '../Art.tsx'
 import { GifMaker } from '../GifMaker.tsx'
 import { Icon } from '../Icon.tsx'
 import { IconButton, pickFiles } from '../kit.tsx'
@@ -14,6 +14,7 @@ import { Effect } from './Effect.tsx'
 import { EFFECTS } from './effects.ts'
 import { Frame } from './Frame.tsx'
 import { FRAMES } from './frames.ts'
+import { ImageCrop } from './ImageCrop.tsx'
 import { NAME_STYLES, NameStyle } from './NameStyle.tsx'
 import { ProfileCard, useReducedMotion } from './ProfileCard.tsx'
 import { useSavedMedia, type CardMedia, type ShownMedia } from './ProfileMedia.tsx'
@@ -55,10 +56,10 @@ function revoke(pick: Pick | null | undefined) {
 const stillOf = (m?: ShownMedia) => (m ? (m.kind === 'image' ? m.url : (m.still ?? m.url)) : undefined)
 
 /** The avatar's still, or the initial, as the frame tiles show it. */
-function Photo({ media, name }: { media?: ShownMedia; name: string }) {
+function Photo({ media, name, crop }: { media?: ShownMedia; name: string; crop?: Crop }) {
   const src = stillOf(media)
   const initial = name.trim().charAt(0).toUpperCase()
-  return <span className="pe-photo">{src ? <img src={src} alt="" draggable={false} /> : initial ? <b>{initial}</b> : <Icon name="user" size={28} />}</span>
+  return <span className="pe-photo crop-box">{src ? <CropImg src={src} crop={crop} /> : initial ? <b>{initial}</b> : <Icon name="user" size={28} />}</span>
 }
 
 // ── Sections ─────────────────────────────────────────────────────────────
@@ -70,10 +71,22 @@ interface SectionProps {
   live: boolean
 }
 
-function Images({ media, errors, choose, remove }: { media: CardMedia; errors: Partial<Record<ProfileSlot, string>>; choose: (slot: ProfileSlot) => void; remove: (slot: ProfileSlot) => void }) {
+interface ImagesProps {
+  draft: Profile
+  media: CardMedia
+  errors: Partial<Record<ProfileSlot, string>>
+  choose: (slot: ProfileSlot) => void
+  adjust: (slot: ProfileSlot) => void
+  remove: (slot: ProfileSlot) => void
+}
+
+function Images({ draft, media, errors, choose, adjust, remove }: ImagesProps) {
   const open = (slot: ProfileSlot, el: HTMLElement) => {
     const items: MenuItem[] = [{ label: 'Choose', icon: 'image', onSelect: () => choose(slot) }]
-    if (media[slot]) items.push({ label: 'Remove', icon: 'trash', danger: true, onSelect: () => remove(slot) })
+    if (media[slot]) {
+      items.push({ label: 'Adjust', icon: 'crop', onSelect: () => adjust(slot) })
+      items.push({ label: 'Remove', icon: 'trash', danger: true, onSelect: () => remove(slot) })
+    }
     openMenu(el, items)
   }
   return (
@@ -83,7 +96,7 @@ function Images({ media, errors, choose, remove }: { media: CardMedia; errors: P
         const error = errors[slot]
         return (
           <button key={slot} type="button" className={`pe-tile pe-tile-${slot}${error ? ' error' : ''}`} onClick={(e) => open(slot, e.currentTarget)}>
-            <span className="pe-thumb">{src ? <img src={src} alt="" draggable={false} /> : <Icon name="plus" size={20} />}</span>
+            <span className="pe-thumb crop-box">{src ? <CropImg src={src} crop={draft[`${slot}Crop`]} /> : <Icon name="plus" size={20} />}</span>
             <span className="pe-tile-label">{error ?? SLOT_LABEL[slot]}</span>
           </button>
         )
@@ -133,13 +146,13 @@ function Frames({ draft, change, media, live }: SectionProps) {
     <div className="pe-scroller pe-frames">
       <button type="button" className={`pe-frame${draft.frame ? '' : ' on'}`} aria-label="No Frame" aria-pressed={!draft.frame} onClick={() => pickFrame(undefined)}>
         <span className="pe-av">
-          <Photo media={media.avatar} name={draft.name} />
+          <Photo media={media.avatar} name={draft.name} crop={draft.avatarCrop} />
         </span>
       </button>
       {FRAMES.map((id) => (
         <button key={id} type="button" className={`pe-frame${draft.frame === id ? ' on' : ''}`} aria-label={title(id)} aria-pressed={draft.frame === id} onClick={() => pickFrame(id)}>
           <span className="pe-av">
-            <Photo media={media.avatar} name={draft.name} />
+            <Photo media={media.avatar} name={draft.name} crop={draft.avatarCrop} />
             <Frame id={id} live={live && draft.frame === id} />
           </span>
         </button>
@@ -253,6 +266,8 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const [errors, setErrors] = useState<Partial<Record<ProfileSlot, string>>>({})
   const [tab, setTab] = useState<Tab>('Images')
   const [gif, setGif] = useState<{ file: File; slot: 'avatar' | 'banner' }>()
+  // The crop sheet: for a new pick (not yet in `picks`) or for the slot's current media.
+  const [cropping, setCropping] = useState<{ slot: ProfileSlot; shown: ShownMedia; pick?: Media; aspect: number }>()
   const [busy, setBusy] = useState(false)
   const [closing, setClosing] = useState(false)
   const [effectRun, setEffectRun] = useState(0)
@@ -272,7 +287,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     else if (pick) media[slot] = pick.shown
   }
 
-  const live = visible && !reduced && !gif && !closing
+  const live = visible && !reduced && !gif && !cropping && !closing
 
   useEffect(() => {
     const onVisibility = () => setVisible(document.visibilityState === 'visible')
@@ -280,8 +295,17 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [])
 
-  // Object URLs of picks that were never saved.
-  useEffect(() => () => PROFILE_SLOTS.forEach((slot) => revoke(picksRef.current[slot])), [])
+  // Object URLs of picks that were never saved (or never left the crop sheet).
+  const croppingRef = useRef(cropping)
+  croppingRef.current = cropping
+  useEffect(
+    () => () => {
+      PROFILE_SLOTS.forEach((slot) => revoke(picksRef.current[slot]))
+      const pending = croppingRef.current
+      if (pending?.pick) revoke({ ...pending.pick, shown: pending.shown })
+    },
+    [],
+  )
 
   const change = (patch: Partial<Profile>) => setDraft((d) => ({ ...d, ...patch }))
 
@@ -300,17 +324,50 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     )
   }
 
-  const use = (slot: ProfileSlot, media: Media) =>
+  const use = (slot: ProfileSlot, media: Media, shown = showMedia(media)) =>
     setPicks((p) => {
       revoke(p[slot])
-      return { ...p, [slot]: { ...media, shown: showMedia(media) } }
+      return { ...p, [slot]: { ...media, shown } }
     })
 
+  /** The frame's width / height in the crop sheet: the Background takes the preview card's shape. */
+  const frameAspect = (slot: ProfileSlot) => {
+    if (slot === 'avatar') return 1
+    if (slot === 'banner') return 3
+    const card = previewRef.current?.querySelector('.pc')?.getBoundingClientRect()
+    return card && card.height ? card.width / card.height : 0.5
+  }
+
+  const adjust = (slot: ProfileSlot) => {
+    const shown = media[slot]
+    if (shown) setCropping({ slot, shown, aspect: frameAspect(slot) })
+  }
+
+  // A GIF from the GIF maker is already cropped to the slot's shape: it goes straight in, centered. Anything else
+  // opens the crop sheet first.
   const take = (slot: ProfileSlot, file: Blob, made?: boolean) =>
     processMedia(file, slot, { made }).then(
-      (m) => use(slot, m),
+      (m) => {
+        if (made) {
+          use(slot, m)
+          change({ [`${slot}Crop`]: undefined })
+        } else setCropping({ slot, shown: showMedia(m), pick: m, aspect: frameAspect(slot) })
+      },
       (error) => fail(slot, error),
     )
+
+  const cropDone = (crop: Crop | undefined) => {
+    if (!cropping) return
+    const { slot, pick, shown } = cropping
+    if (pick) use(slot, pick, shown)
+    change({ [`${slot}Crop`]: crop })
+    setCropping(undefined)
+  }
+
+  const cropCancel = () => {
+    if (cropping?.pick) revoke({ ...cropping.pick, shown: cropping.shown })
+    setCropping(undefined)
+  }
 
   // Called from the menu item's click, so the picker opens inside the user's tap (iOS needs it).
   const choose = (slot: ProfileSlot) => {
@@ -322,12 +379,14 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     })
   }
 
-  const remove = (slot: ProfileSlot) =>
+  const remove = (slot: ProfileSlot) => {
+    change({ [`${slot}Crop`]: undefined })
     setPicks((p) => {
       revoke(p[slot])
       // Removing a pick that replaced nothing just drops the pick.
       return { ...p, [slot]: saved[slot] ? null : undefined }
     })
+  }
 
   const done = async () => {
     if (busy) return
@@ -347,7 +406,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || gif || document.querySelector('.menu')) return
+      if (e.key !== 'Escape' || gif || cropping || document.querySelector('.menu')) return
       e.preventDefault()
       close()
     }
@@ -368,7 +427,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
   const section = (which: Tab) => {
     switch (which) {
       case 'Images':
-        return <Images media={media} errors={errors} choose={choose} remove={remove} />
+        return <Images draft={draft} media={media} errors={errors} choose={choose} adjust={adjust} remove={remove} />
       case 'Colors':
         return <Colors {...props} />
       case 'Frame':
@@ -438,6 +497,17 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
             void take(slot, blob, true)
           }}
           onCancel={() => setGif(undefined)}
+        />
+      )}
+      {cropping && (
+        <ImageCrop
+          key={cropping.shown.url}
+          slot={cropping.slot}
+          media={cropping.shown}
+          crop={cropping.pick ? undefined : draft[`${cropping.slot}Crop`]}
+          aspect={cropping.aspect}
+          onDone={cropDone}
+          onCancel={cropCancel}
         />
       )}
     </div>
