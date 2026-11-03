@@ -1,9 +1,11 @@
 // The app shell (the scope root and the assets/ files it loads) comes from Cache Storage, so Luma opens at once, also
 // away from home. api/ is never cached: downloaded songs live in IndexedDB.
 // Every path is relative to the scope: '/' from the helper, '/Luma/' on GitHub Pages.
+// The static pages (get/, terms/, privacy/) are their own HTML, not the app: fetched fresh, cached for offline.
 const CACHE = 'luma-v1'
 const ROOT = new URL(self.registration.scope).pathname
 const ASSETS = ROOT + 'assets/'
+const PAGES = ['get/', 'terms/', 'privacy/'].map((p) => ROOT + p)
 const FILES = ['manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'].map((f) => ROOT + f)
 
 self.addEventListener('install', (event) => {
@@ -22,7 +24,10 @@ self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith(ROOT + 'api/')) return
-  if (url.pathname.startsWith(ASSETS)) event.respondWith(cacheFirst(request))
+  const page = PAGES.find((p) => url.pathname === p || url.pathname === p + 'index.html')
+  if (page) event.respondWith(networkFirst(page + 'index.html'))
+  else if (PAGES.includes(url.pathname + '/')) event.respondWith(Response.redirect(url.pathname + '/' + url.search, 301))
+  else if (url.pathname.startsWith(ASSETS)) event.respondWith(cacheFirst(request))
   else if (request.mode === 'navigate') event.respondWith(openShell(event))
   else event.respondWith(staleWhileRevalidate(event))
 })
@@ -82,12 +87,22 @@ async function cssAssets(cache, assets) {
   for (const path of assets.filter((a) => a.endsWith('.css'))) {
     const css = (await (await cache.match(path))?.text()) ?? ''
     for (const [, ref] of css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
-      if (ref.startsWith('data:')) continue
+      if (ref.startsWith('data:') || ref.startsWith('#') || ref.startsWith('%23')) continue // a fragment, e.g. an SVG filter
       const { pathname } = new URL(ref, self.location.origin + path)
       if (pathname.startsWith(ASSETS)) found.add(pathname)
     }
   }
   return [...found]
+}
+
+async function networkFirst(path) {
+  try {
+    return await store(path, await fetch(path))
+  } catch (error) {
+    const cached = await caches.match(path)
+    if (cached) return cached
+    throw error
+  }
 }
 
 function staleWhileRevalidate(event) {
