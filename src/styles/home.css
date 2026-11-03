@@ -77,6 +77,12 @@
   background: var(--fill);
 }
 
+.card-ghost {
+  aspect-ratio: 1;
+  border-radius: var(--r);
+  background: var(--fill);
+}
+
 @media (max-width: 899px) {
   .row {
     grid-auto-flow: column;
@@ -101,6 +107,12 @@
 
   .row.wide {
     grid-auto-columns: 72%;
+  }
+
+  /* Every card (Row all): rows of the same columns instead of a sideways scroll. */
+  .row.all {
+    grid-auto-flow: row;
+    overflow: visible;
   }
 
   .shelves {

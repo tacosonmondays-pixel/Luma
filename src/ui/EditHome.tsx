@@ -35,7 +35,8 @@ interface Drag {
   row: number // row height, px
 }
 
-export function EditHome({ mixTitle, hideMix, onClose }: { mixTitle: string; hideMix: boolean; onClose: () => void }) {
+/** `omit`: shelves left out of the list (ones that can't show here, like the Mix in phone mode). */
+export function EditHome({ mixTitle, omit, onClose }: { mixTitle: string; omit: string[]; onClose: () => void }) {
   const { order, hidden, custom } = useHome()
   const [drag, setDrag] = useState<Drag | null>(null)
   const [adding, setAdding] = useState(false)
@@ -47,10 +48,10 @@ export function EditHome({ mixTitle, hideMix, onClose }: { mixTitle: string; hid
   }, [onClose])
 
   const title = (id: string) => (id === 'mix' ? mixTitle : isBuiltin(id) ? BUILTIN_TITLES[id] : (custom.find((c) => c.id === id)?.query ?? ''))
-  const rows = hideMix ? order.filter((id) => id !== 'mix') : order
+  const rows = order.filter((id) => !omit.includes(id))
   const target = drag ? Math.max(0, Math.min(rows.length - 1, drag.from + Math.round(drag.dy / drag.row))) : -1
 
-  // Indices in `rows` map back to the full order (Mix may be left out of the list).
+  // Indices in `rows` map back to the full order (`omit` leaves shelves out of the list).
   const move = (from: number, to: number) => moveShelf(order.indexOf(rows[from]), order.indexOf(rows[to]))
 
   const down = (e: PointerEvent<HTMLButtonElement>, id: string, index: number) => {

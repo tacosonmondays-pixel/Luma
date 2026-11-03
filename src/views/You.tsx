@@ -11,7 +11,7 @@ import { Appearance } from '../ui/Appearance.tsx'
 import { YouTubeRow } from '../ui/YouTube.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { pickFiles } from '../ui/kit.tsx'
-import { ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
+import { CardIcon, ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
 import { ProfileEditor } from '../ui/profile/ProfileEditor.tsx'
 import { useSavedMedia } from '../ui/profile/ProfileMedia.tsx'
 import '../styles/library.css'
@@ -81,7 +81,21 @@ export function You() {
   return (
     <section className="you">
       <div ref={cardRef}>
-        <ProfileCard profile={profile} media={media} live={live} effectFor={EFFECT_MS} onEdit={() => setEditing(true)} onShare={handle ? () => void share() : undefined} claimsVideo />
+        <ProfileCard
+          profile={profile}
+          media={media}
+          live={live}
+          effectFor={EFFECT_MS}
+          actions={
+            <>
+              {handle && <CardIcon icon="share" label="Share Profile" onClick={() => void share()} />}
+              <button type="button" className="pill pc-edit" onClick={() => setEditing(true)}>
+                Edit Profile
+              </button>
+            </>
+          }
+          claimsVideo
+        />
       </div>
       <div className="you-settings">
         <Appearance />

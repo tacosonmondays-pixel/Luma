@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type MouseEvent, type ReactNode } from 'react'
-import { useDownloads, type DownloadState } from '../lib/helper.ts'
-import { formatTime } from '../lib/format.ts'
+import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react'
+import { useDownloads } from '../lib/helper.ts'
 import { isDownloaded, useLibrary } from '../lib/library.ts'
-import { playTracks, usePlayer } from '../lib/player.ts'
-import { detect, downloadAll, downloadTrack, importDownloads, problemOf, search, thumbnails, useSource, type Problem } from '../lib/source.ts'
+import { detect, downloadAll, importDownloads, problemOf, search, useSource, type Problem } from '../lib/source.ts'
 import { askedSearch, clearSearch } from '../lib/search-link.ts'
-import { cleanTitle } from '../lib/titles.ts'
 import { Icon, type IconName } from '../ui/Icon.tsx'
 import { Link, pickFiles } from '../ui/kit.tsx'
-import { Ring } from '../ui/Ring.tsx'
+import { ResultRow, ResultTile } from '../ui/ResultTile.tsx'
 import { Segmented } from '../ui/Segmented.tsx'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 import '../styles/search.css'
@@ -23,9 +20,6 @@ const last: { input: string; query: string; sort: SearchSort; response: SearchRe
   response: null,
   status: 'idle',
 }
-
-/** The result the user last tapped while it was still downloading; it plays when it finishes. */
-let wantsPlay: string | null = null
 
 // ── Layouts ──────────────────────────────────────────────────────────────
 
@@ -250,13 +244,13 @@ function Body({ status, response, layout }: { status: Status; response: SearchRe
       {layout === 'list' ? (
         <ul className="results">
           {response.results.map((r) => (
-            <Row key={r.id} result={r} />
+            <ResultRow key={r.id} result={r} as="li" />
           ))}
         </ul>
       ) : (
         <ul className={`tiles tiles-${layout}`}>
           {response.results.map((r) => (
-            <Tile key={r.id} result={r} small={layout === 5} />
+            <ResultTile key={r.id} result={r} small={layout === 5} as="li" />
           ))}
         </ul>
       )}
@@ -284,128 +278,5 @@ function PlaylistHead({ title, results }: { title: string; results: SearchResult
         Download All
       </button>
     </div>
-  )
-}
-
-/** What a row or tile shows and does: tap to play if saved, else download and then play. */
-function useResult(result: SearchResult) {
-  const saved = useLibrary((s) => isDownloaded(s.tracks[result.id]))
-  const state = useDownloads((s) => s[result.id])
-  const current = usePlayer((s) => s.queue.ids[s.queue.index] === result.id)
-  const { title, artist } = cleanTitle(result.title, result.channel)
-
-  const download = async () => {
-    if (await downloadTrack(result)) {
-      if (wantsPlay === result.id) {
-        wantsPlay = null
-        playTracks([result.id])
-      }
-    }
-  }
-
-  const open = () => {
-    if (saved) {
-      wantsPlay = null
-      return playTracks([result.id])
-    }
-    wantsPlay = result.id
-    void download()
-  }
-
-  const press = (e: MouseEvent) => {
-    e.stopPropagation()
-    if (saved) return open()
-    if (state === undefined || state === 'error') void download()
-  }
-
-  return { saved, state, current, title, artist, open, press }
-}
-
-/** The first thumbnail that exists. YouTube answers a missing size with a 120×90 placeholder. */
-function Thumb({ id, small }: { id: string; small: boolean }) {
-  const sources = thumbnails(id, small)
-  const [index, setIndex] = useState(0)
-  const next = (img: HTMLImageElement) => {
-    if (index + 1 < sources.length) setIndex(index + 1)
-    else img.style.opacity = '0'
-  }
-  return (
-    <img
-      src={sources[index]}
-      alt=""
-      loading="lazy"
-      draggable={false}
-      onLoad={(e) => e.currentTarget.naturalWidth <= 120 && index + 1 < sources.length && next(e.currentTarget)}
-      onError={(e) => next(e.currentTarget)}
-    />
-  )
-}
-
-function Row({ result }: { result: SearchResult }) {
-  const { saved, state, current, title, artist, open, press } = useResult(result)
-  return (
-    <li className={`result${current ? ' current' : ''}`}>
-      <button type="button" className="result-main" onClick={open}>
-        <span className="result-art">
-          <Thumb id={result.id} small />
-        </span>
-        <span className="result-text">
-          <span className="result-title ellipsis">{title}</span>
-          {artist && <span className="result-artist ellipsis">{artist}</span>}
-        </span>
-        {result.duration > 0 && <span className="result-time">{formatTime(result.duration)}</span>}
-      </button>
-      <StateButton saved={saved} state={state} onClick={press} />
-    </li>
-  )
-}
-
-function Tile({ result, small }: { result: SearchResult; small: boolean }) {
-  const { saved, state, current, title, artist, open, press } = useResult(result)
-  return (
-    <li className={`tile${current ? ' current' : ''}`}>
-      <button type="button" className="tile-main" onClick={open}>
-        <span className="tile-thumb">
-          <Thumb id={result.id} small={small} />
-          {result.duration > 0 && <span className="tile-time">{formatTime(result.duration)}</span>}
-        </span>
-        <span className="tile-title">{title}</span>
-        {artist && <span className="tile-artist ellipsis">{artist}</span>}
-      </button>
-      <StateButton className="tile-state" size={20} saved={saved} state={state} onClick={press} />
-    </li>
-  )
-}
-
-function StateButton({
-  saved,
-  state,
-  onClick,
-  className = 'result-state',
-  size = 22,
-}: {
-  saved: boolean
-  state: DownloadState | undefined
-  onClick: (e: MouseEvent) => void
-  className?: string
-  size?: number
-}) {
-  const busy = !saved && state !== undefined && state !== 'error'
-  const [label, view] = saved
-    ? ['Play', <Icon key="check" name="check" size={size} />]
-    : state === 'error'
-      ? ['Retry', <Icon key="alert" name="alert" size={size} />]
-      : busy
-        ? ['Downloading', <Ring key="ring" progress={state} size={size} />]
-        : ['Download', <Icon key="download" name="download" size={size} />]
-  return (
-    <button
-      type="button"
-      className={`icon-btn state-btn ${className}${saved ? ' saved' : ''}${state === 'error' ? ' error' : ''}${busy ? ' busy' : ''}`}
-      aria-label={label}
-      onClick={onClick}
-    >
-      {view}
-    </button>
   )
 }

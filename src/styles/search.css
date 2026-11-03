@@ -401,6 +401,13 @@
   }
 }
 
+/* A song with no YouTube id (QueryTile, QueryRow in ResultTile.tsx): its gradient and a note. */
+.query-thumb {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
 @media (hover: none) {
   .tile .tile-state {
     opacity: 1;
