@@ -35,6 +35,7 @@ import {
   useLibrary,
   type ProfileSlot,
 } from './library.ts'
+import { extOf } from './media.ts'
 import { loadPlays, usePlayLog } from './plays.ts'
 import { computeStats, earnedTiers } from './stats.ts'
 import { BUCKET, mediaUrl, supabase } from './supabase.ts'
@@ -393,11 +394,6 @@ async function pushLibrary(uid: string, state: SyncState): Promise<void> {
 
 // ── Profile ──────────────────────────────────────────────────────────────
 
-const EXT: Record<string, string> = {
-  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/apng': 'apng',
-  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
-}
-
 const KIND_KEY = { avatar: 'avatarKind', banner: 'bannerKind', backdrop: 'backdropKind' } as const
 
 /** A file from the bucket; undefined when it is gone (a 4xx), so one missing file never stops a sync. */
@@ -486,12 +482,12 @@ async function pushProfile(uid: string, state: SyncState, row: ProfileRow): Prom
     if (!blob) continue
     const kind = profile[KIND_KEY[slot]] ?? 'image'
     const stillBlob = kind === 'image' ? undefined : await getBlob(`${slot}-still`)
-    const path = `${uid}/profile/${slot}-${v}.${EXT[blob.type] ?? 'jpg'}`
+    const path = `${uid}/profile/${slot}-${v}.${extOf(blob.type) ?? 'jpg'}`
     const up = await sb.storage.from(BUCKET).upload(path, blob, { upsert: true, contentType: blob.type || 'image/jpeg', cacheControl: '31536000' })
     if (up.error) throw up.error
     let still: string | null = null
     if (stillBlob) {
-      still = `${uid}/profile/${slot}-${v}-still.${EXT[stillBlob.type] ?? 'jpg'}`
+      still = `${uid}/profile/${slot}-${v}-still.${extOf(stillBlob.type) ?? 'jpg'}`
       const s = await sb.storage.from(BUCKET).upload(still, stillBlob, { upsert: true, contentType: stillBlob.type || 'image/jpeg', cacheControl: '31536000' })
       if (s.error) throw s.error
     }

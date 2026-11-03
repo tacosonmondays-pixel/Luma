@@ -44,15 +44,17 @@ const plays = (id: string, n: number, ago = H): Play[] => Array.from({ length: n
 describe('home layout', () => {
   it('starts with every built-in shelf, in the default order, all showing', () => {
     expect(defaultLayout()).toEqual({ order: BUILTIN, hidden: [], custom: [] })
-    expect(BUILTIN).toEqual(['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'saved', 'playlists'])
+    expect(BUILTIN).toEqual(['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'friends', 'friends-new', 'saved', 'playlists'])
+    expect(home.BUILTIN_TITLES.friends).toBe('Friends Are Listening To')
+    expect(home.BUILTIN_TITLES['friends-new']).toBe('New from Friends')
     expect(visibleShelves(defaultLayout())).toEqual(BUILTIN)
   })
 
   it('moves a shelf down and up', () => {
     let l = moved(defaultLayout(), 0, 3)
     expect(l.order.slice(0, 4)).toEqual(['quick', 'jump', 'repeat', 'continue'])
-    l = moved(l, 6, 0)
-    expect(l.order).toEqual(['saved', 'quick', 'jump', 'repeat', 'continue', 'mix', 'artists', 'playlists'])
+    l = moved(l, 8, 0)
+    expect(l.order).toEqual(['saved', 'quick', 'jump', 'repeat', 'continue', 'mix', 'artists', 'friends', 'friends-new', 'playlists'])
     expect(moved(l, 2, 2)).toBe(l)
     expect(moved(l, 99, 0)).toBe(l)
     expect(moved(l, 0, 99).order.at(-1)).toBe('saved')
@@ -62,11 +64,11 @@ describe('home layout', () => {
     let l = withVisible(defaultLayout(), 'mix', false)
     l = withVisible(l, 'quick', false)
     expect(l.hidden).toEqual(['mix', 'quick'])
-    expect(visibleShelves(l)).toEqual(['continue', 'jump', 'repeat', 'artists', 'saved', 'playlists'])
+    expect(visibleShelves(l)).toEqual(['continue', 'jump', 'repeat', 'artists', 'friends', 'friends-new', 'saved', 'playlists'])
     expect(withVisible(l, 'mix', false)).toBe(l)
     expect(withVisible(l, 'nope', false)).toBe(l)
     l = withVisible(l, 'mix', true)
-    expect(visibleShelves(l)).toEqual(['continue', 'jump', 'repeat', 'mix', 'artists', 'saved', 'playlists'])
+    expect(visibleShelves(l)).toEqual(['continue', 'jump', 'repeat', 'mix', 'artists', 'friends', 'friends-new', 'saved', 'playlists'])
   })
 
   it('adds custom search shelves at the end, trimmed, and deletes them', () => {
@@ -108,11 +110,18 @@ describe('home layout', () => {
       ],
     })
     // Playlists comes back after Saved, the shelf before it in the default order.
-    expect(l.order).toEqual(['saved', 'playlists', 'continue', 'quick', 'jump', 'repeat', 'c-1', 'mix', 'artists', 'c-2'])
+    expect(l.order).toEqual(['saved', 'playlists', 'continue', 'quick', 'jump', 'repeat', 'c-1', 'mix', 'artists', 'friends', 'friends-new', 'c-2'])
     expect(l.hidden).toEqual(['mix'])
     expect(l.custom.map((c) => c.id)).toEqual(['c-1', 'c-2'])
     expect(normalize(undefined)).toEqual(defaultLayout())
     expect(normalize({ order: 'junk' as never, hidden: null as never, custom: {} as never })).toEqual(defaultLayout())
+  })
+
+  it('slots the social shelves in right after New from Your Artists in a layout from before them', () => {
+    const before = ['playlists', 'artists', 'continue', 'c-1', 'quick', 'jump', 'repeat', 'mix', 'saved']
+    const l = normalize({ order: before, hidden: ['artists'], custom: [{ id: 'c-1', query: 'phonk', sort: 'popular' }] })
+    expect(l.order).toEqual(['playlists', 'artists', 'friends', 'friends-new', 'continue', 'c-1', 'quick', 'jump', 'repeat', 'mix', 'saved'])
+    expect(l.hidden).toEqual(['artists'])
   })
 
   it('notes playlist listens, merging a quick restart of the same playlist', () => {
@@ -131,7 +140,7 @@ describe('home layout', () => {
 describe('home store, as stored', () => {
   it('loads a stored layout under luma-home, repairing it', () => {
     const s = home.useHome.getState()
-    expect(s.order).toEqual(['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'saved', 'playlists'])
+    expect(s.order).toEqual(['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'friends', 'friends-new', 'saved', 'playlists'])
     expect(s.hidden).toEqual(['mix'])
     expect(s.played).toEqual([{ id: 'p', at: 1 }])
   })

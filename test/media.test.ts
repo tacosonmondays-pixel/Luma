@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LIMITS, checkAnimated, checkVideo, gifInfo, imageInfo, pngInfo, stillPlan, webpInfo } from '../src/lib/media.ts'
+import { LIMITS, checkAnimated, checkVideo, extOf, gifInfo, imageInfo, pngInfo, stillPlan, webpInfo } from '../src/lib/media.ts'
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)))
 const MB = 1024 * 1024
@@ -94,6 +94,21 @@ describe('caps', () => {
     expect(checkVideo('canvas', 6 * MB, { ...clip, width: 2160, height: 3840 })).toBeUndefined()
   })
 
+  it('takes posted videos up to 50 MB and 60 s, and no video in an image slot', () => {
+    const clip = { duration: 30, width: 1080, height: 1920 }
+    expect(checkVideo('video', 49 * MB, clip)).toBeUndefined()
+    expect(checkVideo('video', 51 * MB, clip)).toBe('too-large')
+    expect(checkVideo('video', MB, { ...clip, duration: 61 })).toBe('too-long')
+    expect(checkVideo('video', 49 * MB, { ...clip, duration: 60, width: 3840, height: 2160 })).toBeUndefined()
+    expect(checkVideo('post', MB, clip)).toBe('unsupported')
+    expect(LIMITS.video.images).toBe(false)
+  })
+
+  it('keeps the first frame of an animated image in a post, whatever its size', () => {
+    expect(LIMITS.post.animated).toBeUndefined()
+    expect(checkAnimated('post', 40 * MB, { width: 4000, height: 4000, frames: 300 })).toBeUndefined()
+  })
+
   it('sends avatar and banner videos to the GIF maker', () => {
     expect(checkVideo('avatar', MB, { duration: 3, width: 640, height: 640 })).toBe('unsupported')
     expect(checkVideo('banner', MB, { duration: 3, width: 640, height: 640 })).toBe('unsupported')
@@ -111,8 +126,23 @@ describe('stillPlan', () => {
     expect(stillPlan('backdrop', 4000, 3000)).toMatchObject({ sw: 2400, sh: 3000, width: 1080, height: 1350 })
   })
 
+  it('shrinks post images and video stills without cropping or enlarging', () => {
+    expect(stillPlan('post', 4000, 3000)).toMatchObject({ sx: 0, sy: 0, sw: 4000, sh: 3000, width: 1600, height: 1200, quality: 0.82 })
+    expect(stillPlan('video', 1920, 1080)).toMatchObject({ sx: 0, sy: 0, sw: 1920, sh: 1080, width: 1080, height: 608 })
+    expect(stillPlan('post', 800, 600)).toMatchObject({ width: 800, height: 600 })
+    expect(stillPlan('video', 720, 1280)).toMatchObject({ width: 608, height: 1080 })
+  })
+
   it('never enlarges, and shrinks a Canvas without cropping', () => {
     expect(stillPlan('avatar', 200, 100)).toMatchObject({ width: 100, height: 100 })
     expect(stillPlan('canvas', 4000, 3000)).toMatchObject({ sx: 0, sy: 0, sw: 4000, sh: 3000, width: 1350, height: 1013 })
+  })
+})
+
+describe('extOf', () => {
+  it('names the extensions the bucket takes', () => {
+    expect(extOf('video/quicktime')).toBe('mov')
+    expect(extOf('image/jpeg')).toBe('jpg')
+    expect(extOf('audio/mpeg')).toBeUndefined()
   })
 })

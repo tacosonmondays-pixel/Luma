@@ -1,9 +1,9 @@
-// Profile and Canvas media: checks a picked image, animated image or video, shrinks still images, and makes
+// Profile, Canvas and post media: checks a picked image, animated image or video, shrinks still images, and makes
 // the still copy that lists and paused cards show. Decoding happens on detached elements and never touches the
 // music <audio> element or the Media Session.
 import type { MediaKind } from '../types.ts'
 
-export type MediaSlot = 'avatar' | 'banner' | 'backdrop' | 'canvas'
+export type MediaSlot = 'avatar' | 'banner' | 'backdrop' | 'canvas' | 'post' | 'video'
 export type MediaErrorCode = 'too-large' | 'too-long' | 'unsupported'
 
 /** A processed pick: what gets stored under the slot's key, plus its `-still` copy for animations and videos. */
@@ -11,6 +11,7 @@ export interface Media {
   blob: Blob
   still?: Blob
   kind: MediaKind
+  duration?: number // seconds, for a video
 }
 
 export class MediaError extends Error {
@@ -23,8 +24,11 @@ export class MediaError extends Error {
 
 interface Limits {
   still: { width: number; height: number; quality: number; crop: boolean }
-  animated: { bytes: number; maxWidth?: number; maxSide?: number; pixels: number }
+  /** Without it, an animated image becomes its first frame (a still image). */
+  animated?: { bytes: number; maxWidth?: number; maxSide?: number; pixels: number }
   video?: { bytes: number; seconds: number; maxSide?: number }
+  /** False: the slot takes videos only. */
+  images?: false
 }
 
 const MB = 1024 * 1024
@@ -49,7 +53,25 @@ export const LIMITS: Record<MediaSlot, Limits> = {
     animated: { bytes: 4 * MB, maxWidth: 1080, pixels: 48e6 },
     video: { bytes: 8 * MB, seconds: 12 },
   },
+  // A post's images: re-encoded (which drops EXIF, location included), never cropped; an animated one keeps its first frame.
+  post: {
+    still: { width: 1600, height: 1600, quality: 0.82, crop: false },
+  },
+  // A posted video is stored as it is, with sound (it plays muted until unmuted), plus a still for lists.
+  video: {
+    still: { width: 1080, height: 1080, quality: 0.82, crop: false },
+    video: { bytes: 50 * MB, seconds: 60 },
+    images: false,
+  },
 }
+
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/apng': 'apng',
+  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+}
+
+/** The file extension the media bucket takes for this MIME type, if it takes it at all. */
+export const extOf = (type: string): string | undefined => EXT[type]
 
 // ── Reading the bytes (pure, tested) ─────────────────────────────────────
 
@@ -146,9 +168,10 @@ export function imageInfo(b: Uint8Array): ImageInfo {
   return gifInfo(b) ?? pngInfo(b) ?? webpInfo(b) ?? { type: 'other', width: 0, height: 0, frames: 1 }
 }
 
-/** The cap an animated image breaks in this slot, if any. */
+/** The cap an animated image breaks in this slot, if any. A slot without animations keeps the first frame instead. */
 export function checkAnimated(slot: MediaSlot, bytes: number, info: Pick<ImageInfo, 'width' | 'height' | 'frames'>): MediaErrorCode | undefined {
   const cap = LIMITS[slot].animated
+  if (!cap) return
   const { width, height, frames } = info
   if (bytes > cap.bytes) return 'too-large'
   if (cap.maxSide && Math.max(width, height) > cap.maxSide) return 'too-large'
@@ -156,7 +179,8 @@ export function checkAnimated(slot: MediaSlot, bytes: number, info: Pick<ImageIn
   if (width * height * frames > cap.pixels) return 'too-large'
 }
 
-/** The cap a video breaks in this slot, if any. Avatar and banner take no video: it goes through the GIF maker. */
+/** The cap a video breaks in this slot, if any. Avatar and banner take no video (it goes through the GIF maker), nor
+ * does a post's image slot. */
 export function checkVideo(slot: MediaSlot, bytes: number, video: { duration: number; width: number; height: number }): MediaErrorCode | undefined {
   const cap = LIMITS[slot].video
   if (!cap) return 'unsupported'
@@ -320,11 +344,12 @@ export async function processMedia(file: Blob, slot: MediaSlot, { made }: { made
       video.release()
       throw new MediaError(error)
     }
-    return { blob: file, still: await video.still(), kind: 'video' }
+    return { blob: file, still: await video.still(), kind: 'video', duration: video.duration }
   }
-  if (type && !type.startsWith('image/')) throw new MediaError('unsupported')
+  if ((type && !type.startsWith('image/')) || LIMITS[slot].images === false) throw new MediaError('unsupported')
   const bytes = new Uint8Array(await file.slice(0, Math.min(file.size, 64 * MB)).arrayBuffer())
   const info = imageInfo(bytes)
+  if (info.frames > 1 && !LIMITS[slot].animated) return { blob: await firstFrame(file, slot), kind: 'image' }
   if (info.frames > 1) {
     const error = made ? undefined : checkAnimated(slot, file.size, info)
     if (error) throw new MediaError(error)

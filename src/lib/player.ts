@@ -175,6 +175,11 @@ export function play(): void {
   audio.play().catch(() => {})
 }
 
+/** Pause the music, if it is playing (a video in a post is about to play with sound). */
+export function pause(): void {
+  if (!audio.paused) audio.pause()
+}
+
 export function toggle(): void {
   if (loaded === undefined || audio.paused) play()
   else audio.pause()

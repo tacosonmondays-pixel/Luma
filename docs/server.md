@@ -1,6 +1,6 @@
 # Luma's server: the contract
 
-The Supabase layer, for code built on it (the social screens: friends feed, videos, posts, Luma search, moderation). The source of truth is `supabase/migrations/0001_luma.sql`. The tests in `test/db/` prove every rule below against it. Setup steps for the owner are in `supabase/README.md`.
+The Supabase layer, for code built on it (the social screens: friends feed, videos, posts, Luma search, moderation). The source of truth is `supabase/migrations/`: `0001_luma.sql`, then `0002_social.sql` (the media quota, `admin_dismiss`, `admin_purge` and a song on posts). The tests in `test/db/` prove every rule below against them, run in order. Setup steps for the owner are in `supabase/README.md`.
 
 The server is optional. Signed out or offline, Luma works exactly as it does without one. Never make a local feature depend on it.
 
@@ -27,8 +27,9 @@ Roles: `anon` (signed out) and `authenticated` (signed in, member or not). `auth
 | `luma.sees_activity(uid)` | the caller may read that user's plays (see `plays`) |
 | `luma.own_paths(paths, sub)` | every path is a media path (below) of the caller's, under `sub` |
 | `luma.media_path_ok(name)` | a storage name is `<caller uid>/<profile\|videos\|posts>/<file>.<allowed ext>` |
+| `luma.media_quota()` | (returns) the bytes each member may keep in the bucket: 200 MB. Called only by `public.media_left()`. |
 
-Policies use these. New tables should too. The checks use these immutable ones:
+Policies use these. New tables should too. But a function that a policy added after `0001` calls must live in `public` (see Migrations). The checks use these immutable ones:
 
 | Function | True when |
 |---|---|
@@ -97,7 +98,7 @@ No approval step. Anyone may follow any visible member.
 
 The client (`sync.ts`) uploads plays only while `share_activity` is on (it checks the row first), and only those started after it was turned on.
 
-Feed query: `select * from plays order by played_at desc limit 50`. RLS already narrows it to people you follow (plus yourself).
+Feed query (`loadFeed` in `social.ts`): `plays` where `user_id` is in your follows (in chunks of 100) and `played_at` is within the last 7 days, newest first, 200 per chunk. RLS also narrows it to people you follow who share, but the filters keep `sees_activity` from running on every play. A profile's Listening To reads that one user's last 14 days, 100 at most.
 
 ### `library_tracks` and `library_playlists`: private backup
 
@@ -125,13 +126,13 @@ No audio, no cover art. A synced song arrives on a new device as `Track.missing`
 
 ### `posts`
 
-`id`, `user_id`, `body` (≤ 1000), `image_paths text[]` (≤ 4, each `<user_id>/posts/<file>`, no nulls), `created_at`, `removed_at`, `search`. A post needs a body or at least one image. The policies match `videos`; updates touch `body` only. At most 100 a day per member.
+`id`, `user_id`, `body` (≤ 1000), `image_paths text[]` (≤ 4, each `<user_id>/posts/<file>`, no nulls), the song it carries as metadata only (`youtube_id`: 11 characters or null; `track_title`, `track_artist`: ≤ 300 each; added by `0002`), `created_at`, `removed_at`, `search` (body, track title, track artist). A post needs a body or at least one image: a song alone is not a post. The policies match `videos`; updates touch `body` only. At most 100 a day per member.
 
 ### `reports`
 
 `id`, `reporter_id`, `kind` (`profile`/`video`/`post`), `target_id`, `reason` (≤ 500), `created_at`, `resolved_at`. Unique per reporter and target.
 - **insert:** members, at most 50 open (unresolved) at a time. **select:** your own reports; admins see all.
-- `admin_remove` and `admin_ban` resolve matching open reports.
+- `admin_remove`, `admin_ban`, `admin_purge` and `admin_dismiss` resolve matching open reports.
 
 ## RPCs
 
@@ -144,6 +145,9 @@ All are `security definer` with `search_path = ''`. Execute is revoked from `pub
 | `luma_search(q text) → (kind, id, user_id, handle, title, rank)` | anon, authenticated | Full-text search over visible profiles, unremoved videos and posts. Each word is a prefix (`synth` finds "synthwave"). At most 8 words, 50 rows, best first. `title` is the name, caption or start of the post. Blank queries return nothing. |
 | `admin_remove(kind text, id uuid)` | operators | `video`/`post`: sets `removed_at`. `profile`: clears name, bio, pins and media, and bumps `updated_at` past any device's edit. Resolves reports. |
 | `admin_ban(target uuid, ban bool = true)` | operators | Sets `banned`, creating a row for non-members so they can't redeem later, and remembers the email (unbanning forgets it). Admins can't be banned. Resolves profile reports. |
+| `admin_purge(target uuid)` | operators | After a ban (else `22023`): sets `removed_at` on all their videos and posts, clears the profile (`admin_remove('profile', …)`), and resolves every open report on the profile and on their content. Idempotent. The app's Ban is `admin_ban`, then `admin_purge`, then deleting their three folders; a ban is permanent (unban only in the SQL Editor, and the media stays gone). |
+| `admin_dismiss(kind text, id uuid)` | operators | Resolves that target's open reports and leaves the content alone. `22023` for an unknown kind. |
+| `media_left() → bigint` | authenticated | What the caller may still upload: `null` for admins (no limit), `0` for non-members, else the quota minus the sizes of their files (`0` once they keep 2,000 files). |
 | `make_admin(email text) → uuid` | SQL Editor only (no grants) | Makes that account a member and admin. |
 
 Call from the client: `supabase.rpc('luma_search', { q })`. Errors raised to callers use SQLSTATE `42501` (not allowed) or `22023` (bad argument). Whatever a member writes, the RPCs' own writes always land: no member's row can make `admin_ban` or `admin_remove` fail.
@@ -162,8 +166,17 @@ media/<uid>/posts/<anything>.<jpg|png|gif|webp…>
 - **insert:** members, into their own folder, one level of subfolder (`profile`, `videos` or `posts`), allowed extensions only, no `..`.
 - **update:** the same rules (for upserts). **select** (listing): the owner and admins. **delete:** the owner, if a member, and admins.
 - **Reads go through public URLs** and skip RLS: `${SUPABASE_URL}/storage/v1/object/public/media/<path>` (`mediaUrl()` in `src/lib/supabase.ts`). Hiding a row hides the content in the app, but a public URL keeps working until the file is deleted. When moderating, delete the files too (admins can, through `storage.from('media').remove([...])`).
-- Use a new file name per version, never overwrite in place. The CDN caches public files for a year (`cacheControl: '31536000'`).
-- Size and type limits per kind (avatar, canvas, background) live in the client (`media.ts` `LIMITS`). The bucket only enforces the global 50 MB cap.
+- Use a new file name per version, never overwrite in place. The CDN caches profile files for a year (`cacheControl: '31536000'`), and social files (`videos/`, `posts/`) for a day (`cache-control: max-age=86400`), so a removed one stops being served soon.
+- Size and type limits per kind (avatar, canvas, background, post image, video) live in the client (`media.ts` `LIMITS`: videos at most 60 s and 50 MB). The bucket enforces the global 50 MB cap, and `0002` a quota per member.
+
+### The quota (`0002`)
+
+- Each member may keep **200 MB and 2,000 files** (`luma.media_quota()`; admins have no limit). The free plan holds 1 GB in all.
+- Two **restrictive** policies on `storage.objects`, `media: within quota` (insert) and `media: within quota when replacing` (update), refuse a write into `media` while `public.media_left()` is `0`. They sit on top of 0001's permissive policies, so a refused upload fails as row-level security (Storage answers 400 or 403).
+- It counts the sizes Storage records (`metadata.size`) of the files already there; a malformed size counts 0. It is soft: one upload can overshoot by up to 50 MB.
+- The policies call a `public` function on purpose: every run of `0001` revokes execute on everything in `luma` from the API roles, which would make a policy that calls a `luma` function refuse every upload (profile sync included) until `0002` ran again.
+- The client checks `media_left()` before posting and keeps a **20 MB reserve** (`RESERVE` in `posting.ts`), so a member who fills up with posts can still sync their profile.
+- Files without a row (an upload whose post never made it) still count. Each member's app sweeps its own: files in `videos/` and `posts/` that no row of theirs references and that are over an hour old, at most once a day (`sweepOrphans`).
 
 ## Client modules
 
@@ -176,19 +189,33 @@ media/<uid>/posts/<anything>.<jpg|png|gif|webp…>
   - A device's library belongs to one account (localStorage `luma-sync-owner`): the first member to sync there. Another account signed in on that device doesn't sync it until it chooses Sync Library (`linkDevice()`), which merges the device's library into that account.
   - On a device's first sync with an account, what the server already has wins: a non-blank profile, and anything changed or deleted there since the device added it.
   - A profile update the server skips (it holds a newer edit) changes nothing here and deletes no file; the newer row comes down instead. Files are deleted only once the row no longer points at them, and a missing file is skipped, not fatal.
-- `src/types.ts`: `ProfileRow`, `PinnedSong`, `RedeemResult`, and the id lists `FRAME_IDS`, `EFFECT_IDS`, `NAME_STYLE_IDS`, `BADGE_IDS`.
+- `src/types.ts`: `ProfileRow`, `VideoRow`, `PostRow`, `PlayRow`, `FollowRow`, `ReportRow`, `LumaSearchRow`, `ReportReason`, `PinnedSong`, `RedeemResult`, and the id lists `FRAME_IDS`, `EFFECT_IDS`, `NAME_STYLE_IDS`, `BADGE_IDS`, `REPORT_REASONS`.
+- `src/lib/social.ts`: the `useSocial` store (`following`, `hidden`, `people`, `feed`, `lists`), the gates `useOnline`, `useSignedIn`, `useMe`, the column lists `PERSON`, `VIDEO`, `POST`, `PLAY`, the row readers `personOf` and `postOf` (only paths in the owner's own folder, via `ownPath` in `account.ts`), and `loadMine`, `follow`, `unfollow`, `loadPeople`, `loadFeed`, `loadPosts`, `loadListening`, `loadFollows`, `lumaSearch`, `report`. Nothing is persisted; every loader resolves null on an error; a change of account resets it all. Calls that need a session check for one before loading supabase-js.
+- `src/lib/posting.ts`: `prepareMedia`, `publish` (files, then the row; failures remove what went up), `deletePost`, `sweepOrphans`, the uploader seam (`Uploader`, `setUploader`, `xhrUpload`), `PostError` and `postErrorLabel`, `RESERVE`.
+- `src/lib/moderation.ts` (admins): `hasOpenReports`, `loadReports` (grouped by target), `removeContent`, `removeProfile`, `ban`, `dismiss`, `createInvite`, `removeFolder`. Files go before rows; every step can run again.
+- `src/lib/viewer.ts`: `useViewer`, `openPost`, `closePost`, `pauseForSound` (unmuting a video pauses the music; closing the Viewer resumes it in the same tap).
 - Route `/u/:handle` (`src/views/User.tsx`): a read-only `ProfileCard` with `remote={{ pinned, badges }}`.
 
 ## For the social screens
 
-- **Feed:** `plays` (RLS does the filtering), plus `videos` and `posts` from the people in `follows where follower_id = me`.
-- **Following:** insert or delete in `follows`. Public lists come from `select … from follows where followee_id = X`.
-- **Uploads:** upload to `media/<uid>/videos/<uuid>.mp4` (and a still), then insert into `videos` with those paths. The policy rejects paths outside the caller's folder.
-- **Posts:** upload up to 4 images to `media/<uid>/posts/`, then insert the post.
-- **Search:** `rpc('luma_search', { q })`, then link each result: `/u/<handle>`, or its video or post.
-- **Moderation UI:** shown when `useAccount().row.admin`. Read `reports where resolved_at is null`, then call `admin_remove` / `admin_ban` and remove the files from storage.
+Build on the client modules above, not on raw queries: `social.ts` (feed, follows, people, posts, search, reports), `posting.ts` (publish, delete, sweep), `moderation.ts` (admins) and `viewer.ts`. The calls they make, in short:
+
+- **Feed:** `plays`, `videos` and `posts` with `user_id` in your follows (chunks of 100); plays from the last 7 days, posts not removed.
+- **Following:** insert (`follower_id` = you; it has no default) or delete in `follows`; `23505` means already following. Public lists come from `follows` ordered by `created_at`.
+- **Posting:** check `media_left()`, upload to `media/<uid>/videos/<id>.<ext>` and `<id>-still.jpg`, or `media/<uid>/posts/<id>-<n>.jpg`, then insert the row. `54000` is the daily limit.
+- **Search:** `rpc('luma_search', { q })`, then the rows themselves, `is('removed_at', null)`.
+- **Moderation:** shown when `useMe().admin`. Remove deletes the files, then calls `admin_remove`. Ban is `admin_ban`, `admin_purge`, then the three folders. Dismiss is `admin_dismiss`.
 - **Never** stream song audio from the server, and never upload it. A song in a video or post is metadata. Playback stays local, or goes through Search to download.
-- Migrations after `0001`: add `supabase/migrations/0002_….sql`, keep it idempotent, and add tests to `test/db/`. A new limit on an existing column goes the way of the Limits section: bring old rows within it, then drop and add the named constraint. `test/db/upgrade.test.ts` runs the script over a database made by its previous release (`test/db/fixtures/0001_luma.previous.sql`) holding rows today's rules refuse.
+
+## Migrations
+
+- The owner runs **every migration, in order** (`0001`, then `0002`, …), and runs the later ones again after any re-run of an earlier one. `test/db/harness.ts` runs them that way (`MIGRATIONS`, `MIGRATION` all of them joined, `FIRST` 0001 alone).
+- Each is idempotent: a second run, or a run over a database made by an earlier release, gives a fresh install (`test/db/upgrade.test.ts`, which also re-runs `0001` alone and then the rest).
+- **The re-run hazard.** A run of `0001` revokes execute on every function in `luma`, revokes all table grants and gives back only its own, and drops and re-creates its own named policies. So in a later migration:
+  - anything a policy calls must live in `public`, never `luma`, or a lone run of `0001` breaks it (a quota policy calling `luma.*` would refuse every upload);
+  - new policies get their own names (0001 never drops them);
+  - a new column grant is revoked by a lone run of `0001` until the later migration runs again (`0002`'s song columns on `posts`): hence "run every migration after it".
+- Add `supabase/migrations/000N_….sql` with tests in `test/db/`, and change this document with it. A new limit on an existing column goes the way of the Limits section: bring old rows within it, then drop and add the named constraint. `test/db/upgrade.test.ts` runs the scripts over a database made by the previous release of `0001` (`test/db/fixtures/0001_luma.previous.sql`) holding rows today's rules refuse.
 
 ## What only the live project can confirm
 
@@ -196,5 +223,6 @@ The PGlite tests stub `auth.users`, `auth.uid()`, the roles and a minimal `stora
 - delivery of real email codes;
 - real uploads through the Storage API (MIME and size checks happen there);
 - the SQL on Supabase's actual Postgres, including how its storage schema and its grants on it differ from the stub;
+- that Storage records `metadata.size` for finished uploads, and that `public.media_left()` (a security definer owned by `postgres`) reads `storage.objects` past its RLS, which the quota relies on. Check once: upload past the quota as a member, expect a 400 or 403, and see `select media_left()` fall;
 - that PostgREST sets the `role` setting `is_operator()` relies on;
 - that the RPCs run as `postgres` (they're created in the SQL Editor), which the triggers rely on to let their writes through.

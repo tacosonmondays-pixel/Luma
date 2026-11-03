@@ -160,7 +160,8 @@ const oneOf = <T extends string>(ids: readonly T[], value: unknown): T | undefin
   (ids as readonly unknown[]).includes(value) ? (value as T) : undefined
 const text = (value: unknown, max: number): string | undefined => (typeof value === 'string' ? value.slice(0, max) : undefined)
 const COLOR = /^#[0-9a-f]{6}$/i
-const colorsOf = (value: unknown): [string, string] | undefined =>
+/** A stored color pair, if it is two `#rrggbb` strings. */
+export const colorsOf = (value: unknown): [string, string] | undefined =>
   Array.isArray(value) && value.length === 2 && value.every((c) => typeof c === 'string' && COLOR.test(c)) ? [value[0], value[1]] : undefined
 
 /** A row's pinned songs that are well-formed. */
@@ -185,11 +186,18 @@ export function badgesOf(row: ProfileRow): { id: BadgeId; tier: Tier }[] {
   return [...found].map(([id, tier]) => ({ id, tier })).sort((a, b) => b.tier - a.tier)
 }
 
+/** A media path someone wrote, if it is one of `owner`'s own files under `sub` ('profile', 'videos', 'posts'):
+ * '<owner>/<sub>/<file>', one level deep, no '..', at most 200 characters. The server's rule (luma.path_ok). */
+export function ownPath(owner: string, sub: string, path: unknown): string | undefined {
+  const folder = `${owner}/${sub}/`
+  if (typeof path !== 'string' || !owner || !path.startsWith(folder) || path.length > 200) return undefined
+  const file = path.slice(folder.length)
+  return file && !file.includes('/') && !path.includes('..') ? path : undefined
+}
+
 /** A media path from someone's row, if it is one of their own profile files. */
 export function profilePath(row: ProfileRow, path: unknown): string | undefined {
-  if (typeof path !== 'string' || !path.startsWith(`${row.id}/profile/`)) return undefined
-  const file = path.slice(row.id.length + 9)
-  return file && !file.includes('/') && !file.includes('..') && path.length <= 200 ? path : undefined
+  return ownPath(row.id, 'profile', path)
 }
 
 /** The profile fields of a row, without media versions (sync stores the media; a public page links to it). */
@@ -211,7 +219,7 @@ export function profileFromRow(row: ProfileRow): Profile {
 }
 
 /** A stored crop, if it is a well-formed one (the row is anyone's JSON). */
-function cropOf(c: unknown): Crop | undefined {
+export function cropOf(c: unknown): Crop | undefined {
   const { x, y, zoom } = (c ?? {}) as Partial<Crop>
   return [x, y, zoom].every((n) => typeof n === 'number' && Number.isFinite(n)) ? { x: x!, y: y!, zoom: zoom! } : undefined
 }
