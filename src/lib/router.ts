@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 export type Route =
+  | { name: 'home' }
   | { name: 'songs' }
   | { name: 'playlists' }
   | { name: 'playlist'; id: string }
@@ -23,12 +24,13 @@ export function appPath(pathname: string): string {
 
 export function parse(path: string): Route {
   const [, first = '', second = ''] = path.split('/')
+  if (first === 'songs') return { name: 'songs' }
   if (first === 'playlists') return { name: 'playlists' }
   if (first === 'playlist' && second) return { name: 'playlist', id: decodeURIComponent(second) }
   if (first === 'search') return { name: 'search' }
   if (first === 'you') return { name: 'you' }
   if (first === 'u' && second) return { name: 'user', handle: decodeURIComponent(second) }
-  return { name: 'songs' }
+  return { name: 'home' }
 }
 
 const listeners = new Set<() => void>()

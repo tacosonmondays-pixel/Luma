@@ -19,6 +19,11 @@ const filled = {
       <circle cx="19" cy="12" r="1.9" />
     </>
   ),
+  grip: (
+    <>
+      {[6, 12, 18].flatMap((y) => [<circle key={`a${y}`} cx="9" cy={y} r="1.6" />, <circle key={`b${y}`} cx="15" cy={y} r="1.6" />])}
+    </>
+  ),
 } satisfies Record<string, ReactNode>
 
 const stroked = {
@@ -31,6 +36,14 @@ const stroked = {
     <>
       <circle cx="11" cy="11" r="7.5" />
       <path d="m20.5 20.5-4.2-4.2" />
+    </>
+  ),
+  home: <path d="M3.5 10.2 12 3.5l8.5 6.7V19a1.5 1.5 0 0 1-1.5 1.5h-4v-6h-6v6H5A1.5 1.5 0 0 1 3.5 19Z" />,
+  sliders: (
+    <>
+      <path d="M3.5 7H12M18 7h2.5M3.5 17H6M12 17h8.5" />
+      <circle cx="15" cy="7" r="2.5" />
+      <circle cx="9" cy="17" r="2.5" />
     </>
   ),
   music: (

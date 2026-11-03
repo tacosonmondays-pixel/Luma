@@ -24,11 +24,15 @@ export function Sidebar({ route }: { route: Route }) {
           <NameStyle name={name || 'You'} style={style} rest className="ns-plate" />
         </span>
       </Link>
+      <Link to="/" className={`side-link${is(route.name === 'home')}`}>
+        <Icon name="home" size={20} />
+        Home
+      </Link>
       <Link to="/search" className={`side-link${is(route.name === 'search')}`}>
         <Icon name="search" size={20} />
         Search
       </Link>
-      <Link to="/" className={`side-link${is(route.name === 'songs')}`}>
+      <Link to="/songs" className={`side-link${is(route.name === 'songs')}`}>
         <Icon name="music" size={20} />
         Songs
       </Link>
@@ -52,7 +56,10 @@ export function TabBar({ route }: { route: Route }) {
   const hasAvatar = useLibrary((s) => !!s.profile.avatar)
   return (
     <nav className="tabbar">
-      <Link to="/" label="Songs" className={is(route.name === 'songs')}>
+      <Link to="/" label="Home" className={is(route.name === 'home')}>
+        <Icon name="home" />
+      </Link>
+      <Link to="/songs" label="Songs" className={is(route.name === 'songs')}>
         <Icon name="music" />
       </Link>
       <Link to="/playlists" label="Playlists" className={is(route.name === 'playlists' || route.name === 'playlist')}>

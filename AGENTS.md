@@ -28,13 +28,14 @@ Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper u
   - `crop.ts` the profile images' crop (focus point + zoom, stored as data; `.crop` in `base.css` draws it)
   - `media.ts` profile and canvas media: resize, stills, animation detection, size caps · `gif.ts` + `gif.worker.ts` video → GIF
   - `plays.ts` the play log (`luma-plays`) · `stats.ts` On Repeat and badges
+  - `home.ts` Home's shelves: order, visibility, custom search shelves, playlists played (zustand, `luma-home` in localStorage) · `shelves.ts` what each shelf holds (pure) · `feed.ts` the network shelves (Mix, New from Your Artists, search shelves), cached per day in IndexedDB (`luma-home`)
   - `supabase.ts` project URL, publishable key, lazy client, `mediaUrl` · `account.ts` session and `profiles` row: sign-in with email codes, invites, handle · `sync.ts` backup and sync (last write wins), profile media, shared plays · `search-link.ts` open Search with a query
-- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`, `Account` (the account rows and sign-in sheet)
+- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `Shelf` (Home's shelves, rows, cards), `ResultTile`, `EditHome`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`, `Account` (the account rows and sign-in sheet)
   - `ui/profile/` the profile card, editor, crop sheet (`ImageCrop`), frames, effects and name styles · `ui/y2k/` the Y2K theme's extra markup (LCD)
-- `src/views/` — one file per screen: `Songs`, `Playlists`, `Playlist`, `Search`, `You`, `User` (someone's public profile, `/u/:handle`)
-- `src/styles/` — `base.css` (tokens, reset, shell), `themes.css` (dark themes), `y2k.css` (the light Y2K theme, all scoped to `[data-theme='y2k']`), and one file per feature (`player.css`, `wash.css`, `library.css`, `search.css`, `profile.css`, `badges.css`, `appearance.css`, `gif.css`), imported by the component that uses it
+- `src/views/` — one file per screen: `Home` (`/`), `Songs` (`/songs`), `Playlists`, `Playlist`, `Search`, `You`, `User` (someone's public profile, `/u/:handle`)
+- `src/styles/` — `base.css` (tokens, reset, shell), `themes.css` (dark themes), `y2k.css` (the light Y2K theme, all scoped to `[data-theme='y2k']`), and one file per feature (`player.css`, `wash.css`, `library.css`, `search.css`, `profile.css`, `home.css`, `badges.css`, `appearance.css`, `gif.css`), imported by the component that uses it
 - `src/assets/fonts/` — bundled OFL fonts (name styles, the Y2K LCD)
-- `server/` — `api.ts` (connect-style middleware), `index.ts` (production entry, static files), `exe.ts` + `setup.ts` (Windows Luma.exe: embedded app, first-run yt-dlp and Deno)
+- `server/` — `api.ts` (connect-style middleware: health, search, `mix/:id` (YouTube's radio mix), audio, cover), `index.ts` (production entry, static files), `exe.ts` + `setup.ts` (Windows Luma.exe: embedded app, first-run yt-dlp and Deno)
 - `public/` — manifest, service worker, icons · `test/` — Vitest (`test/fixtures/` media made with ffmpeg, `test/db/` RLS on PGlite, `test/client/` account and sync against a fake supabase-js)
 - `supabase/` — `migrations/0001_luma.sql` (paste into the SQL Editor; idempotent) and `README.md`
 - `docs/` — `server.md` (the server contract), `customization-spec.md` and `mockups/` · `licenses/` — one license file per third-party font, icon set or palette

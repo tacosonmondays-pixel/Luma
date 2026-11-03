@@ -49,6 +49,11 @@ export async function search(q: string, sort: SearchSort, signal?: AbortSignal):
   return (await mode()) === 'helper' ? helper.search(q, sort, signal) : youtube.search(q, sort, signal)
 }
 
+/** YouTube's radio mix for a video. Only the helper has one: null in phone mode. */
+export async function mix(id: string, signal?: AbortSignal): Promise<SearchResponse | null> {
+  return (await mode()) === 'helper' ? helper.mix(id, signal) : null
+}
+
 /** Cover image URLs for a result, best first. */
 export function thumbnails(id: string, small: boolean): string[] {
   if (useSource.getState().mode === 'phone') return youtube.thumbnails(id, small)
