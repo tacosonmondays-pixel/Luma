@@ -81,10 +81,18 @@ export function NowPlaying() {
     if (open && !current) setOpen(false)
   }, [open, current])
 
+  // Focus moves into the sheet when it opens (App makes the page behind it inert) and back to whatever
+  // opened it when it closes, unless something else took focus meanwhile (a new playlist's name).
   useEffect(() => {
     if (!open) return
+    const opener = document.activeElement
     const frame = requestAnimationFrame(() => swipe.ref.current?.focus({ preventScroll: true }))
-    return () => cancelAnimationFrame(frame)
+    return () => {
+      cancelAnimationFrame(frame)
+      const now = document.activeElement
+      const lost = !now || now === document.body || !!swipe.ref.current?.contains(now)
+      if (lost && opener instanceof HTMLElement && opener.isConnected) opener.focus({ preventScroll: true })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
@@ -120,7 +128,7 @@ export function NowPlaying() {
               </div>
               <IconButton icon="more" label="More" className="np-more" onClick={(e) => openTrackMenu(e.currentTarget, track.id)} />
             </div>
-            <Scrubber className="np-scrub" />
+            <Scrubber className="np-scrub" active={shown} />
             <Transport size="full" />
             <Volume className="np-volume" />
           </div>

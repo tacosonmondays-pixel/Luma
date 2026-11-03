@@ -8,6 +8,7 @@ import {
   seek,
   setVolume,
   toggle,
+  toggleMute,
   toggleShuffle,
   usePlayer,
   useTime,
@@ -99,8 +100,8 @@ export function Transport({ size = 'compact' }: { size?: Size }) {
 }
 
 /** Thin seek bar with elapsed and remaining time. Seeks on release; the keyboard seeks straight away. */
-export function Scrubber({ className = '' }: { className?: string }) {
-  const { time, duration } = useTime()
+export function Scrubber({ className = '', active = true }: { className?: string; active?: boolean }) {
+  const { time, duration } = useTime(active)
   const [drag, setDragState] = useState<number | null>(null)
   const pointer = useRef<number | null>(null) // the drag value while a pointer holds the bar
   const setDrag = (v: number | null) => {
@@ -148,7 +149,7 @@ export function Volume({ className = '', icons = 'both' }: { className?: string;
   if (volumeLocked) return null
   return (
     <div className={`volume ${className}`}>
-      <button type="button" className="vol-icon" aria-label={volume > 0 ? 'Mute' : 'Full volume'} onClick={() => setVolume(volume > 0 ? 0 : 1)}>
+      <button type="button" className="vol-icon" aria-label={volume > 0 ? 'Mute' : 'Unmute'} onClick={toggleMute}>
         <Icon name="volume-low" size={18} />
       </button>
       <input

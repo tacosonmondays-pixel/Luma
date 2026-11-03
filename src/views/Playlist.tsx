@@ -1,19 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { deletePlaylist, renamePlaylist, setPlaylistCover, useLibrary } from '../lib/library.ts'
+import { deletePlaylist, renamePlaylist, setPlaylistCover, takeNameFocus, useLibrary } from '../lib/library.ts'
 import { navigate } from '../lib/router.ts'
 import { PlaylistArt } from '../ui/Art.tsx'
+import { Icon } from '../ui/Icon.tsx'
 import { IconButton, pickFiles } from '../ui/kit.tsx'
 import { openMenu } from '../ui/Menu.tsx'
 import { TrackList } from '../ui/TrackList.tsx'
 import { PlayPills } from './Songs.tsx'
 import '../styles/library.css'
-
-let focusNext: string | undefined
-
-/** Focus the name field the next time this playlist opens (right after creating it). */
-export function focusNameOf(id: string): void {
-  focusNext = id
-}
 
 export function Playlist({ id }: { id: string }) {
   const playlist = useLibrary((s) => s.playlists.find((p) => p.id === id))
@@ -25,13 +19,13 @@ export function Playlist({ id }: { id: string }) {
   }, [playlist])
 
   useEffect(() => {
-    if (focusNext !== id) return
-    focusNext = undefined
+    if (!takeNameFocus(id)) return
     input.current?.focus()
     input.current?.select()
   }, [id])
 
   if (!playlist) return null
+  const empty = playlist.trackIds.length === 0
 
   const more = (anchor: HTMLElement) =>
     openMenu(anchor, [
@@ -44,10 +38,17 @@ export function Playlist({ id }: { id: string }) {
         label: 'Delete Playlist',
         icon: 'trash',
         danger: true,
-        onSelect: () => {
-          navigate('/playlists')
-          void deletePlaylist(id)
-        },
+        items: [
+          {
+            label: 'Delete Playlist',
+            icon: 'trash',
+            danger: true,
+            onSelect: () => {
+              navigate('/playlists')
+              void deletePlaylist(id)
+            },
+          },
+        ],
       },
     ])
 
@@ -64,22 +65,29 @@ export function Playlist({ id }: { id: string }) {
             spellCheck={false}
             onChange={(e) => {
               setName(e.target.value)
-              renamePlaylist(id, e.target.value)
+              renamePlaylist(id, e.target.value) // saves "New Playlist" while the field is empty
             }}
-            onBlur={() => {
-              if (name.trim()) return
-              setName('New Playlist')
-              renamePlaylist(id, 'New Playlist')
-            }}
+            onBlur={() => !name.trim() && setName('New Playlist')}
             onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
           />
           <div className="playlist-actions">
-            <PlayPills ids={playlist.trackIds} />
+            {!empty && <PlayPills ids={playlist.trackIds} />}
             <IconButton icon="more" label="More" onClick={(e) => more(e.currentTarget)} />
           </div>
         </div>
       </header>
-      <TrackList ids={playlist.trackIds} playlistId={id} />
+      {empty ? (
+        // Songs are added from their own menu (… → Add to Playlist), so lead there.
+        <div className="empty playlist-empty">
+          <Icon name="music" size={44} />
+          <button type="button" className="pill" onClick={() => navigate('/')}>
+            <Icon name="plus" size={18} />
+            Add Songs
+          </button>
+        </div>
+      ) : (
+        <TrackList ids={playlist.trackIds} playlistId={id} />
+      )}
     </section>
   )
 }

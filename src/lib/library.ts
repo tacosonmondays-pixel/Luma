@@ -16,34 +16,78 @@ interface Library {
   background?: Background
 }
 
+// Another tab or window (say the installed app next to a browser tab) writes the same record. Each write
+// tells the others, and they reload it instead of later overwriting it with what they had in memory.
+const others = typeof BroadcastChannel === 'function' ? new BroadcastChannel('luma-library') : undefined
+let saving: Promise<void> = Promise.resolve() // the latest write of the record
+
 export const useLibrary = create<Library>()(
   persist(() => ({ tracks: {}, order: [], playlists: [], profile: { name: '' } }) as Library, {
     name: 'library',
     storage: createJSONStorage(() => ({
       getItem: async (name) => (await get<string>(name, db)) ?? null,
-      setItem: (name, value) => set(name, value, db),
+      setItem: (name, value) => {
+        // A change made while another tab's record is loading would be lost under it: load again once saved.
+        const reloadAfter = !useLibrary.persist.hasHydrated()
+        const write = set(name, value, db).then(() => {
+          others?.postMessage(name)
+          if (reloadAfter) reload()
+        })
+        write.catch(() => {}) // a failed write (storage full) is reported where it matters, e.g. addTrack
+        saving = write
+        return write
+      },
       removeItem: (name) => del(name, db),
     })),
+    // Replace the data wholesale; a plain merge would keep a background that another tab removed.
+    merge: (stored, current) => ({ ...current, background: undefined, ...(stored as Partial<Library>) }),
   }),
 )
 
 const { getState, setState } = useLibrary
 
-/** True once the library has loaded from IndexedDB. */
+function reload() {
+  void useLibrary.persist.rehydrate()
+}
+if (others) others.onmessage = reload
+document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && reload())
+
+let ready = false
+const isReady = () => (ready ||= useLibrary.persist.hasHydrated())
+
+/** True once the library has loaded from IndexedDB (and stays true while another tab's changes reload). */
 export function useReady(): boolean {
-  return useSyncExternalStore(useLibrary.persist.onFinishHydration, useLibrary.persist.hasHydrated)
+  return useSyncExternalStore(useLibrary.persist.onFinishHydration, isReady)
 }
 
 // ── Songs ────────────────────────────────────────────────────────────────
 
-export async function addTrack(track: Track, audio: Blob, cover?: Blob | null): Promise<void> {
-  await putBlob(`audio:${track.id}`, audio)
-  if (cover) await putBlob(`cover:${track.id}`, cover)
-  const saved: Track = { ...track, cover: cover ? Date.now() : track.cover }
-  setState((s) => ({
-    tracks: { ...s.tracks, [saved.id]: saved },
-    order: [saved.id, ...s.order.filter((id) => id !== saved.id)],
-  }))
+/** Save a song. New songs go on top of Songs, or at `at` (to keep a batch in the order it was picked). */
+export async function addTrack(track: Track, audio: Blob, cover?: Blob | null, at = 0): Promise<void> {
+  const isNew = !getState().tracks[track.id]
+  try {
+    await putBlob(`audio:${track.id}`, audio)
+    if (cover) await putBlob(`cover:${track.id}`, cover)
+    const saved: Track = { ...track, cover: cover ? Date.now() : track.cover }
+    setState((s) => {
+      const order = s.order.filter((id) => id !== saved.id)
+      order.splice(at, 0, saved.id)
+      return { tracks: { ...s.tracks, [saved.id]: saved }, order }
+    })
+    await saving
+  } catch (error) {
+    // Out of storage: undo, so the list shows what a reload would.
+    if (isNew) {
+      await Promise.all([deleteBlob(`audio:${track.id}`), deleteBlob(`cover:${track.id}`)]).catch(() => {})
+      if (getState().tracks[track.id])
+        setState((s) => {
+          const tracks = { ...s.tracks }
+          delete tracks[track.id]
+          return { tracks, order: s.order.filter((id) => id !== track.id) }
+        })
+    }
+    throw error
+  }
   void navigator.storage?.persist?.()
 }
 
@@ -72,6 +116,20 @@ export function updateTrack(id: string, patch: Partial<Track>): void {
 
 // ── Playlists ────────────────────────────────────────────────────────────
 
+let nameToFocus: string | undefined
+
+/** Open this playlist with its name selected for typing (right after creating it). */
+export function focusNameOf(id: string): void {
+  nameToFocus = id
+}
+
+/** True once for the playlist passed to focusNameOf. */
+export function takeNameFocus(id: string): boolean {
+  if (nameToFocus !== id) return false
+  nameToFocus = undefined
+  return true
+}
+
 export function createPlaylist(trackIds: string[] = []): string {
   const id = uid()
   const name = 'New Playlist'
@@ -83,7 +141,9 @@ function updatePlaylist(id: string, change: (p: Playlist) => Playlist): void {
   setState((s) => ({ playlists: s.playlists.map((p) => (p.id === id ? change(p) : p)) }))
 }
 
-export const renamePlaylist = (id: string, name: string) => updatePlaylist(id, (p) => ({ ...p, name }))
+/** An empty name is saved as "New Playlist", so leaving the field empty never leaves a playlist nameless. */
+export const renamePlaylist = (id: string, name: string) =>
+  updatePlaylist(id, (p) => ({ ...p, name: name.trim() ? name : 'New Playlist' }))
 
 export function addToPlaylist(id: string, trackIds: string[]): void {
   updatePlaylist(id, (p) => ({ ...p, trackIds: [...new Set([...p.trackIds, ...trackIds])] }))

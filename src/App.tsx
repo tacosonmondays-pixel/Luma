@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { useBlobUrl } from './lib/blobs.ts'
 import { importFiles } from './lib/files.ts'
 import { useLibrary, useReady } from './lib/library.ts'
-import { audio, restore, seek, setOpen, toggle, useCurrentTrack } from './lib/player.ts'
+import { audio, restore, seek, setOpen, toggle, useCurrentTrack, usePlayer } from './lib/player.ts'
 import { parse, usePath, type Route } from './lib/router.ts'
 import { MenuHost } from './ui/Menu.tsx'
 import { Sidebar, TabBar } from './ui/Nav.tsx'
@@ -40,20 +40,37 @@ function Wallpaper() {
   )
 }
 
+/** Space plays and pauses, arrows seek, Escape closes Now Playing. An open menu takes the keys first (Menu.tsx). */
 function useShortcuts() {
   useEffect(() => {
+    // Space presses a button or link only when it was focused from the keyboard. Chrome also focuses what
+    // a click lands on, and Space would then press that song row or Next again instead of pausing.
+    let pointer = false
+    let clickFocused = false
+    const onPointer = () => (pointer = true)
+    const onFocus = () => (clickFocused = pointer)
     const onKey = (e: KeyboardEvent) => {
+      pointer = false
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') return setOpen(false)
       const target = e.target as HTMLElement
-      if (target.closest('input, textarea, [contenteditable]') || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === ' ' && !target.closest('button, a')) {
+      if (target.closest('textarea, [contenteditable], input:not([type="range"])')) return // typing
+      if (e.key === ' ') {
+        if (target.closest('button, a') && !clickFocused) return
         e.preventDefault()
         toggle()
-      } else if (e.key === 'ArrowLeft') seek(audio.currentTime - 5)
+      } else if (target.matches('input')) return // a slider moves itself
+      else if (e.key === 'ArrowLeft') seek(audio.currentTime - 5)
       else if (e.key === 'ArrowRight') seek(audio.currentTime + 5)
-      else if (e.key === 'Escape') setOpen(false)
     }
+    window.addEventListener('pointerdown', onPointer, true)
+    window.addEventListener('focusin', onFocus, true)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer, true)
+      window.removeEventListener('focusin', onFocus, true)
+      window.removeEventListener('keydown', onKey)
+    }
   }, [])
 }
 
@@ -78,6 +95,7 @@ export function App() {
   const ready = useReady()
   const path = usePath()
   const track = useCurrentTrack()
+  const nowPlaying = usePlayer((s) => s.open) && !!track
   useShortcuts()
   useFileDrop()
   useEffect(() => {
@@ -88,14 +106,17 @@ export function App() {
   return (
     <>
       <Wallpaper />
-      <div className={`app${track ? ' has-track' : ''}`}>
-        <Sidebar route={route} />
-        <main className="main" key={path}>
-          <View route={route} />
-        </main>
+      {/* Now Playing is a modal sheet: while it shows, keyboard focus can't wander into the page behind it. */}
+      <div inert={nowPlaying}>
+        <div className={`app${track ? ' has-track' : ''}`}>
+          <Sidebar route={route} />
+          <main className="main" key={path}>
+            <View route={route} />
+          </main>
+        </div>
+        <PlayerBar />
+        <TabBar route={route} />
       </div>
-      <PlayerBar />
-      <TabBar route={route} />
       <NowPlaying />
       <MenuHost />
     </>

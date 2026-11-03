@@ -14,14 +14,18 @@ interface ArtProps {
   playing?: boolean // show the animated "now playing" bars
 }
 
-/** Square artwork: the stored image, or a gradient with a note. */
+/** Square artwork: the stored image, or a gradient with a note (the playing bars take the note's place). */
 export function Art({ blobKey, v, seed, size, className = '', playing }: ArtProps) {
   const url = useBlobUrl(blobKey, v)
   const style: CSSProperties = { background: url ? undefined : gradientFor(seed) }
   if (size) Object.assign(style, { width: size, height: size })
   return (
     <div className={`art ${className}`} style={style}>
-      {url ? <img src={url} alt="" draggable={false} /> : <Icon name="music" size={size ? Math.round(size * 0.4) : 32} />}
+      {url ? (
+        <img src={url} alt="" draggable={false} />
+      ) : (
+        playing === undefined && <Icon name="music" size={size ? Math.round(size * 0.4) : 32} />
+      )}
       {playing !== undefined && (
         <span className={`bars${playing ? ' on' : ''}`} aria-hidden="true">
           <i />
@@ -51,7 +55,8 @@ export function Avatar({ size }: { size: number }) {
   const url = useBlobUrl('avatar', profile.avatar)
   const initial = profile.name.trim().charAt(0).toUpperCase()
   return (
-    <div className="art round" style={{ width: size, height: size, background: url ? undefined : 'var(--fill-2)' }}>
+    // Opaque, so it looks the same over the banner, the page and a wallpaper.
+    <div className="art round" style={{ width: size, height: size, background: url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)' }}>
       {url ? (
         <img src={url} alt="" draggable={false} />
       ) : initial ? (

@@ -60,11 +60,12 @@ let lastTime = 0 // last natural timeupdate; seek() moves it so our own seeks ne
 
 async function load(id: string | undefined, play: boolean, at = 0): Promise<void> {
   const mine = ++token
-  if (!play) audio.pause()
+  if (!play || id === undefined) audio.pause()
   if (id === undefined) {
     loaded = undefined
     audio.removeAttribute('src')
-    audio.load()
+    audio.load() // resets `paused` without a 'pause' event
+    setState({ playing: false })
     syncMediaSession()
     return
   }
@@ -76,14 +77,15 @@ async function load(id: string | undefined, play: boolean, at = 0): Promise<void
   lastTime = at
   audio.src = URL.createObjectURL(blob)
   if (previous.startsWith('blob:')) URL.revokeObjectURL(previous)
-  if (at > 0) audio.addEventListener('loadedmetadata', () => void (audio.currentTime = at), { once: true })
+  if (at > 0) audio.addEventListener('loadedmetadata', () => mine === token && void (audio.currentTime = at), { once: true })
   syncMediaSession()
   if (play) audio.play().catch(() => {})
 }
 
-function skipMissing(id: string) {
+/** Drop a song that can't play (its audio is gone, or this browser can't decode it) and go on with the queue. */
+function skipMissing(id: string, play = getState().playing) {
   setState((s) => ({ queue: Q.remove(s.queue, id) }))
-  void load(currentId(), getState().playing)
+  void load(currentId(), play)
 }
 
 function trackEnded() {
@@ -95,6 +97,9 @@ function trackEnded() {
 }
 
 audio.volume = getState().volume
+audio.addEventListener('error', () => {
+  if (loaded !== undefined && audio.error) skipMissing(loaded, !audio.paused || getState().playing)
+})
 audio.addEventListener('play', () => setState({ playing: true }))
 audio.addEventListener('pause', () => setState({ playing: false, position: audio.currentTime }))
 audio.addEventListener('timeupdate', () => {
@@ -111,9 +116,13 @@ audio.addEventListener('loadedmetadata', () => {
 })
 for (const event of ['play', 'pause', 'seeked', 'ratechange']) audio.addEventListener(event, syncPosition)
 
-// Drop deleted songs from the queue, whichever way they were deleted.
+// Follow library changes, whichever way they were made (here or in another tab): new artwork or names
+// go to the lock screen, and deleted songs leave the queue.
+let libraryLoaded = useLibrary.persist.hasHydrated()
+useLibrary.persist.onFinishHydration(() => (libraryLoaded = true))
 useLibrary.subscribe((lib, prev) => {
-  if (lib.tracks === prev.tracks || !useLibrary.persist.hasHydrated()) return
+  if (lib.tracks === prev.tracks || !libraryLoaded) return
+  if (loaded && lib.tracks[loaded] && lib.tracks[loaded] !== prev.tracks[loaded]) syncMediaSession()
   const before = currentId()
   let queue = getState().queue
   for (const id of queue.ids) if (!lib.tracks[id]) queue = Q.remove(queue, id)
@@ -147,9 +156,14 @@ export function playNext(id: string): void {
   if (empty) void load(currentId(), true)
 }
 
-export function toggle(): void {
+/** Start playback; never pauses. */
+export function play(): void {
   if (loaded === undefined) return void load(currentId(), true, getState().position)
-  if (audio.paused) audio.play().catch(() => {})
+  audio.play().catch(() => {})
+}
+
+export function toggle(): void {
+  if (loaded === undefined || audio.paused) play()
   else audio.pause()
 }
 
@@ -179,13 +193,32 @@ export function seek(time: number): void {
 
 /** Hold-to-scan for the previous/next buttons. Returns a function that stops scanning. */
 export function scan(direction: 1 | -1): () => void {
-  const timer = setInterval(() => seek(audio.currentTime + direction * 2), 120)
+  const timer = setInterval(() => {
+    const to = audio.currentTime + direction * 2
+    // At either end, stop instead of seeking to the same spot again and again: going forward moves on to
+    // the next song, going back plays from the start.
+    if (direction > 0 && to >= audio.duration - 0.25) {
+      clearInterval(timer)
+      next()
+    } else if (direction < 0 && to <= 0) {
+      clearInterval(timer)
+      seek(0)
+    } else seek(to)
+  }, 120)
   return () => clearInterval(timer)
 }
+
+let unmuted = 1 // the volume to go back to after muting
 
 export function setVolume(volume: number): void {
   audio.volume = volume
   setState({ volume })
+}
+
+export function toggleMute(): void {
+  const { volume } = getState()
+  if (volume > 0) unmuted = volume
+  setVolume(volume > 0 ? 0 : unmuted)
 }
 
 export function toggleShuffle(): void {
@@ -200,8 +233,8 @@ export const setOpen = (open: boolean) => setState({ open })
 
 // ── Time for the UI ──────────────────────────────────────────────────────
 
-/** Current time and duration, updated every frame while playing. */
-export function useTime(): { time: number; duration: number } {
+/** Current time and duration, updated every frame while playing and `active` (pass false while hidden). */
+export function useTime(active = true): { time: number; duration: number } {
   const playing = usePlayer((s) => s.playing)
   const track = useCurrentTrack()
   const read = () => ({
@@ -217,7 +250,7 @@ export function useTime(): { time: number; duration: number } {
       frame = requestAnimationFrame(tick)
     }
     update()
-    if (playing) frame = requestAnimationFrame(tick)
+    if (playing && active) frame = requestAnimationFrame(tick)
     const events = ['timeupdate', 'seeked', 'durationchange', 'emptied']
     events.forEach((e) => audio.addEventListener(e, update))
     return () => {
@@ -225,7 +258,7 @@ export function useTime(): { time: number; duration: number } {
       events.forEach((e) => audio.removeEventListener(e, update))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playing, track?.id, track?.duration])
+  }, [playing, active, track?.id, track?.duration])
   return value
 }
 
@@ -262,7 +295,7 @@ function syncPosition() {
 if ('mediaSession' in navigator) {
   // No seekbackward/seekforward: on iOS they replace the previous/next buttons on the lock screen.
   const handlers: [MediaSessionAction, MediaSessionActionHandler][] = [
-    ['play', () => toggle()],
+    ['play', () => play()],
     ['pause', () => audio.pause()],
     ['previoustrack', () => previous()],
     ['nexttrack', () => next()],

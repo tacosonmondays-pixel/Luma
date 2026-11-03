@@ -1,8 +1,8 @@
 // The one popover menu. openMenu() shows it anchored to an element or a point; MenuHost renders it.
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
-import { addToPlaylist, createPlaylist, deleteTrack, removeFromPlaylist, setTrackCover, useLibrary } from '../lib/library.ts'
-import { playNext } from '../lib/player.ts'
+import { addToPlaylist, createPlaylist, deleteTrack, focusNameOf, removeFromPlaylist, setTrackCover, useLibrary } from '../lib/library.ts'
+import { playNext, setOpen } from '../lib/player.ts'
 import { navigate } from '../lib/router.ts'
 import { Icon, type IconName } from './Icon.tsx'
 import { pickFiles } from './kit.tsx'
@@ -33,17 +33,27 @@ interface MenuState {
   at: Rect
   items: MenuItem[]
   key: number // changes on open and on each submenu, to replay the entrance
+  above?: boolean // a submenu stays on the side its parent opened on
 }
 
 const useMenu = create<{ menu?: MenuState }>(() => ({}))
 let count = 0
+let opener: HTMLElement | null = null // gets focus back when the menu closes
 
-const closeMenu = () => useMenu.setState({ menu: undefined })
+function closeMenu() {
+  const active = document.activeElement
+  const hadFocus = !active || active === document.body || !!document.querySelector('.menu')?.contains(active)
+  useMenu.setState({ menu: undefined })
+  if (hadFocus && opener?.isConnected) opener.focus({ preventScroll: true })
+  opener = null
+}
 
 /** Show a menu anchored to an element (e.g. the button that was clicked) or a point. */
 export function openMenu(anchor: HTMLElement | MenuPoint, items: MenuItem[]): void {
   const at: Rect =
     anchor instanceof HTMLElement ? anchor.getBoundingClientRect() : { top: anchor.y, bottom: anchor.y, left: anchor.x, right: anchor.x }
+  const active = document.activeElement
+  opener = anchor instanceof HTMLElement ? anchor : active instanceof HTMLElement && active !== document.body ? active : null
   useMenu.setState({ menu: { at: { top: at.top, right: at.right, bottom: at.bottom, left: at.left }, items, key: ++count } })
 }
 
@@ -61,6 +71,8 @@ export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, 
           icon: 'plus',
           onSelect: () => {
             const id = createPlaylist([trackId])
+            setOpen(false) // from Now Playing: show the new playlist, not the sheet over it
+            focusNameOf(id)
             navigate(`/playlist/${id}`)
           },
         },
@@ -74,7 +86,13 @@ export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, 
     },
   ]
   if (playlistId) items.push({ label: 'Remove from Playlist', icon: 'remove', onSelect: () => removeFromPlaylist(playlistId, trackId) })
-  items.push({ label: 'Delete', icon: 'trash', danger: true, onSelect: () => void deleteTrack(trackId) })
+  // Deleting can't be undone (an imported file is gone for good), so it asks once more.
+  items.push({
+    label: 'Delete',
+    icon: 'trash',
+    danger: true,
+    items: [{ label: 'Delete Song', icon: 'trash', danger: true, onSelect: () => void deleteTrack(trackId) }],
+  })
   openMenu(anchor, items)
 }
 
@@ -82,65 +100,110 @@ const WIDTH = 240
 const GAP = 6
 const MARGIN = 8
 
+/** The safe-area insets (notch, Dynamic Island, home indicator, rounded corners) in px. */
+function safeArea(): Rect {
+  const probe = document.createElement('div')
+  probe.style.cssText = 'position:fixed;visibility:hidden;padding:var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left)'
+  document.body.append(probe)
+  const style = getComputedStyle(probe)
+  const px = (value: string) => parseFloat(value) || 0
+  const insets = { top: px(style.paddingTop), right: px(style.paddingRight), bottom: px(style.paddingBottom), left: px(style.paddingLeft) }
+  probe.remove()
+  return insets
+}
+
+/** Swallow the click that follows a tap outside the menu: dismissing it shouldn't also start a song or switch tabs. */
+function swallowClick() {
+  const stop = (e: Event) => {
+    e.preventDefault()
+    e.stopPropagation()
+    done()
+  }
+  // No click came (the tap became a scroll): the next press is a new one.
+  const done = () => {
+    document.removeEventListener('click', stop, true)
+    document.removeEventListener('pointerdown', done, true)
+    document.removeEventListener('keydown', done, true)
+  }
+  document.addEventListener('click', stop, true)
+  document.addEventListener('pointerdown', done, true)
+  document.addEventListener('keydown', done, true)
+}
+
 /** Rendered once by App. */
 export function MenuHost() {
   const menu = useMenu((s) => s.menu)
   const ref = useRef<HTMLDivElement>(null)
   const [place, setPlace] = useState<{ left: number; top: number; above: boolean }>()
+  const shown = !!place
 
   useLayoutEffect(() => {
     const el = ref.current
     if (!menu || !el) return setPlace(undefined)
     const { at } = menu
+    const safe = safeArea()
     const vw = document.documentElement.clientWidth
     const vh = window.innerHeight
     const h = el.offsetHeight
+    const top0 = safe.top + MARGIN
+    const bottom0 = vh - safe.bottom - MARGIN
     const point = at.left === at.right
-    const left = Math.min(Math.max(point ? at.left : at.right - WIDTH, MARGIN), vw - WIDTH - MARGIN)
-    let top = at.bottom + GAP
-    let above = false
-    if (top + h > vh - MARGIN && at.top - GAP - h >= MARGIN) {
-      top = at.top - GAP - h
-      above = true
-    }
-    top = Math.min(Math.max(top, MARGIN), vh - h - MARGIN)
+    const left = Math.min(Math.max(point ? at.left : at.right - WIDTH, safe.left + MARGIN), vw - safe.right - MARGIN - WIDTH)
+    const above = menu.above ?? (at.bottom + GAP + h > bottom0 && at.top - GAP - h >= top0)
+    const top = Math.min(Math.max(above ? at.top - GAP - h : at.bottom + GAP, top0), bottom0 - h)
     setPlace({ left, top, above })
-    el.querySelector<HTMLElement>('.menu-item')?.focus({ preventScroll: true })
   }, [menu])
+
+  // Focus the first item once the menu is visible: a hidden element can't take focus.
+  useEffect(() => {
+    if (shown) ref.current?.querySelector<HTMLElement>('.menu-item')?.focus({ preventScroll: true })
+  }, [menu?.key, shown])
 
   useEffect(() => {
     if (!menu) return
     const inside = (e: Event) => e.target instanceof Node && !!ref.current?.contains(e.target)
-    const onDown = (e: Event) => !inside(e) && closeMenu()
+    const onDown = (e: Event) => {
+      if (inside(e)) return
+      closeMenu()
+      swallowClick()
+    }
     const onScroll = (e: Event) => !inside(e) && closeMenu()
-    const onKey = (e: globalThis.KeyboardEvent) => e.key === 'Escape' && closeMenu()
+    // Capture phase, ahead of the app's shortcuts: while the menu is open, keys are the menu's alone,
+    // so Escape closes just the menu (not Now Playing under it) and arrows move between items, not through the song.
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      e.stopPropagation()
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        closeMenu()
+      } else if (e.key === 'Tab') closeMenu() // focus goes back to the button, then on from there
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Home' || e.key === 'End') {
+        e.preventDefault()
+        const items = [...(ref.current?.querySelectorAll<HTMLElement>('.menu-item') ?? [])]
+        const i = items.indexOf(document.activeElement as HTMLElement)
+        const last = items.length - 1
+        const down = e.key === 'ArrowDown'
+        const to = e.key === 'Home' ? 0 : e.key === 'End' ? last : i < 0 ? (down ? 0 : last) : (i + (down ? 1 : -1) + items.length) % items.length
+        items[to]?.focus()
+      }
+    }
     document.addEventListener('pointerdown', onDown, true)
     window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', closeMenu)
-    window.addEventListener('keydown', onKey)
+    window.addEventListener('keydown', onKey, true)
     return () => {
       document.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', closeMenu)
-      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onKey, true)
     }
   }, [menu])
 
   if (!menu) return null
 
   const choose = (item: MenuItem) => {
-    if (item.items) return useMenu.setState({ menu: { ...menu, items: item.items, key: ++count } })
+    if (item.items) return useMenu.setState({ menu: { ...menu, items: item.items, key: ++count, above: place?.above } })
     closeMenu()
     item.onSelect?.()
-  }
-
-  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
-    e.preventDefault()
-    const buttons = [...e.currentTarget.querySelectorAll<HTMLElement>('.menu-item')]
-    const i = buttons.indexOf(document.activeElement as HTMLElement)
-    const step = e.key === 'ArrowDown' ? 1 : -1
-    buttons[(i + step + buttons.length) % buttons.length]?.focus()
   }
 
   return (
@@ -150,7 +213,6 @@ export function MenuHost() {
       className={`menu${place ? ' shown' : ''}${place?.above ? ' above' : ''}`}
       role="menu"
       style={{ left: place?.left ?? 0, top: place?.top ?? 0, width: WIDTH }}
-      onKeyDown={onKeyDown}
     >
       {menu.items.map((item, i) => (
         <button

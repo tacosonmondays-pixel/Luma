@@ -1,5 +1,5 @@
 // Import audio files from the device into the library.
-import { uid } from './format.ts'
+import { create } from 'zustand'
 import { addTrack, useLibrary } from './library.ts'
 
 const AUDIO_EXTENSIONS = /\.(mp3|m4a|m4b|aac|wav|wave|flac|ogg|oga|opus|weba|webm|aif|aiff|aifc|caf|alac|mp4)$/i
@@ -11,12 +11,32 @@ export function isAudioFile(file: { name: string; type: string }): boolean {
   return file.type.startsWith('audio/') || AUDIO_EXTENSIONS.test(file.name)
 }
 
-/** "Artist - Title.mp3" → { artist, title }; anything else is all title. */
+/** A CD rip's track number: "01 - ", "1. ", "01 ". Not "311 - " (a band) or "7 Rings" (a title). */
+const TRACK_NUMBER = /^(?:\d{1,2}\s*[-–—.]|0\d)\s+/
+
+/** "Artist - Title.mp3" → { artist, title }; anything else is all title. A leading track number is dropped. */
 export function parseFileName(name: string): { title: string; artist: string } {
-  const base = name.replace(/\.[^./\\]+$/, '').replace(/_/g, ' ').trim()
+  const base = name.replace(/\.[^./\\]+$/, '').replace(/_/g, ' ').trim().replace(TRACK_NUMBER, '')
   const match = /^(.+?)\s+[-–—]\s+(.+)$/.exec(base)
   if (match) return { artist: match[1].trim(), title: match[2].trim() }
   return { title: base || name, artist: '' }
+}
+
+/** A stable id for an imported file, so importing the same file again finds the song already there.
+ *  Name and size only: iOS gives picked files a new modification date each time. */
+export function fileId(file: { name: string; size: number }): string {
+  // cyrb53: a small 53-bit string hash.
+  const key = `${file.name}|${file.size}`
+  let h1 = 0xdeadbeef
+  let h2 = 0x41c6ce57
+  for (let i = 0; i < key.length; i++) {
+    const ch = key.charCodeAt(i)
+    h1 = Math.imul(h1 ^ ch, 2654435761)
+    h2 = Math.imul(h2 ^ ch, 1597334677)
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909)
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909)
+  return 'f-' + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36)
 }
 
 /** "Artist - Title [dQw4w9WgXcQ].m4a" → the YouTube id, and the name without it. */
@@ -116,21 +136,28 @@ export async function readTags(file: Blob): Promise<Tags> {
 
 // ── Import ───────────────────────────────────────────────────────────────
 
-/** Add audio files from the device to the library. */
+/** True when the last import stopped early (storage full); Songs' Import button shows it until the next one. */
+export const useImport = create<{ failed: boolean }>(() => ({ failed: false }))
+
+/** Add audio files from the device to the library, on top of Songs in the order they were picked. Songs
+ *  already in the library are skipped. Stops at the first file that can't be saved. */
 export async function importFiles(files: File[]): Promise<void> {
-  // addTrack puts each song on top, so go in reverse to keep the picked order.
-  for (const file of files.filter(isAudioFile).reverse()) {
-    const { id, name } = videoIdOf(file.name)
-    if (id && useLibrary.getState().tracks[id]) continue
+  useImport.setState({ failed: false })
+  let at = 0
+  for (const file of files.filter(isAudioFile)) {
+    const { id: videoId, name } = videoIdOf(file.name)
+    const id = videoId ?? fileId(file)
+    if (useLibrary.getState().tracks[id]) continue
     const tags = MP4_EXTENSIONS.test(file.name) ? await readTags(file).catch(() => ({}) as Tags) : {}
     const fromName = parseFileName(name)
     const title = tags.title || fromName.title
     const artist = tags.artist || fromName.artist
     const duration = Math.round(tags.duration ?? 0)
-    await addTrack(
-      { id: id ?? 'f-' + uid(), title, artist, duration, source: id ? 'youtube' : 'file', addedAt: Date.now() },
-      file,
-      tags.cover,
-    )
+    try {
+      await addTrack({ id, title, artist, duration, source: videoId ? 'youtube' : 'file', addedAt: Date.now() }, file, tags.cover, at++)
+    } catch {
+      useImport.setState({ failed: true })
+      return
+    }
   }
 }

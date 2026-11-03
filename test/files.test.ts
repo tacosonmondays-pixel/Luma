@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { importFiles, isAudioFile, parseFileName, readTags, videoIdOf } from '../src/lib/files.ts'
+import { fileId, importFiles, isAudioFile, parseFileName, readTags, useImport, videoIdOf } from '../src/lib/files.ts'
 import { addTrack, useLibrary } from '../src/lib/library.ts'
 import type { Track } from '../src/types.ts'
 
@@ -63,6 +63,43 @@ describe('importFiles', () => {
     expect(track.id).toMatch(/^f-/)
     expect(cover).toBeUndefined()
   })
+
+  it('skips a file that is already imported', async () => {
+    await importFiles([fixture(PLAIN)])
+    await importFiles([fixture(PLAIN)])
+    expect(addTrack).toHaveBeenCalledTimes(1)
+  })
+
+  const mp3 = (name: string) => new File([new Uint8Array(name.length * 100)], name, { type: 'audio/mpeg' })
+
+  it('puts the songs on top in the order they were picked', async () => {
+    await importFiles([mp3('a.mp3'), mp3('bb.mp3'), mp3('ccc.mp3')])
+    expect(vi.mocked(addTrack).mock.calls.map(([track, , , at]) => [track.title, at])).toEqual([
+      ['a', 0],
+      ['bb', 1],
+      ['ccc', 2],
+    ])
+  })
+
+  it('stops at the first song that cannot be saved, and says so until the next import', async () => {
+    vi.mocked(addTrack).mockImplementationOnce(async (track) => void (useLibrary.getState().tracks[track.id] = track))
+    vi.mocked(addTrack).mockRejectedValueOnce(new DOMException('full', 'QuotaExceededError'))
+    await importFiles([mp3('a.mp3'), mp3('bb.mp3'), mp3('ccc.mp3')])
+    expect(addTrack).toHaveBeenCalledTimes(2)
+    expect(Object.values(useLibrary.getState().tracks).map((t) => t.title)).toEqual(['a'])
+    expect(useImport.getState().failed).toBe(true)
+    await importFiles([mp3('ccc.mp3')])
+    expect(useImport.getState().failed).toBe(false)
+  })
+})
+
+describe('fileId', () => {
+  it('is the same for the same file and differs otherwise', () => {
+    expect(fileId({ name: 'a.mp3', size: 1000 })).toBe(fileId({ name: 'a.mp3', size: 1000 }))
+    expect(fileId({ name: 'a.mp3', size: 1000 })).toMatch(/^f-[0-9a-z]+$/)
+    expect(fileId({ name: 'a.mp3', size: 1001 })).not.toBe(fileId({ name: 'a.mp3', size: 1000 }))
+    expect(fileId({ name: 'b.mp3', size: 1000 })).not.toBe(fileId({ name: 'a.mp3', size: 1000 }))
+  })
 })
 
 describe('parseFileName', () => {
@@ -73,6 +110,18 @@ describe('parseFileName', () => {
   it('uses the whole name as the title otherwise', () => {
     expect(parseFileName('voice memo.m4a')).toEqual({ title: 'voice memo', artist: '' })
     expect(parseFileName('well-known.mp3')).toEqual({ title: 'well-known', artist: '' })
+  })
+  it('drops a leading track number', () => {
+    expect(parseFileName('01 - Intro.mp3')).toEqual({ title: 'Intro', artist: '' })
+    expect(parseFileName('1. Intro.mp3')).toEqual({ title: 'Intro', artist: '' })
+    expect(parseFileName('07 Intro.flac')).toEqual({ title: 'Intro', artist: '' })
+    expect(parseFileName('03 - Daft Punk - One More Time.mp3')).toEqual({ artist: 'Daft Punk', title: 'One More Time' })
+  })
+  it('keeps numbers that are names', () => {
+    expect(parseFileName('311 - Amber.mp3')).toEqual({ artist: '311', title: 'Amber' })
+    expect(parseFileName('50 Cent - In Da Club.mp3')).toEqual({ artist: '50 Cent', title: 'In Da Club' })
+    expect(parseFileName('7 Rings.mp3')).toEqual({ title: '7 Rings', artist: '' })
+    expect(parseFileName('99 Luftballons.mp3')).toEqual({ title: '99 Luftballons', artist: '' })
   })
 })
 

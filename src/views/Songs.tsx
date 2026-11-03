@@ -1,4 +1,4 @@
-import { importFiles } from '../lib/files.ts'
+import { importFiles, useImport } from '../lib/files.ts'
 import { useLibrary } from '../lib/library.ts'
 import { playTracks, shufflePlay } from '../lib/player.ts'
 import { navigate } from '../lib/router.ts'
@@ -25,13 +25,19 @@ export function PlayPills({ ids }: { ids: string[] }) {
 
 export function Songs() {
   const order = useLibrary((s) => s.order)
+  const failed = useImport((s) => s.failed) // the last import ran out of storage
   const add = () => void pickFiles('audio/*', true).then(importFiles)
 
   return (
     <section>
       <header className="view-head">
         <h1>Songs</h1>
-        <IconButton icon="plus" label="Import Songs" onClick={add} />
+        <IconButton
+          icon={failed ? 'alert' : 'plus'}
+          label={failed ? 'Import Songs (last import failed)' : 'Import Songs'}
+          className={failed ? 'error' : ''}
+          onClick={add}
+        />
       </header>
       {order.length ? (
         <>
