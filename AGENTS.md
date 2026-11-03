@@ -17,16 +17,22 @@ Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper u
 
 - `src/types.ts` — shared data shapes, also imported (type-only) by the server
 - `src/lib/` — state and logic, no JSX
-  - `library.ts` songs, playlists, profile, background (zustand, persisted to IndexedDB)
+  - `library.ts` songs, playlists, profile, wallpaper, per-song canvas (zustand, persisted to IndexedDB)
   - `player.ts` playback: one `<audio>` element + a zustand store; commands are exported functions
   - `queue.ts` pure queue logic · `blobs.ts` IndexedDB blobs and object URLs · `router.ts` · `format.ts`
   - `source.ts` helper or phone mode: search, thumbnails, downloads, Import · `helper.ts` helper API client and downloads · `youtube.ts` YouTube Data API search and the key
   - `files.ts` import local audio (M4A tags and cover, `[<YouTube id>]` in the file name) · `titles.ts` clean YouTube titles
-- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying`, `Transport`
+  - `appearance.ts` theme, cover colors, player style (localStorage) · `palette.ts` accent and wash from cover art
+  - `media.ts` profile and canvas media: resize, stills, animation detection, size caps · `gif.ts` + `gif.worker.ts` video → GIF
+  - `plays.ts` the play log (`luma-plays`) · `stats.ts` On Repeat and badges
+- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`
+  - `ui/profile/` the profile card, editor, frames, effects and name styles · `ui/y2k/` the Y2K theme's extra markup (LCD)
 - `src/views/` — one file per screen: `Songs`, `Playlists`, `Playlist`, `Search`, `You`
-- `src/styles/` — `base.css` (tokens, reset, shell) and one file per feature (`player.css`, `library.css`, `search.css`), imported by the component that uses it
-- `server/` — `api.ts` (connect-style middleware) and `index.ts` (production entry, static files)
-- `public/` — manifest, service worker, icons · `test/` — Vitest (`test/fixtures/` audio made with ffmpeg)
+- `src/styles/` — `base.css` (tokens, reset, shell), `themes.css` (dark themes), `y2k.css` (the light Y2K theme, all scoped to `[data-theme='y2k']`), and one file per feature (`player.css`, `wash.css`, `library.css`, `search.css`, `profile.css`, `badges.css`, `appearance.css`, `gif.css`), imported by the component that uses it
+- `src/assets/fonts/` — bundled OFL fonts (name styles, the Y2K LCD)
+- `server/` — `api.ts` (connect-style middleware), `index.ts` (production entry, static files), `exe.ts` + `setup.ts` (Windows Luma.exe: embedded app, first-run yt-dlp and Deno)
+- `public/` — manifest, service worker, icons · `test/` — Vitest (`test/fixtures/` media made with ffmpeg)
+- `docs/` — `customization-spec.md` and `mockups/` · `licenses/` — one license file per third-party font, icon set or palette
 
 ## Rules
 
@@ -39,7 +45,7 @@ Design
 
 Code
 - No new dependencies without a strong reason. State lives in zustand stores; actions are plain exported functions.
-- Blobs live in IndexedDB under `audio:<id>`, `cover:<id>`, `playlist-cover:<id>`, `avatar`, `banner`, `background`. Metadata stores a version (`Date.now()`) per blob; bump it to replace the blob.
+- Blobs live in IndexedDB under `audio:<id>`, `cover:<id>`, `canvas:<id>`, `playlist-cover:<id>`, `background` (the wallpaper), and the profile's `avatar`, `banner`, `backdrop`, each with a `<key>-still` JPEG while it is animated or a video. Metadata stores a version (`Date.now()`) per blob; bump it to replace the blob. The play log lives in its own `luma-plays` store.
 - `server/*.ts` runs under Node's type stripping: erasable syntax only, `.ts` extensions on relative imports, `import type` for types, Node built-ins only.
 - Verify UI changes with screenshots at 393×852 (iPhone) and 1440×900 (desktop). In dev you can seed data from Playwright with `page.evaluate(async () => (await import('/src/lib/library.ts')).addTrack(...))`.
 
