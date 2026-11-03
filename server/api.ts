@@ -98,15 +98,26 @@ async function search(res: ServerResponse, params: URLSearchParams): Promise<Sea
   if (isUrl && !YOUTUBE_HOSTS.includes(link?.hostname ?? '')) throw new Fail(400, 'bad-request')
 
   // Links: pass on the parsed link, not the raw text. yt-dlp parses links differently (e.g. `\`) and could see another host.
-  // Popular: yt-dlp has no search prefix for view count, but it reads a results page with YouTube's own sort
-  // parameter. `sp` is double-encoded, as in YouTube's own links and yt-dlp's tests ("CAM=" is by views).
-  const popular = !link && sort === 'popular'
-  const target = link
-    ? link.href
-    : popular
-      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=CAM%253D`
-      : `${sort === 'recent' ? 'ytsearchdate30' : 'ytsearch30'}:${q}`
-  const end = popular ? '30' : '200' // a results page scrolls forever; match the other searches
+  if (link) {
+    const { info, results } = await find(res, link.href, '200')
+    return info._type === 'playlist' ? { results, playlist: String(info.title ?? '') } : { results }
+  }
+  if (sort === 'relevance') return { results: (await find(res, `ytsearch30:${q}`, '200')).results }
+
+  // Popular and Recent read YouTube's own results page with its filter parameter, double-encoded as in YouTube's
+  // links and yt-dlp's tests. "CAM=" ranks by popularity. YouTube removed sorting by upload date in January 2026
+  // (and yt-dlp its ytsearchdate), so Recent means uploaded this week ("EgIIAw=="), else this month ("EgIIBA==").
+  // A results page scrolls forever, so stop at 30 like the other searches.
+  let results: SearchResult[] = []
+  for (const sp of sort === 'popular' ? ['CAM%253D'] : ['EgIIAw%253D%253D', 'EgIIBA%253D%253D']) {
+    results = (await find(res, `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=${sp}`, '30')).results
+    if (results.length) break
+  }
+  return { results }
+}
+
+/** One yt-dlp listing of a search, results page or link, mapped to songs. */
+async function find(res: ServerResponse, target: string, end: string): Promise<{ info: Info; results: SearchResult[] }> {
   const args = ['--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', end, '--', target]
   const { stdout, stderr } = await ytdlp(args, 30_000, res)
   let info: Info
@@ -128,7 +139,7 @@ async function search(res: ServerResponse, params: URLSearchParams): Promise<Sea
         }]
       : [],
   )
-  return isUrl && info._type === 'playlist' ? { results, playlist: String(info.title ?? '') } : { results }
+  return { info, results }
 }
 
 async function audio(res: ServerResponse, id: string): Promise<void> {

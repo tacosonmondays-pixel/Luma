@@ -412,7 +412,6 @@
   text-shadow: 0 1px 1px rgba(0, 30, 100, 0.5);
 }
 
-:root[data-theme='y2k'] .segmented button.on,
 :root[data-theme='y2k'] .segmented-thumb {
   border-radius: 14px;
   background: var(--y2k-select);
