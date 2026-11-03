@@ -10,6 +10,19 @@ The exe is unsigned, so Windows shows "Windows protected your PC". Click **More 
 
 (Free code signing for open-source projects exists, from the [SignPath Foundation](https://signpath.org), if we want it later.)
 
+## YouTube extension
+
+**Luma for YouTube** adds a **Save to Luma** button to YouTube and YouTube Music: next to Like and Share on a video, and **Save playlist to Luma** on a playlist. It works in Chrome and Edge on your computer.
+
+1. Download [Luma-for-YouTube.zip](https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma-for-YouTube.zip) and unzip it.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right), click **Load unpacked**, and pick the unzipped folder.
+3. Edge works the same way: open `edge://extensions`, turn on **Developer mode**, and click **Load unpacked**.
+4. Click the extension's icon to pick where Luma is: **This computer** (Luma.exe or `npm start`: songs download right away) or **Website** (songs are saved, and download later). You can also turn on **Auto-save liked videos**.
+
+A song or playlist saved without a downloader shows a download glyph in Luma. Tap it, or **Download Missing** on its playlist, once Luma.exe or the Shortcut is there. A playlist saved from YouTube stays linked: **… → Refresh from YouTube** adds its new songs. **You → YouTube** imports your own playlists and Liked videos (set up in [docs/youtube-signin.md](docs/youtube-signin.md)).
+
+A Chrome Web Store listing (a one-time $5 developer fee) would make it a one-click install later.
+
 ## Set up
 
 1. Install [Node.js](https://nodejs.org) 22.18 or newer.

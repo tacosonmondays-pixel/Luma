@@ -1,6 +1,6 @@
 // Connect YouTube: the row in You's settings group, and the sheet that lists the owner's playlists (Liked videos
 // first) to import as linked playlists. Hidden until google-config.ts has a client ID.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { gradientFor } from '../lib/format.ts'
 import { disconnect, ensureToken, googleEnabled, preload, useGoogle } from '../lib/google.ts'
@@ -20,7 +20,8 @@ export function YouTubeSheet({ onClose }: { onClose: () => void }) {
   const [load, setLoad] = useState<Load>('loading')
   const [busy, setBusy] = useState<Record<string, 'busy' | 'failed'>>({})
   const [attempt, setAttempt] = useState(0)
-  const linked = useLibrary((s) => new Map(s.playlists.flatMap((p) => (p.youtubeId ? [[p.youtubeId, p.id] as const] : []))))
+  const playlists = useLibrary((s) => s.playlists)
+  const linked = useMemo(() => new Map(playlists.flatMap((p) => (p.youtubeId ? [[p.youtubeId, p.id] as const] : []))), [playlists])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()

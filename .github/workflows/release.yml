@@ -1,4 +1,5 @@
-# Builds Luma.exe and attaches it to the GitHub Release for the tag.
+# Builds Luma.exe and zips the YouTube extension (extension/ → Luma-for-YouTube.zip), and attaches both to the
+# GitHub Release for the tag.
 # Download link: https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe
 # Pushes to the main branches refresh the "test-build" prerelease instead (a fixed download link):
 # https://github.com/tacosonmondays-pixel/Luma/releases/download/test-build/Luma.exe
@@ -9,7 +10,7 @@ on:
   push:
     tags: ['v*']
     branches: [main, claude/elegant-sagan-6gjqzc]
-    paths: ['src/**', 'server/**', 'public/**', 'scripts/**', 'package*.json', 'index.html', 'vite.config.ts', '.github/workflows/release.yml']
+    paths: ['src/**', 'server/**', 'public/**', 'scripts/**', 'extension/**', 'package*.json', 'index.html', 'vite.config.ts', '.github/workflows/release.yml']
   workflow_dispatch:
     inputs:
       tag:
@@ -62,6 +63,11 @@ jobs:
             Get-Content luma.log, luma.err
           }
 
+      # The unpacked extension, zipped with its files at the top (Load unpacked takes the unzipped folder).
+      - name: Zip the YouTube extension
+        shell: pwsh
+        run: Compress-Archive -Path extension\* -DestinationPath build\Luma-for-YouTube.zip -Force
+
       - name: Upload to the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -74,4 +80,4 @@ jobs:
           else
             gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
           fi
-          gh release upload "$TAG" build/Luma.exe --clobber
+          gh release upload "$TAG" build/Luma.exe build/Luma-for-YouTube.zip --clobber
