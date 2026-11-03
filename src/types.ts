@@ -48,6 +48,15 @@ export interface Profile {
   bio?: string // up to 190 characters
   pinnedSongs?: string[] // up to 5 track ids, newest first
   pinnedPlaylists?: string[] // up to 6 playlist ids
+  avatarCrop?: Crop // the visible position and zoom of each image
+  bannerCrop?: Crop
+  backdropCrop?: Crop
+}
+
+export interface Crop {
+  x: number
+  y: number
+  zoom: number
 }
 
 // ── Listening ───────────────────────────────────────────────────────────
@@ -136,6 +145,7 @@ export interface ProfileRow {
   backdrop_still_path: string | null
   backdrop_kind: MediaKind | null
   backdrop_version: number | null
+  crops: Partial<Record<'avatar' | 'banner' | 'backdrop', Crop>>
   share_activity: boolean
   created_at: string
   updated_at: string

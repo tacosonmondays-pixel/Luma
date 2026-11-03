@@ -131,7 +131,7 @@ export const blankRow = (id: string, extra: Row = {}): Row => ({
   avatar_path: null, avatar_still_path: null, avatar_kind: null, avatar_version: null,
   banner_path: null, banner_still_path: null, banner_kind: null, banner_version: null,
   backdrop_path: null, backdrop_still_path: null, backdrop_kind: null, backdrop_version: null,
-  share_activity: false, created_at: '2026-11-01T00:00:00.000Z', updated_at: '2026-11-01T00:00:00.000Z', ...extra,
+  crops: {}, share_activity: false, created_at: '2026-11-01T00:00:00.000Z', updated_at: '2026-11-01T00:00:00.000Z', ...extra,
 })
 
 /** One device's client. */

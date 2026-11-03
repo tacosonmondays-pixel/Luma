@@ -44,6 +44,8 @@ create table if not exists public.profiles (
   backdrop_still_path text check (backdrop_still_path like id::text || '/profile/%'),
   backdrop_kind text check (backdrop_kind in ('image', 'animated', 'video')),
   backdrop_version bigint,
+  -- { "avatar": { "x", "y", "zoom" }, "banner": …, "backdrop": … }: each image's visible position and zoom
+  crops jsonb not null default '{}' check (jsonb_typeof(crops) = 'object' and pg_column_size(crops) <= 1024),
   share_activity boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(), -- the device's edit time: last write wins
@@ -51,6 +53,9 @@ create table if not exists public.profiles (
     to_tsvector('simple', coalesce(handle, '') || ' ' || coalesce(name, '') || ' ' || coalesce(bio, ''))
   ) stored
 );
+-- Added after the first release of this script: keep re-runs on older databases working.
+alter table public.profiles add column if not exists crops jsonb not null default '{}'
+  check (jsonb_typeof(crops) = 'object' and pg_column_size(crops) <= 1024);
 create unique index if not exists profiles_handle_ci on public.profiles (lower(handle));
 create index if not exists profiles_search on public.profiles using gin (search);
 
@@ -247,7 +252,7 @@ grant select on public.profiles to anon, authenticated;
 -- Never id, handle checks aside, nor the member / admin / banned flags: those change only through the RPCs.
 grant update (handle, name, bio, colors, auto_colors, frame, effect, name_style, pinned_songs, pinned_playlists, badges,
   avatar_path, avatar_still_path, avatar_kind, avatar_version, banner_path, banner_still_path, banner_kind, banner_version,
-  backdrop_path, backdrop_still_path, backdrop_kind, backdrop_version, share_activity, updated_at) on public.profiles to authenticated;
+  backdrop_path, backdrop_still_path, backdrop_kind, backdrop_version, crops, share_activity, updated_at) on public.profiles to authenticated;
 grant select on public.invites to authenticated;
 grant select on public.follows to anon, authenticated;
 grant insert (follower_id, followee_id), delete on public.follows to authenticated;
@@ -471,7 +476,7 @@ begin
     update public.profiles p set name = '', bio = null, pinned_songs = '[]',
       avatar_path = null, avatar_still_path = null, avatar_kind = null, avatar_version = null,
       banner_path = null, banner_still_path = null, banner_kind = null, banner_version = null,
-      backdrop_path = null, backdrop_still_path = null, backdrop_kind = null, backdrop_version = null,
+      backdrop_path = null, backdrop_still_path = null, backdrop_kind = null, backdrop_version = null, crops = '{}',
       updated_at = greatest(now(), p.updated_at + interval '1 millisecond')
     where p.id = admin_remove.id;
   else

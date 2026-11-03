@@ -181,7 +181,7 @@ describe('sync', () => {
     a.lib.set({
       tracks: { a: track('a') },
       order: ['a'],
-      profile: { name: 'Me', bio: 'hi', avatar: 111, avatarKind: 'animated', colors: ['#ff7ab8', '#6b5bff'], pinnedSongs: ['a'] },
+      profile: { name: 'Me', bio: 'hi', avatar: 111, avatarKind: 'animated', colors: ['#ff7ab8', '#6b5bff'], pinnedSongs: ['a'], avatarCrop: { x: 0.3, y: 0.6, zoom: 2 } },
     })
     await a.on(() => a.sync.syncNow())
     expect([...server.files.keys()].sort()).toEqual([`${uid}/profile/avatar-111-still.jpg`, `${uid}/profile/avatar-111.gif`])
@@ -189,12 +189,13 @@ describe('sync', () => {
     expect(row).toMatchObject({ name: 'Me', bio: 'hi', avatar_version: 111, avatar_kind: 'animated', avatar_path: `${uid}/profile/avatar-111.gif` })
     expect(row.pinned_songs).toEqual([{ id: 'a', title: 'Song a', artist: 'Artist', source: 'youtube' }])
     expect(row.badges).toEqual([{ id: 'first-spin', tier: 1 }])
+    expect(row.crops).toEqual({ avatar: { x: 0.3, y: 0.6, zoom: 2 } })
 
     // A fresh device: its blank profile never overwrites the server's; the server's comes down.
     const b = await device()
     await b.join('me@example.com')
     await b.on(() => b.sync.syncNow())
-    expect(b.lib.get().profile).toMatchObject({ name: 'Me', bio: 'hi', avatar: 111, avatarKind: 'animated', pinnedSongs: ['a'] })
+    expect(b.lib.get().profile).toMatchObject({ name: 'Me', bio: 'hi', avatar: 111, avatarKind: 'animated', pinnedSongs: ['a'], avatarCrop: { x: 0.3, y: 0.6, zoom: 2 } })
     expect(await b.blobs.blobs.get('avatar')?.text()).toBe('gif')
     expect(await b.blobs.blobs.get('avatar-still')?.text()).toBe('jpg')
 

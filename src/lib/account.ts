@@ -5,7 +5,7 @@
 
 import { create } from 'zustand'
 import { hasSavedSession, supabase } from './supabase.ts'
-import type { Profile, ProfileRow, RedeemResult } from '../types.ts'
+import type { Crop, Profile, ProfileRow, RedeemResult } from '../types.ts'
 
 interface Account {
   ready: boolean // the saved session (if any) has been checked
@@ -133,7 +133,16 @@ export function profileFromRow(row: ProfileRow): Profile {
     nameStyle: row.name_style ?? undefined,
     pinnedSongs: row.pinned_songs.map((s) => s.id),
     pinnedPlaylists: row.pinned_playlists,
+    avatarCrop: cropOf(row.crops?.avatar),
+    bannerCrop: cropOf(row.crops?.banner),
+    backdropCrop: cropOf(row.crops?.backdrop),
   }
+}
+
+/** A stored crop, if it is a well-formed one (the row is anyone's JSON). */
+function cropOf(c: unknown): Crop | undefined {
+  const { x, y, zoom } = (c ?? {}) as Partial<Crop>
+  return [x, y, zoom].every((n) => typeof n === 'number' && Number.isFinite(n)) ? { x: x!, y: y!, zoom: zoom! } : undefined
 }
 
 /** Where a profile is shared from. The iOS app's own origin (luma://) isn't a web address: use the site's. */

@@ -84,6 +84,11 @@ describe('members', () => {
     await expect(db.as(carol, `update public.profiles set handle = 'way_too_long_handle_123' where id = auth.uid()`)).rejects.toThrow(/check/)
   })
 
+  it('store image crops as a small object', async () => {
+    expect(await count(alice, `update public.profiles set crops = '{"avatar":{"x":0.5,"y":0.4,"zoom":1.5}}' where id = auth.uid() returning 1`)).toBe(1)
+    await expect(db.as(alice, `update public.profiles set crops = '[1]' where id = auth.uid()`)).rejects.toThrow(/check/)
+  })
+
   it('profile media must point into their own folder', async () => {
     await expect(
       db.as(alice, `update public.profiles set avatar_path = $1 where id = auth.uid()`, [`${bob.id}/profile/a.jpg`]),

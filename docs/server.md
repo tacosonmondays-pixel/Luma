@@ -50,6 +50,7 @@ All timestamps are `timestamptz`. `user_id` columns default to `auth.uid()`, so 
 | `…_still_path` | the JPEG still of an animated image or video |
 | `…_kind` | `image`, `animated` (and for the backdrop `video`) |
 | `…_version` | the device's blob version (`Date.now()`) the file was made from |
+| `crops` | jsonb `{ avatar?, banner?, backdrop? }`, each `{ x, y, zoom }`: the visible position and zoom (`Profile.avatarCrop` …). Apply them on the public card too. |
 | `share_activity` | default false. Followers see plays only while it's on. |
 | `updated_at` | the editing device's clock. **Last write wins**: an update with an older `updated_at` is skipped by a trigger. |
 | `search` | generated tsvector (handle, name, bio) |

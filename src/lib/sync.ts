@@ -90,7 +90,7 @@ const trackFields = (t: Track) => [t.title, t.artist, Math.round(t.duration || 0
 const playlistFields = (p: Omit<Playlist, 'cover'>) => [p.name, p.trackIds, p.createdAt]
 const profileFields = (p: Profile) => [
   p.name, p.bio ?? null, p.colors ?? null, p.autoColors ?? null, p.frame ?? null, p.effect ?? null, p.nameStyle ?? null,
-  p.pinnedSongs ?? [], p.pinnedPlaylists ?? [],
+  p.pinnedSongs ?? [], p.pinnedPlaylists ?? [], p.avatarCrop ?? null, p.bannerCrop ?? null, p.backdropCrop ?? null,
   ...PROFILE_SLOTS.flatMap((s) => [p[s] ?? null, p[s] ? (p[`${s}Kind`] ?? 'image') : null]),
 ]
 
@@ -366,6 +366,7 @@ async function pushProfile(uid: string, state: SyncState, row: ProfileRow): Prom
     pinned_songs: pinned,
     pinned_playlists: profile.pinnedPlaylists ?? [],
     badges: badgesFor(row),
+    crops: Object.fromEntries(PROFILE_SLOTS.flatMap((s) => (profile[`${s}Crop`] ? [[s, profile[`${s}Crop`]]] : []))),
     updated_at: iso(known.at),
   }
   for (const slot of PROFILE_SLOTS) {
