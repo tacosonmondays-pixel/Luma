@@ -14,6 +14,8 @@ export class HelperError extends Error {
   }
 }
 
+const API = `${import.meta.env.BASE_URL}api/`
+
 async function request(path: string, signal?: AbortSignal): Promise<Response> {
   let r: Response
   try {
@@ -29,12 +31,12 @@ async function request(path: string, signal?: AbortSignal): Promise<Response> {
 }
 
 export async function health(): Promise<Health> {
-  return (await request('/api/health')).json()
+  return (await request(`${API}health`)).json()
 }
 
 export async function search(q: string, sort: SearchSort, signal?: AbortSignal): Promise<SearchResponse> {
   const params = new URLSearchParams({ q, sort })
-  return (await request(`/api/search?${params}`, signal)).json()
+  return (await request(`${API}search?${params}`, signal)).json()
 }
 
 // ── Downloads ────────────────────────────────────────────────────────────
@@ -88,7 +90,7 @@ async function readBody(r: Response, onProgress: (p: number | null) => void): Pr
 
 async function fetchCover(id: string): Promise<Blob | null> {
   try {
-    const r = await fetch(`/api/cover/${id}`)
+    const r = await fetch(`${API}cover/${id}`)
     return r.ok ? await r.blob() : null
   } catch {
     return null
@@ -106,7 +108,7 @@ export function downloadTrack(result: SearchResult): Promise<boolean> {
     const release = await slot()
     try {
       const [audio, cover] = await Promise.all([
-        request(`/api/audio/${id}`).then((r) => readBody(r, (p) => setProgress(id, p))),
+        request(`${API}audio/${id}`).then((r) => readBody(r, (p) => setProgress(id, p))),
         fetchCover(id),
       ])
       const { title, artist } = cleanTitle(result.title, result.channel)

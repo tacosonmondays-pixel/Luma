@@ -1,5 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react'
-import { navigate } from '../lib/router.ts'
+import { href, navigate } from '../lib/router.ts'
 import { Icon, type IconName } from './Icon.tsx'
 
 interface IconButtonProps {
@@ -35,7 +35,7 @@ export function Link({ to, className, label, children }: { to: string; className
     navigate(to)
   }
   return (
-    <a href={to} className={className} aria-label={label} onClick={onClick}>
+    <a href={href(to)} className={className} aria-label={label} onClick={onClick}>
       {children}
     </a>
   )

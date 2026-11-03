@@ -27,6 +27,22 @@ To use Luma from your phone, at home or away, run it through [Tailscale](https:/
 
 Saved songs stay on your phone and play offline, including from the lock screen. Searching and saving new songs needs the computer to be on.
 
+## iPhone only
+
+Luma also runs with no computer, from GitHub Pages.
+
+1. Make this repository public, set **Settings → Pages → Source** to **GitHub Actions**, and merge to `main`. Luma is then at https://tacosonmondays-pixel.github.io/Luma/. Open it in Safari and **Add to Home Screen**.
+2. In [Google Cloud](https://console.cloud.google.com), enable the **YouTube Data API v3** and create an API key. Restrict it to the HTTP referrer `https://tacosonmondays-pixel.github.io/*` and to the YouTube Data API v3. Paste it into **You → YouTube Key**.
+3. To save songs, install [a-Shell](https://holzschu.github.io/a-Shell_iOS/) and run `pip install -U yt-dlp mutagen` in it. Then, in Shortcuts, make a shortcut named **Save to Luma**:
+   - Turn on **Show in Share Sheet**, receiving **URLs** and **Text**.
+   - Add a-Shell's **Execute Command** action with **Open a-Shell** on, and this command, with **Shortcut Input** in place of `<Shortcut Input>`:
+     ```
+     cd ~/Documents && mkdir -p Luma && cd Luma && python3 -m yt_dlp -f "ba[ext=m4a]/ba" --embed-metadata --embed-thumbnail --convert-thumbnails jpg -o "%(artist,uploader)s - %(title)s [%(id)s].%(ext)s" "<Shortcut Input>"
+     ```
+   - Add **Open URLs** with `https://tacosonmondays-pixel.github.io/Luma/search`.
+
+   The download button in Search runs the shortcut. Back in Luma, tap **Import** and pick the files from **On My iPhone → a-Shell → Luma**.
+
 Only save music you have the right to download.
 
 ## Develop

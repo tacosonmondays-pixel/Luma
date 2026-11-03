@@ -453,3 +453,24 @@
     transform: scale(0.94);
   }
 }
+
+.group-input {
+  flex: 1;
+  min-width: 0;
+  height: 50px;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 16px; /* below 16px, iOS zooms in on focus */
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.group-input:focus {
+  color: var(--text);
+  outline: none;
+}
+
+.group-row:focus-within {
+  background: var(--hover);
+}
