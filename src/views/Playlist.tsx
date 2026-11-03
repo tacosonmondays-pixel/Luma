@@ -137,7 +137,7 @@ export function Playlist({ id }: { id: string }) {
         // Songs are added from their own menu (… → Add to Playlist), so lead there.
         <div className="empty playlist-empty">
           <Icon name="music" size={44} />
-          <button type="button" className="pill" onClick={() => navigate('/')}>
+          <button type="button" className="pill" onClick={() => navigate('/songs')}>
             <Icon name="plus" size={18} />
             Add Songs
           </button>

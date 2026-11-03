@@ -10,6 +10,7 @@ import { Sidebar, TabBar } from './ui/Nav.tsx'
 import { NowPlaying } from './ui/NowPlaying.tsx'
 import { useCardVideo } from './ui/profile/ProfileMedia.tsx'
 import { PlayerBar } from './ui/PlayerBar.tsx'
+import { Home } from './views/Home.tsx'
 import { Playlist } from './views/Playlist.tsx'
 import { Playlists } from './views/Playlists.tsx'
 import { Save } from './views/Save.tsx'
@@ -20,6 +21,8 @@ import { You } from './views/You.tsx'
 
 function View({ route }: { route: Route }) {
   switch (route.name) {
+    case 'home':
+      return <Home />
     case 'songs':
       return <Songs />
     case 'playlists':

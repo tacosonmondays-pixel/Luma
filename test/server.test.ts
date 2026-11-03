@@ -51,6 +51,14 @@ if (args.includes('--version')) {
       { ie_key: 'Youtube', id: 'b-b_bbbbbbb', title: 'Song B', uploader: 'Uploader B' },
       { ie_key: 'Youtube', id: 'ddddddddddd', duration: null },
     ] })
+  } else if (target.includes('&list=RD')) {
+    const seed = target.split('v=')[1].split('&')[0]
+    print({ _type: 'playlist', id: 'RD' + seed, title: 'Mix - Never Gonna', entries: [
+      { ie_key: 'Youtube', id: seed, title: 'Never Gonna', channel: 'Rick', duration: 212 },
+      { ie_key: 'Youtube', id: 'mmmmmmmmmm1', title: 'Mix 1', channel: 'M1', duration: 180.4 },
+      { ie_key: 'YoutubeTab', id: 'mmmmmmmmmm2', title: 'A tab' },
+      { ie_key: 'Youtube', id: 'mmmmmmmmmm3', title: 'Mix 3', uploader: 'U3' },
+    ] })
   } else if (target.includes('list=')) {
     print({ _type: 'playlist', id: 'PL1', title: 'Road Trip', entries: [
       { ie_key: 'Youtube', id: 'eeeeeeeeeee', title: 'Track 1', channel: 'X', duration: 60 },
@@ -307,6 +315,47 @@ describe('audio', () => {
   })
 })
 
+describe('mix', () => {
+  it("lists YouTube's radio mix for the video, flat and capped at 30", async () => {
+    const r = await get(`${base}/api/mix/dQw4w9WgXcQ`)
+    expect(r.status).toBe(200)
+    expect(r.headers.get('content-type')).toMatch(/^application\/json/)
+    expect(r.headers.get('cache-control')).toBe('no-store')
+    expect(calls()).toEqual([[
+      '--ignore-config', '--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', '30',
+      '--', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=RDdQw4w9WgXcQ',
+    ]])
+    expect(await r.json()).toEqual({
+      results: [
+        { id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 },
+        { id: 'mmmmmmmmmm1', title: 'Mix 1', channel: 'M1', duration: 180 },
+        { id: 'mmmmmmmmmm3', title: 'Mix 3', channel: 'U3', duration: 0 },
+      ],
+    })
+  })
+
+  it.each(['short', 'dQw4w9WgXcQx', 'dQw4w9WgXc%3B', 'dQw4w9WgX%26c'])('rejects the id %s with 400', async (id) => {
+    const r = await get(`${base}/api/mix/${id}`)
+    expect(r.status).toBe(400)
+    expect(await r.json()).toEqual({ error: 'bad-request' })
+    expect(calls()).toEqual([])
+  })
+
+  it('answers 502 when yt-dlp fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const r = await get(`${base}/api/mix/failfailfai`)
+    expect(r.status).toBe(502)
+    expect(await r.json()).toEqual({ error: 'failed' })
+  })
+
+  it('answers 503 when yt-dlp is missing', async () => {
+    process.env.LUMA_YTDLP = join(tmp, 'missing')
+    const r = await get(`${base}/api/mix/dQw4w9WgXcQ`)
+    expect(r.status).toBe(503)
+    expect(await r.json()).toEqual({ error: 'ytdlp-missing' })
+  })
+})
+
 describe('cover', () => {
   const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xd9])
 
@@ -360,7 +409,7 @@ describe('cover', () => {
 })
 
 describe('routing', () => {
-  it.each(['/api/nope', '/api/health/x', '/api/audio', '/api/audio/dQw4w9WgXcQ/x'])('answers 404 for %s', async (path) => {
+  it.each(['/api/nope', '/api/health/x', '/api/audio', '/api/audio/dQw4w9WgXcQ/x', '/api/mix', '/api/mix/dQw4w9WgXcQ/x'])('answers 404 for %s', async (path) => {
     const r = await get(base + path)
     expect(r.status).toBe(404)
     expect(await r.json()).toEqual({ error: 'not-found' })

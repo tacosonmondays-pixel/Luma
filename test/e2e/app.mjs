@@ -154,7 +154,7 @@ try {
 
     // A watch link, not encoded, from a playlist: the video alone is saved, on top of Songs.
     await page.goto(`${BASE}/save?u=https://www.youtube.com/watch?v=fffffffffff&list=PLroad`)
-    await page.waitForURL(`${BASE}/`)
+    await page.waitForURL(`${BASE}/songs`)
     await page.locator('.track').first().waitFor()
     assert.equal(await page.locator('.track .track-title').first().textContent(), 'Running Up That Hill')
     assert.equal(await page.locator('.track').first().getAttribute('class'), 'track missing')
@@ -248,7 +248,7 @@ try {
         dispatchEvent(new PopStateEvent('popstate'))
       }
     }, path)
-    await page.waitForURL(`${BASE}/`)
+    await page.waitForURL(`${BASE}/songs`)
     assert.equal(await page.evaluate(() => window.__marker), before)
     step('iOS: the luma://save route saves in place')
     await context.close()

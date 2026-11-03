@@ -53,9 +53,10 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL): Promi
   }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, ytdlp: await ytdlpVersion() } satisfies Health)
   if (url.pathname === '/api/search') return json(res, 200, await search(res, url.searchParams))
-  const [, kind, id = ''] = /^\/api\/(audio|cover)\/([^/]*)$/.exec(url.pathname) ?? []
+  const [, kind, id = ''] = /^\/api\/(audio|cover|mix)\/([^/]*)$/.exec(url.pathname) ?? []
   if (!kind) throw new Fail(404, 'not-found')
   if (!VIDEO_ID.test(id)) throw new Fail(400, 'bad-request')
+  if (kind === 'mix') return json(res, 200, await mix(res, id))
   return kind === 'audio' ? audio(res, id) : cover(res, id, url.searchParams.get('small') === '1')
 }
 
@@ -114,6 +115,11 @@ async function search(res: ServerResponse, params: URLSearchParams): Promise<Sea
     if (results.length) break
   }
   return { results }
+}
+
+/** YouTube's own radio mix for a video (the `RD<id>` list, no account needed): the video first, then 29 more. */
+async function mix(res: ServerResponse, id: string): Promise<SearchResponse> {
+  return { results: (await find(res, `https://www.youtube.com/watch?v=${id}&list=RD${id}`, '30')).results }
 }
 
 /** One yt-dlp listing of a search, results page or link, mapped to songs. */

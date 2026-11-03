@@ -39,6 +39,11 @@ export async function search(q: string, sort: SearchSort, signal?: AbortSignal):
   return (await request(`${API}search?${params}`, signal)).json()
 }
 
+/** YouTube's radio mix for a video (helper only). */
+export async function mix(id: string, signal?: AbortSignal): Promise<SearchResponse> {
+  return (await request(`${API}mix/${encodeURIComponent(id)}`, signal)).json()
+}
+
 // ── Downloads ────────────────────────────────────────────────────────────
 
 /** id → progress 0..1, null while waiting or when the size is unknown, or 'error'. Cleared on success. */

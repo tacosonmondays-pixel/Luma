@@ -19,7 +19,7 @@ export function Save() {
     if (handling === query) return
     handling = query
     saveLink(url).then(
-      ({ playlistId }) => navigate(playlistId ? `/playlist/${playlistId}` : '/', true),
+      ({ playlistId }) => navigate(playlistId ? `/playlist/${playlistId}` : '/songs', true),
       () => searchFor(url, true),
     ).finally(() => {
       handling = null
