@@ -1,0 +1,89 @@
+# Builds an unsigned Luma.ipa for sideloading (Signulous, AltStore, SideStore, Sideloadly re-sign it).
+# Every run uploads it as the Luma-ipa artifact; v* tags also attach it to the tag's GitHub Release.
+
+name: iOS
+
+on:
+  push:
+    branches: [main, claude/elegant-sagan-6gjqzc, claude/luma-ios]
+    tags: ['v*']
+    paths: ['ios/**', 'src/**', 'public/**', '.github/workflows/ios.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Build the web app into the bundle
+        run: |
+          npx vite build
+          rm -rf ios/Luma/www
+          cp -R dist ios/Luma/www
+
+      - name: Generate the Xcode project
+        working-directory: ios
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Archive (unsigned)
+        working-directory: ios
+        run: |
+          xcodebuild archive \
+            -project Luma.xcodeproj -scheme Luma -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath build/Luma.xcarchive \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Package Luma.ipa
+        working-directory: ios
+        run: |
+          mkdir -p build/Payload
+          cp -R build/Luma.xcarchive/Products/Applications/Luma.app build/Payload/
+          test -f build/Payload/Luma.app/www/index.html
+          (cd build && zip -qry Luma.ipa Payload)
+          ls -l build/Luma.ipa
+
+      - name: Check Luma.ipa
+        working-directory: ios/build
+        run: |
+          mkdir check && (cd check && unzip -q ../Luma.ipa)
+          app=check/Payload/Luma.app
+          zipinfo -1 Luma.ipa | grep -v '/www/assets/' | head -40
+          test -x $app/Luma && file $app/Luma
+          test -f $app/www/index.html && test -f $app/Assets.car
+          plutil -p $app/Info.plist
+          for key in CFBundleIdentifier UIBackgroundModes CFBundleURLTypes MinimumOSVersion UIDeviceFamily CFBundleIcons; do
+            plutil -extract $key raw -expect string $app/Info.plist > /dev/null 2>&1 ||
+              plutil -extract $key xml1 -o - $app/Info.plist > /dev/null || { echo "::error::Info.plist has no $key"; exit 1; }
+          done
+          [ "$(plutil -extract CFBundleIdentifier raw $app/Info.plist)" = com.tacosonmondays.luma ]
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Luma-ipa
+          path: ios/build/Luma.ipa
+          if-no-files-found: error
+
+      # release.yml makes the release for Luma.exe; whichever job gets there first creates it.
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release view "$TAG" > /dev/null 2>&1 ||
+            gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA" ||
+            gh release view "$TAG" > /dev/null
+          gh release upload "$TAG" ios/build/Luma.ipa --clobber

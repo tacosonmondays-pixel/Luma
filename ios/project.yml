@@ -1,0 +1,59 @@
+# XcodeGen spec for the iOS app: a WKWebView around the web build. Generate with `xcodegen generate` (in ios/).
+# The web build goes in Luma/www first (see .github/workflows/ios.yml).
+name: Luma
+options:
+  bundleIdPrefix: com.tacosonmondays
+  deploymentTarget:
+    iOS: '16.0'
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: '1.0'
+    CURRENT_PROJECT_VERSION: '1'
+    SWIFT_VERSION: '5.0'
+
+targets:
+  Luma:
+    type: application
+    platform: iOS
+    sources:
+      - path: Luma
+        excludes: [www]
+      # A folder reference, so the files keep their paths inside Luma.app/www.
+      - path: Luma/www
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.tacosonmondays.luma
+        PRODUCT_NAME: Luma
+        TARGETED_DEVICE_FAMILY: '1,2'
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ENABLE_PREVIEWS: NO
+    info:
+      path: Luma/Info.plist
+      properties:
+        CFBundleDisplayName: Luma
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes: [audio]
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIViewControllerBasedStatusBarAppearance: false
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleURLTypes:
+          - CFBundleURLName: com.tacosonmondays.luma
+            CFBundleURLSchemes: [luma]
+        # <input type=file> offers the camera and the photo library next to Files.
+        NSCameraUsageDescription: Take a photo or video for your profile or a cover.
+        NSMicrophoneUsageDescription: Record sound with a video for your profile.
+        NSPhotoLibraryUsageDescription: Choose a photo or video for your profile or a cover.
+    scheme: {}
