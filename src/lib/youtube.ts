@@ -10,6 +10,17 @@ const YOUTUBE_HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music
 const ORDER: Record<SearchSort, string> = { relevance: 'relevance', recent: 'date', popular: 'viewCount' }
 const PLAYLIST_LIMIT = 200
 
+declare global {
+  interface Window {
+    /** Set by the iOS app (ios/) before the page loads. */
+    lumaNative?: { platform: 'ios'; bundleId: string }
+  }
+}
+
+// Keys restricted to iOS apps check this header against their allowed bundle ids.
+const bundleId = typeof window === 'undefined' ? undefined : window.lumaNative?.bundleId
+const HEADERS: HeadersInit = bundleId ? { 'X-Ios-Bundle-Identifier': bundleId } : {}
+
 // ── Key ──────────────────────────────────────────────────────────────────
 
 function readKey(): string {
@@ -53,7 +64,7 @@ async function get<T>(method: string, params: Record<string, string>, signal?: A
   if (!key) throw new YouTubeError('key')
   let r: Response
   try {
-    r = await fetch(`${API}${method}?${new URLSearchParams({ ...params, key })}`, { signal })
+    r = await fetch(`${API}${method}?${new URLSearchParams({ ...params, key })}`, { headers: HEADERS, signal })
   } catch (e) {
     if (signal?.aborted) throw e
     throw new YouTubeError('offline')
@@ -143,8 +154,13 @@ async function playlist(list: string, signal?: AbortSignal): Promise<SearchRespo
 /** A YouTube link → its video and playlist ids. Null for anything that isn't a YouTube link. */
 export function parseLink(q: string): { video?: string; list?: string } | null {
   if (!/^https?:\/\//i.test(q)) return null
-  const url = URL.parse(q)
-  if (!url || !YOUTUBE_HOSTS.includes(url.hostname)) return null
+  let url: URL
+  try {
+    url = new URL(q) // not URL.parse: iOS 16 and 17 don't have it
+  } catch {
+    return null
+  }
+  if (!YOUTUBE_HOSTS.includes(url.hostname)) return null
   const list = url.searchParams.get('list') ?? undefined
   const [first = '', second = ''] = url.pathname.split('/').filter(Boolean)
   const candidate =

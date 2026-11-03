@@ -53,6 +53,18 @@ Luma also runs with no computer, from GitHub Pages.
 
 Only save music you have the right to download.
 
+## iPhone app
+
+Luma also comes as an app, `Luma.ipa`: from the [latest Release](https://github.com/tacosonmondays-pixel/Luma/releases/latest), or from the **Luma-ipa** artifact of the newest [iOS run](https://github.com/tacosonmondays-pixel/Luma/actions/workflows/ios.yml).
+
+It's unsigned, so install it with a sideloading tool, which signs it for you:
+- [Signulous](https://www.signulous.com): lasts a year.
+- [AltStore](https://altstore.io), [SideStore](https://sidestore.io) or [Sideloadly](https://sideloadly.io): work with a free Apple ID, but re-sign every 7 days.
+
+The app keeps its own library, separate from the Home Screen web app.
+
+For search, restrict your YouTube key to **iOS apps** with the bundle ID `com.tacosonmondays.luma`, or make a second key for the app. In the **Save to Luma** shortcut, the last step can open `luma://search` instead.
+
 ## Develop
 
 `npm run dev` runs the app and its API with hot reload. `npm run check` runs the typecheck, tests and build. [AGENTS.md](AGENTS.md) covers the architecture and conventions.
