@@ -1,15 +1,26 @@
-// Someone's public profile, /u/<handle>: a read-only card from their server row and the public media URLs.
-// Works signed out. Pinned songs show art and title; tapping one searches for it (no audio comes from the server).
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { badgesOf, fetchPublicProfile, pinnedOf, profileFromRow, profilePath } from '../lib/account.ts'
+// Someone's public profile, /u/<handle>: a read-only card from their server row and the public media URLs, then
+// what they're listening to (members who follow them, while they share it) and their posts. Works signed out.
+// Pinned songs show art and title; tapping one searches for it (no audio comes from the server).
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
+import { badgesOf, fetchPublicProfile, pinnedOf, profileFromRow, profilePath, useAccount } from '../lib/account.ts'
 import { usePlayer } from '../lib/player.ts'
+import {
+  follow, loadListening, loadMine, loadPosts, personOf, rememberPerson, unfollow, useMe, useOnline, useSocial,
+  type FriendPlay,
+} from '../lib/social.ts'
 import { badgeName } from '../lib/stats.ts'
 import { mediaUrl } from '../lib/supabase.ts'
 import { Icon } from '../ui/Icon.tsx'
-import { ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
+import { openMenu } from '../ui/Menu.tsx'
+import { PeopleSheet, profileMenuItems } from '../ui/People.tsx'
+import { PostGrid } from '../ui/Post.tsx'
+import { CardIcon, ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
 import type { CardMedia } from '../ui/profile/ProfileMedia.tsx'
+import { SongTile } from '../ui/ResultTile.tsx'
+import { Row, Shelf } from '../ui/Shelf.tsx'
 import type { MediaKind, ProfileRow } from '../types.ts'
 import '../styles/profile.css'
+import '../styles/social.css'
 
 const EFFECT_MS = 8000
 
@@ -30,21 +41,33 @@ function mediaOf(row: ProfileRow): CardMedia {
 
 export function User({ handle }: { handle: string }) {
   const [state, setState] = useState<{ row?: ProfileRow | null; offline?: boolean }>({})
+  const [reload, setReload] = useState(0) // after Remove Profile or Ban
   useEffect(() => {
     let live = true
-    setState({})
+    if (!reload) setState({})
     fetchPublicProfile(handle).then(
       (row) => live && setState({ row }),
-      () => live && setState({ offline: true }),
+      () => live && setState((s) => (reload && s.row ? s : { offline: true })),
     )
     return () => {
       live = false
     }
-  }, [handle])
+  }, [handle, reload])
   const cardRef = useRef<HTMLDivElement>(null)
   const live = useLive(cardRef, !usePlayer((s) => s.open))
   const { row } = state
   const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), remote: { pinned: pinnedOf(row), badges: badgesOf(row).map((b) => ({ ...b, name: badgeName(b.id, b.tier), fresh: false })) } }, [row])
+  const person = useMemo(() => (row ? personOf(row) : undefined), [row])
+  const me = useMe()
+  const self = !!me && me.id === row?.id
+  const [people, setPeople] = useState<'following' | 'followers'>()
+
+  useEffect(() => {
+    if (person) rememberPerson(person)
+  }, [person])
+  useEffect(() => {
+    if (me) void loadMine()
+  }, [me])
 
   if (!view)
     return (
@@ -56,11 +79,105 @@ export function User({ handle }: { handle: string }) {
         )}
       </section>
     )
+  const more = (e: MouseEvent<HTMLButtonElement>) =>
+    person && openMenu(e.currentTarget, profileMenuItems({ person, self, onPeople: setPeople, onChange: () => setReload((n) => n + 1) }))
   return (
     <section className="you user-page">
       <div ref={cardRef}>
-        <ProfileCard profile={view.profile} media={view.media} live={live} effectFor={EFFECT_MS} remote={view.remote} claimsVideo />
+        <ProfileCard
+          profile={view.profile}
+          media={view.media}
+          live={live}
+          effectFor={EFFECT_MS}
+          remote={view.remote}
+          actions={
+            person && (
+              <>
+                <CardIcon icon="more" label="More" onClick={more} />
+                {me && !self && <FollowPill id={person.id} />}
+              </>
+            )
+          }
+          claimsVideo
+        />
       </div>
+      {row && <Sections key={row.id} userId={row.id} />}
+      {people && row && <PeopleSheet userId={row.id} which={people} onClose={() => setPeople(undefined)} />}
     </section>
+  )
+}
+
+/** Follow, or Following: it changes at once, and shakes back if the server says no. Shown once the follows load. */
+function FollowPill({ id }: { id: string }) {
+  const following = useSocial((s) => s.following)
+  const [wrong, setWrong] = useState(false)
+  if (!following) return null
+  const on = following.includes(id)
+  const press = async () => {
+    setWrong(false)
+    if (!(await (on ? unfollow(id) : follow(id)))) setWrong(true)
+  }
+  return (
+    <button
+      type="button"
+      className={`pill pc-edit pc-follow${wrong ? ' wrong' : ''}`}
+      aria-pressed={on}
+      onClick={() => void press()}
+      onAnimationEnd={(e) => e.animationName === 'sheet-shake' && setWrong(false)}
+    >
+      {on ? 'Following' : 'Follow'}
+    </button>
+  )
+}
+
+/** Listening To and Posts, together once both have answered (a ghost grid until then), so nothing jumps. Each shows
+ * only with something in it. Waits for the account, so a member's Listening To doesn't arrive late. */
+function Sections({ userId }: { userId: string }) {
+  const ready = useAccount((s) => s.ready && (!s.user || s.row !== undefined))
+  const online = useOnline()
+  const me = useMe()
+  const list = useSocial((s) => s.lists[userId])
+  const [loaded, setLoaded] = useState<{ listening: FriendPlay[] | null; me?: string }>()
+
+  useEffect(() => {
+    if (!ready && online) return
+    let live = true
+    void Promise.allSettled([loadListening(userId), loadPosts(userId)]).then(([listening]) => {
+      if (live) setLoaded({ listening: listening.status === 'fulfilled' ? listening.value : null, me: me?.id })
+    })
+    return () => {
+      live = false
+    }
+  }, [userId, ready, online, me?.id])
+
+  if (!loaded)
+    return (
+      <div className="user-sections">
+        <div className="post-grid post-ghosts" aria-hidden="true">
+          {Array.from({ length: 6 }, (_, i) => (
+            <span key={i} className="post-face" />
+          ))}
+        </div>
+      </div>
+    )
+  const listening = loaded.me === me?.id ? (loaded.listening ?? []) : []
+  if (!listening.length && !list?.items.length) return null
+  return (
+    <div className="user-sections">
+      {listening.length > 0 && (
+        <Shelf title="Listening To">
+          <Row wide>
+            {listening.map((p) => (
+              <SongTile key={p.key} song={p.song} />
+            ))}
+          </Row>
+        </Shelf>
+      )}
+      {!!list?.items.length && (
+        <Shelf title="Posts">
+          <PostGrid userId={userId} />
+        </Shelf>
+      )}
+    </div>
   )
 }

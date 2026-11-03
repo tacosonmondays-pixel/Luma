@@ -3,22 +3,35 @@ import { useDownloads } from '../lib/helper.ts'
 import { isDownloaded, useLibrary } from '../lib/library.ts'
 import { detect, downloadAll, importDownloads, problemOf, search, useSource, type Problem } from '../lib/source.ts'
 import { askedSearch, clearSearch } from '../lib/search-link.ts'
+import { lumaSearch, useSignedIn, useSocial, type LumaHit } from '../lib/social.ts'
+import { parseLink } from '../lib/youtube.ts'
 import { Icon, type IconName } from '../ui/Icon.tsx'
 import { Link, pickFiles } from '../ui/kit.tsx'
+import { PersonCard } from '../ui/People.tsx'
+import { PostCard } from '../ui/Post.tsx'
 import { ResultRow, ResultTile } from '../ui/ResultTile.tsx'
 import { Segmented } from '../ui/Segmented.tsx'
+import { Row, Shelf } from '../ui/Shelf.tsx'
 import type { SearchResponse, SearchResult, SearchSort } from '../types.ts'
 import '../styles/search.css'
 
 type Status = 'idle' | 'loading' | 'done' | Problem
 
-/** Kept across visits to the screen. */
-const last: { input: string; query: string; sort: SearchSort; response: SearchResponse | null; status: Status } = {
+/** Kept across visits to the screen. `shown`: the query whose YouTube results are on screen. `luma`: the Luma row's
+ * hits for `query` (signed in only). */
+const last: { input: string; query: string; sort: SearchSort; response: SearchResponse | null; status: Status; shown?: string; luma?: LumaHit[] } = {
   input: '',
   query: '',
   sort: 'relevance',
   response: null,
   status: 'idle',
+}
+
+/** The nearest element that scrolls `el` (Y2K's desktop window), else null for the page itself. */
+function scrollerOf(el: HTMLElement): HTMLElement | null {
+  let node = el.parentElement
+  while (node && node !== document.body && !/(auto|scroll)/.test(getComputedStyle(node).overflowY)) node = node.parentElement
+  return node === document.body ? null : node
 }
 
 // ── Layouts ──────────────────────────────────────────────────────────────
@@ -104,7 +117,11 @@ export function Search() {
   const [status, setStatus] = useState<Status>(last.status)
   const abort = useRef<AbortController | null>(null)
   const field = useRef<HTMLInputElement>(null)
+  const form = useRef<HTMLFormElement>(null)
   const [layout, setLayout, device] = useLayout()
+  const signedIn = useSignedIn()
+  const [luma, setLuma] = useState(last.luma)
+  const lumaAbort = useRef<AbortController | null>(null)
 
   useEffect(() => {
     Object.assign(last, { input, sort, response, status: status === 'loading' ? last.status : status })
@@ -115,7 +132,11 @@ export function Search() {
     if (asked) {
       clearSearch()
       void run(asked, sort)
-      return () => abort.current?.abort()
+      runLuma(asked)
+      return () => {
+        abort.current?.abort()
+        lumaAbort.current?.abort()
+      }
     }
     if (last.response || last.status === 'loading') return
     let live = true
@@ -124,8 +145,33 @@ export function Search() {
     return () => {
       live = false
       abort.current?.abort()
+      lumaAbort.current?.abort()
     }
   }, [])
+
+  /** Luma's people and posts for the query, beside YouTube's results and waiting on neither. Signed in only, and not
+   * for a YouTube link. An answer that comes once the query's YouTube results are on screen and the bar has scrolled
+   * away is kept for the next visit instead: the page never moves under a finger. */
+  function runLuma(query: string) {
+    query = query.trim()
+    lumaAbort.current?.abort()
+    lumaAbort.current = null
+    last.luma = undefined
+    setLuma(undefined)
+    if (!query || !signedIn || parseLink(query)) return
+    const controller = new AbortController()
+    lumaAbort.current = controller
+    void lumaSearch(query, controller.signal).then((hits) => {
+      if (controller.signal.aborted || last.query !== query) return
+      const found = hits?.length ? hits : undefined
+      last.luma = found
+      const el = form.current
+      const scroller = el && scrollerOf(el)
+      const away = !!el && el.getBoundingClientRect().bottom <= (scroller ? scroller.getBoundingClientRect().top : 0)
+      if (away && last.shown === query) return
+      setLuma(found)
+    })
+  }
 
   async function run(query: string, by: SearchSort) {
     query = query.trim()
@@ -137,11 +183,13 @@ export function Search() {
     setStatus('loading')
     try {
       const r = await search(query, by, controller.signal)
+      last.shown = query
       setResponse(r)
       setStatus('done')
       window.scrollTo({ top: 0 })
     } catch (e) {
       if (controller.signal.aborted) return
+      last.shown = undefined
       setResponse(null)
       setStatus(problemOf(e))
     }
@@ -151,6 +199,7 @@ export function Search() {
     e.preventDefault()
     field.current?.blur()
     void run(input, sort)
+    runLuma(input)
   }
 
   const changeSort = (by: SearchSort) => {
@@ -177,7 +226,7 @@ export function Search() {
           </button>
         )}
       </header>
-      <form className="search-bar" role="search" onSubmit={submit}>
+      <form ref={form} className="search-bar" role="search" onSubmit={submit}>
         <label className="search-field">
           {status === 'loading' ? <span className="spinner" aria-hidden="true" /> : <Icon name="search" size={17} />}
           <input
@@ -217,12 +266,35 @@ export function Search() {
           />
         </div>
       </form>
-      <Body status={status} response={response} layout={layout} />
+      {signedIn && luma && <LumaRow hits={luma} />}
+      <Body status={status} response={response} layout={layout} luma={!!(signedIn && luma)} />
     </section>
   )
 }
 
-function Body({ status, response, layout }: { status: Status; response: SearchResponse | null; layout: Layout }) {
+/** People first, then posts, in rank order: one row, or all of them once its chevron is pressed. */
+function LumaRow({ hits }: { hits: LumaHit[] }) {
+  const [all, setAll] = useState(false)
+  const people = useSocial((s) => s.people)
+  const hidden = useSocial((s) => s.hidden)
+  const shown = hits.filter((h) => h.kind === 'person' || !hidden.has(`${h.post.kind}:${h.post.id}`))
+  if (!shown.length) return null
+  return (
+    <Shelf title="Luma" className="luma-results" more={shown.length > 4 ? () => setAll((a) => !a) : undefined}>
+      <Row all={all}>
+        {shown.map((h) =>
+          h.kind === 'person' ? (
+            <PersonCard key={`person:${h.person.id}`} person={h.person} />
+          ) : (
+            <PostCard key={`${h.post.kind}:${h.post.id}`} post={h.post} author={people[h.post.userId]} />
+          ),
+        )}
+      </Row>
+    </Shelf>
+  )
+}
+
+function Body({ status, response, layout, luma }: { status: Status; response: SearchResponse | null; layout: Layout; luma: boolean }) {
   if (status === 'offline') return <Empty icon="offline" text="Offline" />
   if (status === 'missing') return <Empty icon="alert" text="Install yt-dlp" />
   if (status === 'key')
@@ -237,7 +309,7 @@ function Body({ status, response, layout }: { status: Status; response: SearchRe
   if (status === 'quota') return <Empty text="Daily limit reached" />
   if (status === 'failed') return <Empty icon="alert" text="Search failed" />
   if (!response) return null
-  if (!response.results.length) return <Empty text="No results" />
+  if (!response.results.length) return luma ? null : <Empty text="No results" />
   return (
     <div className={`search-results${status === 'loading' ? ' stale' : ''}`}>
       {response.playlist !== undefined && <PlaylistHead title={response.playlist} results={response.results} />}

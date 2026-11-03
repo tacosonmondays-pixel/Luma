@@ -108,7 +108,7 @@
 }
 
 @media (hover: hover) {
-  .sheet-row:hover {
+  .sheet-row:not(.plate):hover {
     background: var(--hover);
   }
 }

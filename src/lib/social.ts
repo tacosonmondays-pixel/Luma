@@ -369,6 +369,11 @@ export function banLocally(userId: string): void {
   })
 }
 
+/** Someone read from their own row (their profile page): lists and the Viewer needn't ask for them again. */
+export function rememberPerson(person: Person): void {
+  setState((s) => ({ people: { ...s.people, [person.id]: person } }))
+}
+
 /** Load this person again next time (their profile changed on the server). */
 export function forgetPerson(id: string): void {
   setState((s) => {

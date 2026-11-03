@@ -2,10 +2,13 @@
 // code if not a member yet, then a handle if there is none. Mistakes mark the field; there is no helper text.
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { claimHandle, HANDLE, isMember, redeemInvite, setShareActivity, signIn, signOut, useAccount, verify } from '../lib/account.ts'
+import { claimHandle, HANDLE, isMember, profileLink, redeemInvite, setShareActivity, signIn, signOut, useAccount, verify } from '../lib/account.ts'
+import { createInvite, hasOpenReports } from '../lib/moderation.ts'
+import { useMe } from '../lib/social.ts'
 import { linkDevice, useSyncOwner } from '../lib/sync.ts'
 import { Icon } from './Icon.tsx'
-import { IconButton } from './kit.tsx'
+import { IconButton, Link } from './kit.tsx'
+import { ReportsSheet } from './Reports.tsx'
 import '../styles/appearance.css'
 import '../styles/account.css'
 
@@ -144,9 +147,12 @@ export function AccountRows() {
   return (
     <>
       {done ? (
-        <div className="group-row">
+        <Link to={`/u/${row!.handle}`} className="group-row">
           <span className="ellipsis">@{row!.handle}</span>
-        </div>
+          <span className="group-value">
+            <Icon name="chevron-right" size={18} />
+          </span>
+        </Link>
       ) : (
         <button type="button" className="group-row" onClick={() => setOpen(true)}>
           <span className="ellipsis">{user ? user.email : 'Sign In'}</span>
@@ -172,12 +178,66 @@ export function AccountRows() {
           Sync Library
         </button>
       )}
+      <AdminRows />
       {user && (
         <button type="button" className="group-row danger" onClick={() => void signOut()}>
           Sign Out
         </button>
       )}
       {open && <SignInSheet onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+/** Admins: Invite (a code to share, shown here until you leave), and Reports while any are open. */
+function AdminRows() {
+  const me = useMe()
+  const [code, setCode] = useState<string | null>()
+  const [busy, setBusy] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [reports, setReports] = useState(false)
+  const admin = !!me?.admin
+  useEffect(() => {
+    if (!admin || open) return
+    let live = true
+    void hasOpenReports().then((any) => live && setReports(any))
+    return () => {
+      live = false
+    }
+  }, [admin, open])
+  if (!me?.admin) return null
+
+  const invite = async () => {
+    if (busy) return
+    setBusy(true)
+    const made = await createInvite().finally(() => setBusy(false))
+    setCode(made)
+    if (!made) return
+    try {
+      if (navigator.share) return await navigator.share({ text: made, url: profileLink(me.handle) })
+    } catch (e) {
+      if ((e as Error).name === 'AbortError') return
+    }
+    await navigator.clipboard?.writeText(made).catch(() => {})
+  }
+
+  return (
+    <>
+      <button type="button" className="group-row" onClick={() => void invite()}>
+        <span>Invite</span>
+        <span className="group-value">
+          {busy ? <span className="spinner" aria-label="Working" /> : code ? <span className="invite-code">{code}</span> : code === null && <Icon name="alert" size={18} />}
+        </span>
+      </button>
+      {reports && (
+        <button type="button" className="group-row" onClick={() => setOpen(true)}>
+          <span>Reports</span>
+          <span className="group-value">
+            <Icon name="chevron-right" size={18} />
+          </span>
+        </button>
+      )}
+      {open && <ReportsSheet onClose={() => setOpen(false)} />}
     </>
   )
 }

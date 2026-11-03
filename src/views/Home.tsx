@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { loadArtists, loadMix, loadSearch, searchKey } from '../lib/feed.ts'
 import { BUILTIN_TITLES, isBuiltin, useHome, visibleShelves, type CustomShelf } from '../lib/home.ts'
 import { useLibrary } from '../lib/library.ts'
@@ -7,13 +7,17 @@ import { loadPlays, usePlayLog } from '../lib/plays.ts'
 import { navigate } from '../lib/router.ts'
 import { searchFor } from '../lib/search-link.ts'
 import { continueItem, jumpBackIn, mixSeed, quickPicks, recentlySaved, topArtists, type Item } from '../lib/shelves.ts'
+import { loadFeed, loadMine, useMe, useSocial } from '../lib/social.ts'
 import { detect, useSource } from '../lib/source.ts'
 import { useOnRepeat } from '../lib/stats.ts'
 import { PlaylistArt, TrackArt } from '../ui/Art.tsx'
 import { EditHome } from '../ui/EditHome.tsx'
 import { Icon } from '../ui/Icon.tsx'
 import { IconButton } from '../ui/kit.tsx'
-import { NetShelf, PlaylistCard, Row, Shelf, SongCard } from '../ui/Shelf.tsx'
+import { Faces } from '../ui/People.tsx'
+import { PostCard } from '../ui/Post.tsx'
+import { SongTile } from '../ui/ResultTile.tsx'
+import { GhostShelf, NetShelf, PlaylistCard, Row, Shelf, SongCard, useNear } from '../ui/Shelf.tsx'
 import { Wash } from '../ui/Wash.tsx'
 import type { Play } from '../types.ts'
 import '../styles/home.css'
@@ -56,6 +60,7 @@ export function Home() {
   const data = useHomeData()
   const mode = useSource((s) => s.mode)
   const [editing, setEditing] = useState(false)
+  const member = !!useMe()
   const seedTrack = useLibrary((s) => (data.seed ? s.tracks[data.seed] : undefined))
 
   useEffect(() => {
@@ -89,7 +94,13 @@ export function Home() {
           )}
         </div>
       )}
-      {editing && <EditHome mixTitle={mixTitle} omit={[...(mode === 'phone' ? ['mix'] : [])]} onClose={() => setEditing(false)} />}
+      {editing && (
+        <EditHome
+          mixTitle={mixTitle}
+          omit={[...(mode === 'phone' ? ['mix'] : []), ...(member ? [] : ['friends', 'friends-new'])]}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </section>
   )
 }
@@ -113,6 +124,9 @@ function Builtin({ id, data, phone, mixTitle }: { id: string; data: Data; phone:
       const key = `artists:${data.artists.join('|')}`
       return <NetShelf key={key} title={BUILTIN_TITLES.artists} cacheKey={key} load={(s) => loadArtists(data.artists, s)} />
     }
+    case 'friends':
+    case 'friends-new':
+      return <FriendsShelf which={id} />
     case 'saved':
       return data.saved.length ? <Songs title={BUILTIN_TITLES.saved} ids={data.saved} more={data.songs > data.saved.length || data.saved.length > 6 ? '/songs' : undefined} /> : null
     case 'playlists':
@@ -133,6 +147,67 @@ function Custom({ shelf }: { shelf?: CustomShelf }) {
   if (!shelf) return null
   const key = searchKey(shelf.query, shelf.sort)
   return <NetShelf key={key} title={shelf.query} cacheKey={key} load={(s) => loadSearch(shelf.query, shelf.sort, s)} more={() => searchFor(shelf.query)} />
+}
+
+// ── Friends ──────────────────────────────────────────────────────────────
+
+const FEED_FRESH = 60_000
+
+/**
+ * Friends Are Listening To, or New from Friends: for members who follow someone. Nothing shows until who I follow is
+ * known; then, once it scrolls near, the outline while the feed loads, then the songs or posts, or nothing at all
+ * (empty, offline, a failure).
+ */
+function FriendsShelf({ which }: { which: 'friends' | 'friends-new' }) {
+  const me = useMe()
+  const following = useSocial((s) => s.following)
+  useEffect(() => {
+    if (me) void loadMine()
+  }, [me])
+  if (!me || !following?.length) return null
+  return <FeedShelf which={which} />
+}
+
+function FeedShelf({ which }: { which: 'friends' | 'friends-new' }) {
+  const feed = useSocial((s) => s.feed)
+  const people = useSocial((s) => s.people)
+  const ref = useRef<HTMLDivElement>(null)
+  const near = useNear(ref)
+  const title = BUILTIN_TITLES[which]
+  // Not loaded, marked stale (a follow), or older than a minute. A failure (null) waits for the next visit.
+  const stale = feed === undefined || (!!feed && (!feed.at || Date.now() - feed.at > FEED_FRESH))
+  const shown = !!feed
+
+  useEffect(() => {
+    if ((near || shown) && stale) void loadFeed()
+  }, [near, shown, stale])
+
+  if (feed === null) return null
+  if (!feed)
+    return (
+      <div ref={ref} className="shelf-pending">
+        {near && <GhostShelf title={title} wide={which === 'friends'} />}
+      </div>
+    )
+  if (which === 'friends')
+    return feed.plays.length ? (
+      <Shelf title={title}>
+        <Row wide>
+          {feed.plays.slice(0, 20).map((p) => (
+            <SongTile key={p.key} song={p.song} overlay={<Faces ids={p.userIds} />} />
+          ))}
+        </Row>
+      </Shelf>
+    ) : null
+  return feed.posts.length ? (
+    <Shelf title={title}>
+      <Row>
+        {feed.posts.slice(0, 30).map((post) => (
+          <PostCard key={`${post.kind}:${post.id}`} post={post} author={people[post.userId]} />
+        ))}
+      </Row>
+    </Shelf>
+  ) : null
 }
 
 // ── Continue ─────────────────────────────────────────────────────────────
