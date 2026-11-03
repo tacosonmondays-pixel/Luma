@@ -119,10 +119,12 @@ export function profileColors(profile: Profile, withBackdrop: boolean): CSSPrope
         '--pc-accent-2': accentOf(pair[1]),
       }
     : {
+        // The accent over the theme's surface, or over the dark `--pc-ground` a light theme (Y2K) sets instead:
+        // the card's text is white in every theme.
         '--pa-raw': 'var(--accent)',
-        '--pb-raw': 'var(--surface-2)',
-        '--pa': 'color-mix(in oklab, var(--accent) 22%, var(--surface))',
-        '--pb': 'var(--surface)',
+        '--pb-raw': 'var(--pc-ground-2, var(--surface-2))',
+        '--pa': 'color-mix(in oklab, var(--accent) 22%, var(--pc-ground, var(--surface)))',
+        '--pb': 'var(--pc-ground, var(--surface))',
         '--pc-accent': 'var(--accent)',
         '--pc-accent-2': '#fff',
       }

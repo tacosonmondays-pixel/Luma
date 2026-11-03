@@ -269,7 +269,8 @@
   width: 100%;
   overflow: hidden;
   border-radius: var(--r);
-  background: var(--glass);
+  /* The surface as glass: most themes' --glass is their own background, so the group would vanish on it. */
+  background: color-mix(in oklab, var(--surface) 74%, transparent);
   -webkit-backdrop-filter: var(--blur);
   backdrop-filter: var(--blur);
 }

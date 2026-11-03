@@ -14,7 +14,8 @@ export interface ShownMedia {
 
 export type CardMedia = Partial<Record<ProfileSlot, ShownMedia>>
 
-/** True while the You page shows a playing Background video: the app's Wallpaper video pauses meanwhile. */
+/** True while the You page or the editor's preview shows a playing Background video: the app's Wallpaper video
+ * pauses meanwhile. */
 export const useCardVideo = create<{ playing: boolean }>(() => ({ playing: false }))
 
 function useSaved(profile: Profile, slot: ProfileSlot): ShownMedia | undefined {

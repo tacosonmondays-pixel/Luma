@@ -133,7 +133,7 @@ interface CardProps {
   onEdit?: () => void
   /** Bump to play the effect again from the start (picking one in the editor). */
   effectRun?: number
-  /** Tells the Wallpaper to pause while this card plays a Background video (the You page). */
+  /** Tells the Wallpaper to pause while this card plays a Background video (the You page, the editor's preview). */
   claimsVideo?: boolean
 }
 

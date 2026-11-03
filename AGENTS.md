@@ -45,7 +45,7 @@ Design
 
 Code
 - No new dependencies without a strong reason. State lives in zustand stores; actions are plain exported functions.
-- Blobs live in IndexedDB under `audio:<id>`, `cover:<id>`, `canvas:<id>`, `playlist-cover:<id>`, `background` (the wallpaper), and the profile's `avatar`, `banner`, `backdrop`, each with a `<key>-still` JPEG while it is animated or a video. Metadata stores a version (`Date.now()`) per blob; bump it to replace the blob. The play log lives in its own `luma-plays` store.
+- Blobs live in IndexedDB under `audio:<id>`, `cover:<id>`, `canvas:<id>` (plus a `canvas-still:<id>` JPEG while it is an animated image), `playlist-cover:<id>`, `background` (the wallpaper), and the profile's `avatar`, `banner`, `backdrop`, each with a `<key>-still` JPEG while it is animated or a video. Metadata stores a version (`Date.now()`) per blob; bump it to replace the blob. The play log lives in its own `luma-plays` store.
 - `server/*.ts` runs under Node's type stripping: erasable syntax only, `.ts` extensions on relative imports, `import type` for types, Node built-ins only.
 - Verify UI changes with screenshots at 393×852 (iPhone) and 1440×900 (desktop). In dev you can seed data from Playwright with `page.evaluate(async () => (await import('/src/lib/library.ts')).addTrack(...))`.
 

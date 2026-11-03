@@ -389,8 +389,18 @@
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   }
 
+  /* Up to five tiles in one row: a mouse can't swipe a scroller whose scrollbar is hidden. */
+  .pc-repeat {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px 10px;
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
   .pc-repeat-item {
-    width: 120px;
+    width: auto;
   }
 }
 
@@ -724,6 +734,13 @@
   -webkit-background-clip: text;
   background-clip: text;
   animation: ns-fill 1.8s var(--ease) 1;
+}
+
+/* Typing and writing sweep the name's own width, not the card's. */
+.ns-pixel,
+.ns-script {
+  width: fit-content;
+  max-width: 100%;
 }
 
 .ns-pixel {

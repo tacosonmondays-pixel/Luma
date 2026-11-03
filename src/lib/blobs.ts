@@ -1,5 +1,6 @@
 // Binary data (audio, covers, images) lives in IndexedDB under string keys:
-//   audio:<trackId>  cover:<trackId>  canvas:<trackId>  playlist-cover:<playlistId>  background
+//   audio:<trackId>  cover:<trackId>  canvas:<trackId> (with canvas-still:<trackId> while it is an animated image)
+//   playlist-cover:<playlistId>  background
 //   avatar  banner  backdrop (the profile card's own background), each with a `<key>-still` copy (JPEG) while
 //   it is an animated image or a video
 // Metadata records a version number (Date.now()) next to each blob; bump it to replace the blob.

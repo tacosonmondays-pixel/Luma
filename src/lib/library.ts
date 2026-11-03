@@ -104,7 +104,7 @@ export async function deleteTrack(id: string): Promise<void> {
       profile: s.profile.pinnedSongs?.includes(id) ? { ...s.profile, pinnedSongs: s.profile.pinnedSongs.filter((x) => x !== id) } : s.profile,
     }
   })
-  await Promise.all([deleteBlob(`audio:${id}`), deleteBlob(`cover:${id}`), deleteBlob(`canvas:${id}`)])
+  await Promise.all([deleteBlob(`audio:${id}`), deleteBlob(`cover:${id}`), deleteBlob(`canvas:${id}`), deleteBlob(`canvas-still:${id}`)])
 }
 
 export async function setTrackCover(id: string, image: Blob): Promise<void> {
@@ -112,14 +112,17 @@ export async function setTrackCover(id: string, image: Blob): Promise<void> {
   updateTrack(id, { cover: Date.now() })
 }
 
-/** A song's Canvas (image, GIF or video from processMedia), or null to remove it. */
+/** A song's Canvas (image, GIF or video from processMedia), or null to remove it. An animated image keeps its
+ * still copy too, shown while the song is paused and under reduced motion (a video just stays on its frame). */
 export async function setTrackCanvas(id: string, media: Media | null): Promise<void> {
   if (!media) {
     updateTrack(id, { canvas: undefined, canvasKind: undefined })
-    await deleteBlob(`canvas:${id}`)
+    await Promise.all([deleteBlob(`canvas:${id}`), deleteBlob(`canvas-still:${id}`)])
     return
   }
   await putBlob(`canvas:${id}`, media.blob)
+  if (media.kind === 'animated' && media.still) await putBlob(`canvas-still:${id}`, media.still)
+  else await deleteBlob(`canvas-still:${id}`)
   updateTrack(id, { canvas: Date.now(), canvasKind: media.kind })
   void navigator.storage?.persist?.()
 }

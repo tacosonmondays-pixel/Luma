@@ -18,7 +18,7 @@ function NowPlayingLcd() {
       <div className="y2k-bezel">
         <div className={`y2k-lcd${playing ? '' : ' paused'}`}>
           <div className="y2k-lcd-row">
-            <LcdTime active={open} />
+            <LcdTime />
             <Equalizer bars={16} run={live} />
           </div>
           <Marquee text={track.title} run={live} className="y2k-title" />

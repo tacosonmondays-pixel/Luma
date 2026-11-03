@@ -48,10 +48,18 @@
     linear-gradient(180deg, #ffffff 0%, #eef2f7 44%, #d3dce8 52%, #e9eef5 100%);
   --y2k-select: linear-gradient(180deg, #3f8eee 0%, #1d6ad8 46%, #1260cf 54%, #1a68d6 100%);
   --y2k-gel: linear-gradient(180deg, #5aa8f6 0%, #1a72dc 46%, #0b5bc4 54%, #166bd6 100%);
+  /* The round play button: aqua glass in a chrome ring (needs a 3px or wider transparent border). */
+  --y2k-gel-ball: radial-gradient(120% 115% at 50% 108%, #9af3ff 0%, #3bb8f8 28%, #1676de 60%, #0b46aa 100%) padding-box,
+    linear-gradient(180deg, #ffffff 0%, #dfe6ef 48%, #a9b8cb 52%, #eef2f7 100%) border-box;
+  --y2k-gel-shadow: 0 0 0 1px rgba(30, 60, 110, 0.45), 0 6px 14px rgba(0, 40, 130, 0.4), inset 0 0 0 1px rgba(0, 30, 100, 0.5),
+    inset 0 -8px 12px rgba(140, 240, 255, 0.45);
   --y2k-sky: linear-gradient(180deg, #1650c4 0%, #2a74e0 26%, #5aa2f0 50%, #a9d6fb 70%, #e4f4ff 86%);
   --y2k-hill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 400' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%237ec86c'/%3E%3Cstop offset='1' stop-color='%233f9a49'/%3E%3C/linearGradient%3E%3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%239bdd55'/%3E%3Cstop offset='.28' stop-color='%235cb437'/%3E%3Cstop offset='.75' stop-color='%233a8f2c'/%3E%3Cstop offset='1' stop-color='%232c7526'/%3E%3C/linearGradient%3E%3CradialGradient id='s' cx='.3' cy='.25' r='.5'%3E%3Cstop offset='0' stop-color='%23e9ffb0' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23e9ffb0' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M0 150C160 92 330 98 520 140C700 178 860 120 1000 96L1000 400L0 400Z' fill='url(%23b)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196L1000 400L0 400Z' fill='url(%23f)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196L1000 400L0 400Z' fill='url(%23s)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196' fill='none' stroke='%23eaffc0' stroke-opacity='.55' stroke-width='3' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
   --y2k-cloud: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 52'%3E%3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='2' x2='0' y2='50'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.62' stop-color='%23fbfdff'/%3E%3Cstop offset='1' stop-color='%23cfe3fb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Ccircle cx='34' cy='32' r='16'/%3E%3Ccircle cx='58' cy='22' r='20'/%3E%3Ccircle cx='84' cy='30' r='15'/%3E%3Ccircle cx='100' cy='38' r='10'/%3E%3Ccircle cx='18' cy='40' r='10'/%3E%3Crect x='18' y='34' width='84' height='16' rx='8'/%3E%3C/g%3E%3C/svg%3E");
   --y2k-hill-h: 34%;
+  /* The profile card's ground with Auto colors (colors.ts): its text is always white, so it stays dark here too. */
+  --pc-ground: #0f2447;
+  --pc-ground-2: #1d4f9c;
 
   font-family: var(--y2k-ui);
 }
@@ -126,8 +134,9 @@
   color: var(--accent);
 }
 
-/* Pills: Play is a blue gel, the rest are chrome. */
-:root[data-theme='y2k'] .pill {
+/* Pills: Play is a blue gel, the rest are chrome. The profile card's Edit Profile keeps its own place and glass:
+   the card stays dark in every theme. */
+:root[data-theme='y2k'] .pill:not(.pc-edit) {
   position: relative;
   border-radius: 22px;
   color: var(--y2k-icon);
@@ -403,6 +412,7 @@
   text-shadow: 0 1px 1px rgba(0, 30, 100, 0.5);
 }
 
+:root[data-theme='y2k'] .segmented button.on,
 :root[data-theme='y2k'] .segmented-thumb {
   border-radius: 14px;
   background: var(--y2k-select);
@@ -652,11 +662,11 @@
     color: #2a64c8;
   }
 
-  :root[data-theme='y2k'] .side-link:hover {
+  :root[data-theme='y2k'] .side-link:not(.plate):hover {
     background: rgba(255, 255, 255, 0.65);
   }
 
-  :root[data-theme='y2k'] .side-link.active {
+  :root[data-theme='y2k'] .side-link.active:not(.plate) {
     color: #fff;
     background: var(--y2k-select);
     text-shadow: 0 1px 1px rgba(0, 30, 100, 0.45);
@@ -668,6 +678,28 @@
 
   :root[data-theme='y2k'] .side-link.active .icon {
     color: #fff;
+  }
+
+  /* The nameplate: name styles are drawn for a dark ground, so the plate is a dark glass in every state, under
+     its own pattern; the chosen page shows as a blue ring. */
+  :root[data-theme='y2k'] .side-link.side-profile.plate {
+    color: #fff;
+    background-color: #0f2447;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 0 1px rgba(36, 66, 116, 0.55),
+      0 2px 5px rgba(0, 30, 90, 0.22);
+  }
+
+  :root[data-theme='y2k'] .side-link.side-profile.plate:hover {
+    filter: brightness(1.2);
+  }
+
+  :root[data-theme='y2k'] .side-link.side-profile.plate.active {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 0 2px #2a78e4,
+      0 2px 8px rgba(20, 90, 200, 0.4);
   }
 
   :root[data-theme='y2k'] .side-playlists {
@@ -951,7 +983,7 @@
   color: inherit;
 }
 
-:root[data-theme='y2k'] .y2k-lcd.paused .y2k-time {
+:root[data-theme='y2k'] .np.open .y2k-lcd.paused .y2k-time {
   animation: y2k-blink 1.4s steps(1) infinite;
 }
 
@@ -1178,14 +1210,8 @@
   position: relative;
   color: #fff;
   border: 4px solid transparent;
-  background:
-    radial-gradient(120% 115% at 50% 108%, #9af3ff 0%, #3bb8f8 28%, #1676de 60%, #0b46aa 100%) padding-box,
-    linear-gradient(180deg, #ffffff 0%, #dfe6ef 48%, #a9b8cb 52%, #eef2f7 100%) border-box;
-  box-shadow:
-    0 0 0 1px rgba(30, 60, 110, 0.45),
-    0 6px 14px rgba(0, 40, 130, 0.4),
-    inset 0 0 0 1px rgba(0, 30, 100, 0.5),
-    inset 0 -8px 12px rgba(140, 240, 255, 0.45);
+  background: var(--y2k-gel-ball);
+  box-shadow: var(--y2k-gel-shadow);
 }
 
 :root[data-theme='y2k'] :is(.play-btn, .mini-btn.play-swap)::before {
@@ -1219,9 +1245,7 @@
   height: 48px;
   margin: 0 2px;
   color: #fff;
-  background:
-    radial-gradient(120% 115% at 50% 108%, #9af3ff 0%, #3bb8f8 28%, #1676de 60%, #0b46aa 100%) padding-box,
-    linear-gradient(180deg, #ffffff 0%, #dfe6ef 48%, #a9b8cb 52%, #eef2f7 100%) border-box;
+  background: var(--y2k-gel-ball);
   border-width: 3px;
 }
 
@@ -1239,7 +1263,8 @@
 
 /* ── Now Playing ───────────────────────────────────────────────────── */
 
-/* Color and Vinyl stand on the sky; Canvas keeps its picture and the skin frames it. */
+/* Color and Vinyl stand on the sky (NowPlaying makes no cover backdrop for them under Y2K); Canvas keeps its
+   picture and the skin frames it. */
 :root[data-theme='y2k'] .np {
   color: var(--text);
   background:
@@ -1248,10 +1273,6 @@
     var(--y2k-cloud) right -24px top 52% / 104px auto no-repeat,
     var(--y2k-hill) left bottom / 100% 41% no-repeat,
     var(--y2k-sky);
-}
-
-:root[data-theme='y2k'] .np:not(:has(.y2k-np[data-style='canvas'])) :is(.np-wash, .wash, .np-glow) {
-  display: none;
 }
 
 /* The title and artist move onto the LCD; the text stays for screen readers. */
@@ -1272,8 +1293,19 @@
   margin: 0;
 }
 
-:root[data-theme='y2k'] .np-top {
-  margin-left: 0;
+/* The top row closes with the chevron in every style, as in the mockup (Color's grabber would sit under a cloud). */
+:root[data-theme='y2k'] .np .np-top {
+  justify-content: flex-start;
+  height: 44px;
+  margin: 0;
+}
+
+:root[data-theme='y2k'] .np .np-grabber {
+  display: none;
+}
+
+:root[data-theme='y2k'] .np .np-close {
+  display: inline-grid;
 }
 
 :root[data-theme='y2k'] .np-top > .icon-btn,
@@ -1286,7 +1318,11 @@
   color: var(--text);
 }
 
-/* The LCD sits under the art wherever it was mounted in the sheet. */
+/* Top to bottom: the top row, the art, the LCD, then the controls (NowPlaying wraps meta, scrubber, transport and
+   volume in .np-controls, which follows the LCD as a whole). */
+:root[data-theme='y2k'] .np-sheet > .np-controls {
+  order: 4;
+}
 :root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-top {
   order: 0;
 }
@@ -1424,11 +1460,24 @@
   height: 88px;
   margin: -12px 0;
   border-width: 6px;
+  /* restated here so it outranks the style rules (Canvas paints its play button white) and the hover */
+  color: #fff;
+  background: var(--y2k-gel-ball);
+  box-shadow: var(--y2k-gel-shadow);
 }
 
 :root[data-theme='y2k'] .np .transport.full .play-btn .icon {
   width: 40px;
   height: 40px;
+}
+
+/* Canvas at rest: the display drops with the bar to the bottom edge, where the other styles rest the title. */
+:root[data-theme='y2k'] .np[data-style='canvas'] .y2k-np {
+  transition: transform 460ms var(--ease);
+}
+
+:root[data-theme='y2k'] .np.chrome-hidden .y2k-np {
+  transform: translateY(var(--bar-drop, 0px));
 }
 
 :root[data-theme='y2k'] .np-volume {
@@ -1472,7 +1521,8 @@
   }
 }
 
-/* Desktop: the sheet becomes a chrome device standing on the hill. */
+/* Desktop: Color and Vinyl become a compact chrome device standing on the hill (the mockup's 400 + 520 columns);
+   Canvas keeps its picture whole, with the display and console at the bottom as on phones. */
 @media (min-width: 900px) {
   :root[data-theme='y2k'] .np {
     background:
@@ -1482,11 +1532,26 @@
       var(--y2k-sky);
   }
 
-  /* Two columns: the art on the left, the display and controls on the right. This also covers the
-     Look package's wide layout, whose controls come in one .np-controls wrapper. */
-  :root[data-theme='y2k'] .np-sheet {
+  /* The sheet lets go of positioning, so close and More sit in the window's corners. */
+  :root[data-theme='y2k'] .np .np-sheet {
+    position: static;
+  }
+
+  :root[data-theme='y2k'] .np .np-top {
+    position: absolute;
+    top: 22px;
+    left: 28px;
+  }
+
+  :root[data-theme='y2k'] .np:has(.y2k-np) .np-meta {
+    top: 25px;
+    right: 28px;
+  }
+
+  /* The device: the art on the left; the display, scrubber, transport and volume on the right. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet {
     display: grid;
-    grid-template-columns: minmax(0, 380px) minmax(0, 440px);
+    grid-template-columns: minmax(0, 400px) minmax(0, 520px);
     grid-template-rows: none;
     grid-auto-rows: auto;
     align-content: center;
@@ -1496,7 +1561,7 @@
     max-width: calc(100% - 48px);
     height: auto;
     max-height: calc(100% - 40px);
-    padding: 66px 36px 34px 30px;
+    padding: 30px 40px 30px 30px;
     border: 1px solid rgba(36, 66, 116, 0.5);
     border-radius: 36px;
     background: var(--y2k-brushed);
@@ -1512,39 +1577,32 @@
     display: none;
   }
 
-  :root[data-theme='y2k'] .np-sheet > * {
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > * {
     grid-column: 2;
   }
 
-  :root[data-theme='y2k'] .np-sheet > :is(.np-top, .np-meta) {
-    grid-column: auto; /* positioned against the whole panel */
-  }
-
-  :root[data-theme='y2k'] .np-sheet > .np-stage {
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .np-stage {
     grid-column: 1;
-    grid-row: 1 / span 4;
+    grid-row: 1 / span 2;
     width: 100%;
-    height: min(380px, 30vw);
+    height: min(400px, 30vw);
     max-height: none;
     margin: 0;
     padding: 0;
   }
 
-  :root[data-theme='y2k'] .np-controls {
+  /* The display and the controls hug each other, centered beside the art. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .y2k-np {
+    align-self: end;
+  }
+
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .np-controls {
+    align-self: start;
+  }
+
+  :root[data-theme='y2k'] .np .np-controls {
     display: flex;
     flex-direction: column;
-  }
-
-  :root[data-theme='y2k'] .np-top {
-    position: absolute;
-    top: 18px;
-    left: 24px;
-    height: 40px;
-  }
-
-  :root[data-theme='y2k'] .np:has(.y2k-np) .np-meta {
-    top: 18px;
-    right: 24px;
   }
 
   :root[data-theme='y2k'] .y2k-np {
@@ -1577,19 +1635,35 @@
     font-size: 26px;
   }
 
-  :root[data-theme='y2k'] .np-scrub {
+  :root[data-theme='y2k'] .np .np-scrub {
     margin-top: 18px;
   }
 
-  :root[data-theme='y2k'] .np .transport.full {
+  /* Inside the device the transport needs no capsule of its own. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .transport.full {
     background: none;
     border: 0;
     box-shadow: none;
     padding: 0 4px;
   }
 
-  :root[data-theme='y2k'] .np .transport.full .play-btn {
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .transport.full .play-btn {
     margin: 0;
+  }
+
+  /* Canvas: one column at the bottom of the picture. */
+  :root[data-theme='y2k'] .np[data-style='canvas'] .np-sheet {
+    width: min(520px, 100% - 48px);
+    padding: 0 0 36px;
+  }
+
+  :root[data-theme='y2k'] .np[data-style='canvas'] .transport.full {
+    justify-content: space-between;
+  }
+
+  :root[data-theme='y2k'] .np[data-style='canvas'] .np-volume {
+    width: auto;
+    margin: 16px 0 0;
   }
 }
 

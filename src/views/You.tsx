@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useBlobUrl } from '../lib/blobs.ts'
 import { setBackground, useLibrary } from '../lib/library.ts'
+import { usePlayer } from '../lib/player.ts'
 import { detect, useSource } from '../lib/source.ts'
 import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
 import { Appearance } from '../ui/Appearance.tsx'
@@ -58,7 +60,9 @@ export function You() {
   const media = useSavedMedia(profile)
   const [editing, setEditing] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
-  const live = useLive(cardRef, !editing)
+  // Now Playing covers the page completely, and the observer can't tell: the card rests behind it too.
+  const covered = usePlayer((s) => s.open)
+  const live = useLive(cardRef, !editing && !covered)
 
   return (
     <section className="you">
@@ -83,7 +87,8 @@ export function You() {
           <YouTubeKey />
         </div>
       </div>
-      {editing && <ProfileEditor onClose={() => setEditing(false)} />}
+      {/* On body, beside Now Playing and the menu: Y2K's desktop window would otherwise trap it under the player bar. */}
+      {editing && createPortal(<ProfileEditor onClose={() => setEditing(false)} />, document.body)}
     </section>
   )
 }

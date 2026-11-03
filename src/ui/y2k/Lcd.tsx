@@ -57,9 +57,10 @@ export function Equalizer({ bars, run, className = '' }: { bars: number; run: bo
 
 let showRemaining = false // shared by every readout, kept while the app runs
 
-/** Elapsed time; a tap switches to the time left. Redraws only while `active` (the display is on screen). */
-export function LcdTime({ active }: { active: boolean }) {
-  const { time, duration } = useTime(active)
+/** Elapsed time; a tap switches to the time left. It shows whole seconds, so the audio's own time updates
+ * (a few a second) are enough: no frame loop. */
+export function LcdTime() {
+  const { time, duration } = useTime(false)
   const [remaining, setRemaining] = useState(showRemaining)
   const left = Math.max(0, duration - time)
   return (

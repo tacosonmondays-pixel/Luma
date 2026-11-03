@@ -9,6 +9,7 @@ import { IconButton } from './kit.tsx'
 import { openTrackMenu } from './Menu.tsx'
 import { Scrubber, Transport, Volume } from './Transport.tsx'
 import { Wash } from './Wash.tsx'
+import { useY2K } from './y2k/Lcd.tsx'
 import { ThemeDecor } from './y2k/ThemeDecor.tsx'
 import '../styles/player.css'
 
@@ -392,17 +393,20 @@ function Deck({ track, open, playing }: { track: Track; open: boolean; playing: 
 
 // ── Canvas ──────────────────────────────────────────────────────────────
 
-/** The song's own looping image, GIF or video, full-bleed. A video plays muted and inline, only while Now
- * Playing is open and the song plays; it never touches the audio session. */
+/** The song's own looping image, GIF or video, full-bleed. It moves only while Now Playing is open, the song
+ * plays and motion is allowed: a video pauses on its frame, an animated image shows its still. A video plays
+ * muted and inline; it never touches the audio session. */
 function CanvasMedia({ track, active }: { track: Track; active: boolean }) {
   const url = useBlobUrl(`canvas:${track.id}`, track.canvas)
+  const still = useBlobUrl(`canvas-still:${track.id}`, track.canvasKind === 'animated' ? track.canvas : undefined)
   const video = useRef<HTMLVideoElement>(null)
+  const moving = active && !reduce.matches
   useEffect(() => {
     const v = video.current
     if (!v) return
-    if (active && !reduce.matches) v.play().catch(() => {}) // Low Power Mode blocks autoplay: the first frame stays
+    if (moving) v.play().catch(() => {}) // Low Power Mode blocks autoplay: the first frame stays
     else v.pause()
-  }, [active, url])
+  }, [moving, url])
   if (!url) return null
   return (
     <div className="np-canvas" key={url}>
@@ -419,7 +423,7 @@ function CanvasMedia({ track, active }: { track: Track; active: boolean }) {
           aria-hidden="true"
         />
       ) : (
-        <img src={url} alt="" draggable={false} />
+        <img src={moving ? url : (still ?? url)} alt="" draggable={false} />
       )}
     </div>
   )
@@ -439,6 +443,8 @@ export function NowPlaying() {
   const swipe = useSwipeDown()
   const style = styleFor(chosen, track)
   const shown = open && !!current
+  // Y2K stands Color and Vinyl on its own sky (y2k.css), so their cover backdrop isn't made at all.
+  const sky = useY2K() && style !== 'canvas'
 
   const fresh = useCoverLook(`cover:${track?.id}`, track?.cover)
   const lastLook = useRef<{ id?: string; look?: CoverLook }>({})
@@ -513,18 +519,20 @@ export function NowPlaying() {
     >
       {track && (
         <>
-          <div className="np-backdrop" aria-hidden="true">
-            {style === 'canvas' ? (
-              <CanvasMedia track={track} active={shown && playing} />
-            ) : style === 'color' ? (
-              <Wash blobKey={`cover:${track.id}`} v={track.cover} seed={track.title + track.artist} active={shown} playing={playing} />
-            ) : (
-              <div className="np-room" />
-            )}
-            <div className="np-shade" />
-            <div className="np-dim" />
-            <div className="np-grain" />
-          </div>
+          {!sky && (
+            <div className="np-backdrop" aria-hidden="true">
+              {style === 'canvas' ? (
+                <CanvasMedia track={track} active={shown && playing} />
+              ) : style === 'color' ? (
+                <Wash blobKey={`cover:${track.id}`} v={track.cover} seed={track.title + track.artist} active={shown} playing={playing} />
+              ) : (
+                <div className="np-room" />
+              )}
+              <div className="np-shade" />
+              <div className="np-dim" />
+              <div className="np-grain" />
+            </div>
+          )}
           <div className="np-sheet">
             <ThemeDecor place="now-playing" />
             <div className="np-top">
@@ -534,7 +542,7 @@ export function NowPlaying() {
               <IconButton icon="chevron-down" label="Close" className="np-close" onClick={() => setOpen(false)} size={26} />
             </div>
             <div className="np-stage">
-              {style === 'vinyl' ? <Deck track={track} open={shown} playing={playing} /> : style === 'color' ? <Cover track={track} look={look} /> : null}
+              {style === 'vinyl' ? <Deck track={track} open={shown} playing={playing} /> : style === 'color' ? <Cover track={track} look={sky ? undefined : look} /> : null}
             </div>
             <div className="np-controls">
               <div className="np-meta">

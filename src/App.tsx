@@ -30,11 +30,12 @@ function View({ route }: { route: Route }) {
   }
 }
 
-/** The app's own background. Its video pauses while the profile card plays a Background video: one video at a time. */
-function Wallpaper() {
+/** The app's own background. Its video pauses while a profile card plays a Background video (one video at a
+ * time) and while Now Playing covers it. */
+function Wallpaper({ covered }: { covered: boolean }) {
   const background = useLibrary((s) => s.background)
   const url = useBlobUrl('background', background?.v)
-  const yield_ = useCardVideo((s) => s.playing)
+  const yield_ = useCardVideo((s) => s.playing) || covered
   const video = useRef<HTMLVideoElement>(null)
   useEffect(() => {
     if (yield_) video.current?.pause()
@@ -115,7 +116,7 @@ export function App() {
   const route = parse(path)
   return (
     <>
-      <Wallpaper />
+      <Wallpaper covered={nowPlaying} />
       {/* Now Playing is a modal sheet: while it shows, keyboard focus can't wander into the page behind it. */}
       <div inert={nowPlaying}>
         <div className={`app${track ? ' has-track' : ''}`}>

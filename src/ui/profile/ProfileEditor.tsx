@@ -409,7 +409,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           )}
           <div className="pe-preview" ref={previewRef}>
             <div className="pe-card" inert>
-              <ProfileCard profile={draft} media={media} live={live} effectRun={effectRun} />
+              <ProfileCard profile={draft} media={media} live={live} effectRun={effectRun} claimsVideo />
             </div>
           </div>
           {!isWide && (

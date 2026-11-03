@@ -81,6 +81,11 @@ if (root) {
     if (s.theme !== prev.theme) applyTheme(s.theme)
     if (s.coverColors !== prev.coverColors) void applyAccent()
   })
+  // Another tab (the installed app next to a browser tab) changed a setting: take it, so a later change made
+  // here doesn't write this tab's stale choices back over it.
+  window.addEventListener('storage', (e) => {
+    if (e.key === useAppearance.persist.getOptions().name) void useAppearance.persist.rehydrate()
+  })
   const coverOf = () => {
     const { queue } = usePlayer.getState()
     const id = queue.ids[queue.index]
