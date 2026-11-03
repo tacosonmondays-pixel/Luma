@@ -14,6 +14,7 @@
     "exe": "node scripts/build-exe.mjs"
   },
   "dependencies": {
+    "gifenc": "1.0.3",
     "idb-keyval": "6.3.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
