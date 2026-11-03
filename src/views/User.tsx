@@ -1,35 +1,31 @@
 // Someone's public profile, /u/<handle>: a read-only card from their server row and the public media URLs.
 // Works signed out. Pinned songs show art and title; tapping one searches for it (no audio comes from the server).
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchPublicProfile, profileFromRow } from '../lib/account.ts'
+import { badgesOf, fetchPublicProfile, pinnedOf, profileFromRow, profilePath } from '../lib/account.ts'
 import { usePlayer } from '../lib/player.ts'
 import { badgeName } from '../lib/stats.ts'
 import { mediaUrl } from '../lib/supabase.ts'
 import { Icon } from '../ui/Icon.tsx'
 import { ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
 import type { CardMedia } from '../ui/profile/ProfileMedia.tsx'
-import type { Badge, BadgeId, ProfileRow } from '../types.ts'
-import { badgeGlyphs } from '../ui/badgeGlyphs.ts'
+import type { MediaKind, ProfileRow } from '../types.ts'
 import '../styles/profile.css'
 
 const EFFECT_MS = 8000
 
+const KINDS: Record<'avatar' | 'banner' | 'backdrop', MediaKind[]> = { avatar: ['image', 'animated'], banner: ['image', 'animated'], backdrop: ['image', 'animated', 'video'] }
+
+/** The row's media, only from its own profile folder (the row is anyone's JSON). */
 function mediaOf(row: ProfileRow): CardMedia {
   const media: CardMedia = {}
   for (const slot of ['avatar', 'banner', 'backdrop'] as const) {
-    const path = row[`${slot}_path`]
+    const path = profilePath(row, row[`${slot}_path`])
     if (!path) continue
-    const still = row[`${slot}_still_path`]
-    media[slot] = { url: mediaUrl(path), still: still ? mediaUrl(still) : undefined, kind: row[`${slot}_kind`] ?? 'image' }
+    const still = profilePath(row, row[`${slot}_still_path`])
+    const kind = KINDS[slot].find((k) => k === row[`${slot}_kind`]) ?? 'image'
+    media[slot] = { url: mediaUrl(path), still: still ? mediaUrl(still) : undefined, kind }
   }
   return media
-}
-
-function badgesOf(row: ProfileRow): Badge[] {
-  return (row.badges ?? [])
-    .filter((b) => b.id in badgeGlyphs && b.tier >= 1 && b.tier <= 4)
-    .map((b) => ({ id: b.id as BadgeId, tier: b.tier, name: badgeName(b.id, b.tier), fresh: false }))
-    .sort((a, b) => b.tier - a.tier)
 }
 
 export function User({ handle }: { handle: string }) {
@@ -48,7 +44,7 @@ export function User({ handle }: { handle: string }) {
   const cardRef = useRef<HTMLDivElement>(null)
   const live = useLive(cardRef, !usePlayer((s) => s.open))
   const { row } = state
-  const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), remote: { pinned: row.pinned_songs, badges: badgesOf(row) } }, [row])
+  const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), remote: { pinned: pinnedOf(row), badges: badgesOf(row).map((b) => ({ ...b, name: badgeName(b.id, b.tier), fresh: false })) } }, [row])
 
   if (!view)
     return (

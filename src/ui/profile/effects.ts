@@ -1,9 +1,9 @@
 // Profile effects: light particles drawn on one canvas over the card. Our own work.
 // Glows come from pre-drawn sprites (no shadowBlur), motion follows elapsed time (so 30 fps on iOS Low Power Mode
 // keeps the same speed), the scale is capped at 2×, and it pauses when off screen or hidden.
-import type { EffectId } from '../../types.ts'
+import { EFFECT_IDS, type EffectId } from '../../types.ts'
 
-export const EFFECTS: EffectId[] = ['petals', 'snow', 'sparkles', 'stars', 'notes', 'fireflies']
+export const EFFECTS: EffectId[] = [...EFFECT_IDS]
 
 export interface EffectOptions {
   accent: string // any CSS color
@@ -361,7 +361,8 @@ const kinds: Record<EffectId, Kind> = {
 
 /** Starts an effect on a canvas that fills its parent. */
 export function mountEffect(canvas: HTMLCanvasElement, id: EffectId, options: EffectOptions): EffectHandle {
-  const kind = kinds[id]
+  const kind = Object.hasOwn(kinds, id) ? kinds[id] : undefined
+  if (!kind) return { setPaused() {}, destroy() {} } // an id this version doesn't know draws nothing
   const ctx = canvas.getContext('2d')
   const fps = options.fps ?? 60
   const duration = options.duration ?? Infinity

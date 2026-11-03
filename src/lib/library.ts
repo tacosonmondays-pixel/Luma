@@ -29,6 +29,8 @@ export const useLibrary = create<Library>()(
     storage: createJSONStorage(() => ({
       getItem: async (name) => (await get<string>(name, db)) ?? null,
       setItem: (name, value) => {
+        // Until the record has loaded once, memory holds an empty library: writing it would replace the saved one.
+        if (!loadedOnce()) return Promise.resolve()
         // A change made while another tab's record is loading would be lost under it: load again once saved.
         const reloadAfter = !useLibrary.persist.hasHydrated()
         const write = set(name, value, db).then(() => {
@@ -47,6 +49,11 @@ export const useLibrary = create<Library>()(
 )
 
 const { getState, setState } = useLibrary
+
+let loaded = false
+function loadedOnce(): boolean {
+  return (loaded ||= useLibrary.persist.hasHydrated())
+}
 
 function reload() {
   void useLibrary.persist.rehydrate()

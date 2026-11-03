@@ -12,7 +12,7 @@ The app already holds the project URL and the publishable key (`src/lib/supabase
 4. Open `supabase/migrations/0001_luma.sql` from this repo. Copy all of it and paste it into the editor.
 5. Click **Run**. You should see "Success. No rows returned".
 
-You can run the file again later, for example after an update. It doesn't delete data.
+You can run the file again later, for example after an update. It doesn't delete data, except values outside the current limits (only a crafted request could have written them).
 
 To check: click **Table Editor**. You should see `profiles`, `invites`, `follows`, `plays`, `library_tracks`, `library_playlists`, `videos`, `posts` and `reports`. Click **Storage**: a bucket named `media` should be there, marked Public.
 
@@ -72,16 +72,20 @@ select * from create_invites(5);
 
 Send each friend one code. In Luma they go to **You → Sign In**, enter their email and the emailed code, then the invite code and a handle.
 
-To see which codes are used: `select * from invites order by created_at desc;`
+To see which codes are used: `select * from invites order by created_at desc;` A code with `used_at` set is used for good, even when `used_by` is empty (the account that used it was deleted).
 
 ## Moderation
 
 From the SQL Editor:
 
-- Ban someone: `select admin_ban('<user id>');` To unban: `select admin_ban('<user id>', false);`
+- Ban someone: `select admin_ban('<user id>');` To unban: `select admin_ban('<user id>', false);` A ban sticks to the email too: if you delete the account in **Authentication → Users**, signing up again with that email stays banned. To lift that for a deleted account: `delete from luma.banned_emails where email = 'them@example.com';`
 - Hide a post or video: `select admin_remove('post', '<id>');` or `select admin_remove('video', '<id>');`
 - Clear a profile's name, bio and pictures: `select admin_remove('profile', '<user id>');`
 - Open reports: `select * from reports where resolved_at is null;`
+
+These always work, whatever a member has written to their own rows.
+
+Each member also has limits, so nobody can fill the free plan's database: 100 posts and 25 videos a day, 50 open reports, 20,000 songs and 2,000 playlists in their backup, and their newest 5,000 plays. `docs/server.md` lists them all.
 
 Hiding content doesn't delete its files from Storage. The bucket is public, so anyone who already has a file's address can still open it. To remove the files too, open **Storage → media → \<user id\>** and delete them.
 

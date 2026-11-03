@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { claimHandle, HANDLE, isMember, redeemInvite, setShareActivity, signIn, signOut, useAccount, verify } from '../lib/account.ts'
+import { linkDevice, useSyncOwner } from '../lib/sync.ts'
 import { Icon } from './Icon.tsx'
 import { IconButton } from './kit.tsx'
 import '../styles/appearance.css'
@@ -133,10 +134,13 @@ export function AccountRows() {
   const user = useAccount((s) => s.user)
   const row = useAccount((s) => s.row)
   const ready = useAccount((s) => s.ready)
+  const owner = useSyncOwner((s) => s.owner)
   const [open, setOpen] = useState(false)
   const member = isMember({ ready, user, row })
   if (!ready) return null
   const done = !!user && member && !!row?.handle
+  // This device's library syncs with another account (someone else's iPad): only on request does it become this one's.
+  const other = done && !!owner && owner !== user?.id
   return (
     <>
       {done ? (
@@ -162,6 +166,11 @@ export function AccountRows() {
             onChange={(e) => void setShareActivity(e.target.checked)}
           />
         </label>
+      )}
+      {other && (
+        <button type="button" className="group-row" onClick={linkDevice}>
+          Sync Library
+        </button>
       )}
       {user && (
         <button type="button" className="group-row danger" onClick={() => void signOut()}>

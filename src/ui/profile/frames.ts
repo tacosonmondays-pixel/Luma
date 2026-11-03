@@ -1,8 +1,8 @@
 // Avatar frames: the shapes of the SVG ones, in a 120×120 box whose center circle (radius 50) is the avatar.
 // Decorations sit around radius 55, so nothing covers the face. Our own work.
-import type { FrameId } from '../../types.ts'
+import { FRAME_IDS, type FrameId } from '../../types.ts'
 
-export const FRAMES: FrameId[] = ['halo', 'aurora', 'vinyl', 'orbit', 'equalizer', 'laurel', 'blossoms', 'sparkles']
+export const FRAMES: FrameId[] = [...FRAME_IDS]
 
 const C = 60
 const rad = (deg: number) => (deg * Math.PI) / 180

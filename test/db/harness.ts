@@ -77,9 +77,11 @@ export interface Db {
 
 let n = 0
 
-export async function createDb(): Promise<Db> {
+/** A database with the migration run on it; `before` runs first (say, an earlier release of it and its data). */
+export async function createDb(before?: string): Promise<Db> {
   const pg = new PGlite()
   await pg.exec(STUB)
+  if (before) await pg.exec(before)
   await pg.exec(MIGRATION)
 
   const as = async <T,>(who: Who, sql: string, params: unknown[] = []): Promise<T[]> => {

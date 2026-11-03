@@ -1,9 +1,9 @@
 // The display name in its style. Each style plays briefly when it appears, then rests on its still look;
 // `rest` skips straight to that (editor chips, the sidebar nameplate).
 import type { CSSProperties } from 'react'
-import type { NameStyleId } from '../../types.ts'
+import { NAME_STYLE_IDS, type NameStyleId } from '../../types.ts'
 
-export const NAME_STYLES: NameStyleId[] = ['shimmer', 'aurora', 'chrome', 'neon', 'glitch', 'wave', 'pop', 'sparkle', 'outline', 'pixel', 'script']
+export const NAME_STYLES: NameStyleId[] = [...NAME_STYLE_IDS]
 
 /** Letters (grapheme clusters where the browser can split them), for the wave. */
 function letters(text: string): string[] {

@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react'
+import { Component, type MouseEvent, type ReactNode } from 'react'
 import { href, navigate } from '../lib/router.ts'
 import { Icon, type IconName } from './Icon.tsx'
 
@@ -52,4 +52,16 @@ export function pickFiles(accept: string, multiple = false): Promise<File[]> {
     input.addEventListener('cancel', () => resolve([]))
     input.click()
   })
+}
+
+/** Keeps a screen's failure to itself: it shows nothing, and the nav and the player keep working. Remount it (a key)
+ * to try again, as App does on every route change. */
+export class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  render() {
+    return this.state.failed ? null : this.props.children
+  }
 }

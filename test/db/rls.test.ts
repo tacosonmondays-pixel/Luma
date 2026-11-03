@@ -162,18 +162,19 @@ describe('library rows', () => {
 })
 
 describe('activity', () => {
-  beforeAll(async () => {
-    await db.as(alice, `insert into public.plays (track_id, youtube_id, title, artist, played_at, listened_ms)
-      values ('dQw4w9WgXcQ', 'dQw4w9WgXcQ', 'Song', 'Artist', now(), 30000)`)
-  })
+  const play = (who: { id: string }, at = 'now()') =>
+    db.as(who, `insert into public.plays (track_id, youtube_id, title, artist, played_at, listened_ms)
+      values ('dQw4w9WgXcQ', 'dQw4w9WgXcQ', 'Song', 'Artist', ${at}, 30000)`)
 
-  it('is hidden from followers while sharing is off', async () => {
-    expect(await count(alice, 'select * from public.plays')).toBe(1)
-    expect(await count(bob, 'select * from public.plays where user_id = $1', [alice.id])).toBe(0)
+  it("doesn't go up while sharing is off", async () => {
+    await play(alice)
+    expect(await count(alice, 'select * from public.plays')).toBe(0)
   })
 
   it('shows to followers only, once shared', async () => {
     await db.as(alice, 'update public.profiles set share_activity = true where id = auth.uid()')
+    await play(alice)
+    expect(await count(alice, 'select * from public.plays')).toBe(1)
     expect(await count(bob, 'select * from public.plays where user_id = $1', [alice.id])).toBe(1)
     expect(await count(carol, 'select * from public.plays where user_id = $1', [alice.id])).toBe(0)
     expect(await count(nobody, 'select * from public.plays where user_id = $1', [alice.id])).toBe(0)

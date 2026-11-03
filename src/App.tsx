@@ -4,6 +4,7 @@ import { importFiles } from './lib/files.ts'
 import { useLibrary, useReady } from './lib/library.ts'
 import { audio, restore, seek, setOpen, toggle, useCurrentTrack, usePlayer } from './lib/player.ts'
 import { parse, usePath, type Route } from './lib/router.ts'
+import { Boundary } from './ui/kit.tsx'
 import { MenuHost } from './ui/Menu.tsx'
 import { Sidebar, TabBar } from './ui/Nav.tsx'
 import { NowPlaying } from './ui/NowPlaying.tsx'
@@ -125,7 +126,9 @@ export function App() {
         <div className={`app${track ? ' has-track' : ''}`}>
           <Sidebar route={route} />
           <main className="main" key={path}>
-            <View route={route} />
+            <Boundary>
+              <View route={route} />
+            </Boundary>
           </main>
         </div>
         <PlayerBar />

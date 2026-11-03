@@ -27,10 +27,13 @@ export interface Playlist {
 // ── Profile ─────────────────────────────────────────────────────────────
 
 export type MediaKind = 'image' | 'animated' | 'video'
-export type FrameId = 'halo' | 'aurora' | 'vinyl' | 'orbit' | 'equalizer' | 'laurel' | 'blossoms' | 'sparkles'
-export type EffectId = 'petals' | 'snow' | 'sparkles' | 'stars' | 'notes' | 'fireflies'
-export type NameStyleId =
-  | 'shimmer' | 'aurora' | 'chrome' | 'neon' | 'glitch' | 'wave' | 'pop' | 'sparkle' | 'outline' | 'pixel' | 'script'
+// The ids, in display order. The server accepts only these (luma.ids() in supabase/migrations/0001_luma.sql).
+export const FRAME_IDS = ['halo', 'aurora', 'vinyl', 'orbit', 'equalizer', 'laurel', 'blossoms', 'sparkles'] as const
+export const EFFECT_IDS = ['petals', 'snow', 'sparkles', 'stars', 'notes', 'fireflies'] as const
+export const NAME_STYLE_IDS = ['shimmer', 'aurora', 'chrome', 'neon', 'glitch', 'wave', 'pop', 'sparkle', 'outline', 'pixel', 'script'] as const
+export type FrameId = (typeof FRAME_IDS)[number]
+export type EffectId = (typeof EFFECT_IDS)[number]
+export type NameStyleId = (typeof NAME_STYLE_IDS)[number]
 
 export interface Profile {
   name: string
@@ -64,9 +67,10 @@ export interface Crop {
 /** One listen, logged by plays.ts: [track id, started at (ms since epoch), listened ms]. */
 export type Play = [id: string, at: number, ms: number]
 
-export type BadgeId =
-  | 'first-spin' | 'hours' | 'streak' | 'on-repeat' | 'night-owl' | 'early-bird'
-  | 'marathon' | 'explorer' | 'crate-digger' | 'curator' | 'founder'
+export const BADGE_IDS = [
+  'first-spin', 'hours', 'streak', 'on-repeat', 'night-owl', 'early-bird', 'marathon', 'explorer', 'crate-digger', 'curator', 'founder',
+] as const
+export type BadgeId = (typeof BADGE_IDS)[number]
 export type Tier = 1 | 2 | 3 | 4 // bronze, silver, gold, holo
 export interface Badge {
   id: BadgeId
@@ -147,6 +151,7 @@ export interface ProfileRow {
   backdrop_version: number | null
   crops: Partial<Record<'avatar' | 'banner' | 'backdrop', Crop>>
   share_activity: boolean
+  sharing_since: string | null // the server's time when sharing last turned on
   created_at: string
   updated_at: string
 }

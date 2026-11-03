@@ -61,6 +61,18 @@ describe('invites', () => {
     await expect(db.as('anon', `select public.redeem_invite('ABCDEFGHIJ')`)).rejects.toThrow(/permission denied/)
   })
 
+  it('stay used after the account that used them is deleted', async () => {
+    const [code] = await invites()
+    const gone = await db.user('gone@example.com')
+    expect(await redeem(gone, code)).toBe('ok')
+    await db.as('owner', 'delete from auth.users where id = $1', [gone.id])
+    const [row] = await db.as<{ used_by: string | null; used_at: Date | null }>(admin, 'select used_by, used_at from public.invites where code = $1', [code])
+    expect(row.used_by).toBeNull() // the foreign key lets the account go...
+    expect(row.used_at).not.toBeNull()
+    expect(await redeem(await db.user('gone@example.com'), code)).toBe('invalid') // ...but the code stays spent
+    expect(await redeem(await db.user(), code)).toBe('invalid')
+  })
+
   it("can't be inserted or claimed directly", async () => {
     await expect(db.as(member, `insert into public.invites (code) values ('MINEMINE')`)).rejects.toThrow(/permission denied/)
     await expect(db.as(member, `update public.invites set used_by = auth.uid()`)).rejects.toThrow(/permission denied/)
@@ -118,6 +130,65 @@ describe('admin RPCs', () => {
     await db.as(admin, 'select public.admin_ban($1)', [u.id])
     const [code] = await invites()
     expect(await redeem(u, code)).toBe('banned')
+  })
+
+  it('a ban outlives the account: signing up again with the email stays banned until unbanned', async () => {
+    const spammer = await db.member('spammer')
+    await db.as('owner', `update auth.users set email = 'Spammer@Example.com' where id = $1`, [spammer.id])
+    await db.as(admin, 'select public.admin_ban($1)', [spammer.id])
+    await db.as('owner', 'delete from auth.users where id = $1', [spammer.id])
+    const again = await db.user('spammer@example.com')
+    const [code] = await invites()
+    expect(await redeem(again, code)).toBe('banned')
+    await db.as(admin, 'select public.admin_ban($1, false)', [again.id])
+    expect(await redeem(again, code)).toBe('ok')
+  })
+
+  // A member's own clock (or a crafted request) can't make them un-bannable: the largest timestamptz used to make
+  // the RPCs' "a millisecond later" overflow ('timestamp out of range'), and the ban rolled back.
+  for (const at of ['294276-12-31T23:59:59.999999Z', '294276-12-31T23:59:59.9995Z', 'infinity', '9999-12-31T00:00:00Z'])
+    it(`bans and clears a member who sent updated_at = ${at}`, async () => {
+      const evil = await db.member()
+      const [row] = await db.as<{ updated_at: Date }>(evil, `update public.profiles set bio = 'SPAM', updated_at = $1 where id = auth.uid() returning updated_at`, [at])
+      expect(row.updated_at.getTime()).toBeLessThanOrEqual(Date.now() + 1000) // capped at the server's clock
+      await db.as(admin, `select public.admin_remove('profile', $1)`, [evil.id])
+      await db.as(admin, 'select public.admin_ban($1)', [evil.id])
+      const [p] = await db.as<{ banned: boolean; bio: string | null }>('owner', 'select banned, bio from public.profiles where id = $1', [evil.id])
+      expect(p).toEqual({ banned: true, bio: null })
+      await expect(db.as(evil, `insert into public.posts (body) values ('still here')`)).rejects.toThrow(/row-level security/)
+    })
+
+  it('bans and clears a row whatever its updated_at (the SQL Editor can write any)', async () => {
+    const m = await db.member()
+    await db.as('owner', `update public.profiles set bio = 'x', updated_at = '9998-12-31Z' where id = $1`, [m.id])
+    await db.as('owner', `select public.admin_remove('profile', $1)`, [m.id])
+    await db.as('owner', 'select public.admin_ban($1)', [m.id])
+    const [p] = await db.as<{ banned: boolean; bio: string | null }>('owner', 'select banned, bio from public.profiles where id = $1', [m.id])
+    expect(p).toEqual({ banned: true, bio: null })
+    await expect(db.as('owner', `update public.profiles set updated_at = '294276-12-31Z' where id = $1`, [m.id])).rejects.toThrow(/check/)
+  })
+})
+
+describe('device clocks', () => {
+  it('are capped at the server time: a clock a year ahead freezes nothing', async () => {
+    const me = await db.member()
+    await db.as(me, `update public.profiles set name = 'Typo', updated_at = now() + interval '1 year' where id = auth.uid()`)
+    // A later edit from a correct clock lands (it used to be skipped, with no error, for a year).
+    await new Promise((r) => setTimeout(r, 5))
+    expect(await db.as(me, `update public.profiles set name = 'Fixed', updated_at = now() where id = auth.uid() returning 1`)).toHaveLength(1)
+    await db.as(me, `insert into public.library_tracks (id, title, updated_at) values ('x', 'Song', now() + interval '1 year')`)
+    const [t] = await db.as<{ updated_at: Date }>(me, `select updated_at from public.library_tracks where id = 'x'`)
+    expect(t.updated_at.getTime()).toBeLessThanOrEqual(Date.now() + 1000)
+    await new Promise((r) => setTimeout(r, 5))
+    await db.as(me, `insert into public.library_tracks (id, deleted, updated_at) values ('x', true, now())
+      on conflict (user_id, id) do update set deleted = excluded.deleted, updated_at = excluded.updated_at`)
+    expect((await db.as<{ deleted: boolean }>(me, `select deleted from public.library_tracks where id = 'x'`))[0].deleted).toBe(true)
+  })
+
+  it('an older edit is still skipped', async () => {
+    const me = await db.member()
+    await db.as(me, `update public.profiles set name = 'New' where id = auth.uid()`)
+    expect(await db.as(me, `update public.profiles set name = 'Old', updated_at = now() - interval '1 day' where id = auth.uid() returning 1`)).toEqual([])
   })
 })
 

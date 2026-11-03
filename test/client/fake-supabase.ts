@@ -97,6 +97,11 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
       if (!me) return { data: null, error: { message: 'denied' } }
       for (const input of this.payload as Row[]) {
         if (input.user_id !== me) return { data: null, error: { message: 'row-level security' } }
+        if (this.table === 'plays') {
+          // The server's rule: plays land only while sharing, and only those since it last turned on.
+          const p = s.tables.profiles.find((r) => r.id === me)
+          if (!p?.share_activity || String(input.played_at) < String(p.sharing_since ?? '')) continue
+        }
         const key = KEYS[this.table]
         const at = rows.findIndex((r) => key.every((k) => r[k] === input[k]))
         const lib = this.table.startsWith('library_')
@@ -109,13 +114,16 @@ class Query implements PromiseLike<{ data: unknown; error: unknown }> {
       const patch = this.payload as Row
       const hit = rows.filter(this.match)
       if (patch.handle && rows.some((r) => r.handle === patch.handle && r.id !== me)) return { data: null, error: { code: '23505', message: 'duplicate' } }
+      const out: Row[] = []
       for (const r of hit) {
         if (r.id !== me) continue
+        // Last write wins: an older edit is skipped, and PostgREST returns no row for it (no error either).
         if (patch.updated_at && String(patch.updated_at) < String(r.updated_at)) continue
+        if (patch.share_activity === true && !r.share_activity) r.sharing_since = new Date(Date.now()).toISOString()
         Object.assign(r, patch)
+        out.push(r)
       }
-      const out = hit.filter((r) => r.id === me)
-      return { data: this.single ? (out[0] ?? null) : out, error: null }
+      return { data: this.single ? (structuredClone(out[0]) ?? null) : structuredClone(out), error: null }
     }
     let out = rows.filter(this.match)
     if (this.table.startsWith('library_') || this.table === 'plays') out = out.filter((r) => r.user_id === me)
@@ -131,7 +139,7 @@ export const blankRow = (id: string, extra: Row = {}): Row => ({
   avatar_path: null, avatar_still_path: null, avatar_kind: null, avatar_version: null,
   banner_path: null, banner_still_path: null, banner_kind: null, banner_version: null,
   backdrop_path: null, backdrop_still_path: null, backdrop_kind: null, backdrop_version: null,
-  crops: {}, share_activity: false, created_at: '2026-11-01T00:00:00.000Z', updated_at: '2026-11-01T00:00:00.000Z', ...extra,
+  crops: {}, share_activity: false, sharing_since: null, created_at: '2026-11-01T00:00:00.000Z', updated_at: '2026-11-01T00:00:00.000Z', ...extra,
 })
 
 /** One device's client. */

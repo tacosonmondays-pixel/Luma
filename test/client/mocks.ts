@@ -2,16 +2,33 @@
 import { create } from 'zustand'
 import type { Play, Playlist, Profile, Track } from '../../src/types.ts'
 
+type Lib = { tracks: Record<string, Track>; order: string[]; playlists: Playlist[]; profile: Profile }
+
 export function libraryMock() {
-  const useLibrary = create<{ tracks: Record<string, Track>; order: string[]; playlists: Playlist[]; profile: Profile }>()(() => ({
+  const useLibrary = create<Lib>()(() => ({
     tracks: {},
     order: [],
     playlists: [],
     profile: { name: '' },
   }))
   const { getState, setState } = useLibrary
+  const hydration = { done: true, listeners: new Set<() => void>() }
   return {
     useLibrary,
+    get hydrated() {
+      return hydration.done
+    },
+    /** What zustand persist does when the saved library loads: the state is replaced, and that isn't an edit. */
+    hydrate(state: Partial<Lib>) {
+      hydration.done = false
+      setState(state)
+      hydration.done = true
+      hydration.listeners.forEach((cb) => cb())
+    },
+    onHydrated(cb: () => void) {
+      hydration.listeners.add(cb)
+      return () => void hydration.listeners.delete(cb)
+    },
     PROFILE_SLOTS: ['avatar', 'banner', 'backdrop'],
     addSyncedTracks: (list: Track[]) =>
       setState((s) => ({
@@ -73,6 +90,10 @@ export const libraryModule = () => ({
     getState: () => lib().useLibrary.getState(),
     setState: (...a: Parameters<ReturnType<typeof libraryMock>['useLibrary']['setState']>) => lib().useLibrary.setState(...a),
     subscribe: (...a: Parameters<ReturnType<typeof libraryMock>['useLibrary']['subscribe']>) => lib().useLibrary.subscribe(...a),
+    persist: {
+      hasHydrated: () => lib().hydrated,
+      onFinishHydration: (cb: () => void) => lib().onHydrated(cb),
+    },
   },
   PROFILE_SLOTS: ['avatar', 'banner', 'backdrop'],
   addSyncedTracks: (l: Track[]) => lib().addSyncedTracks(l),
