@@ -44,8 +44,8 @@ async function openShell(event) {
   return (await caches.match(ROOT)) ?? fetch(event.request)
 }
 
-// When the root is a new build, cache it with the assets/ files it loads, and drop the files of older builds
-// (the previous build's stay, for a page that is still running it).
+// When the root is a new build, cache it with the assets/ files it loads (and the fonts its stylesheets load), and
+// drop the files of older builds (the previous build's stay, for a page that is still running it).
 async function cacheShell() {
   const response = await fetch(ROOT)
   if (!response.ok) throw new Error(`GET ${ROOT} answered ${response.status}`)
@@ -53,10 +53,10 @@ async function cacheShell() {
   const cache = await caches.open(CACHE)
   const previous = (await (await cache.match(ROOT))?.text()) ?? ''
   if (html === previous) return
-  const assets = assetsOf(html)
-  await cache.addAll(assets)
+  const assets = await withCssAssets(cache, assetsOf(html))
   await cache.put(ROOT, response)
-  const keep = [...assets, ...assetsOf(previous)]
+  const old = assetsOf(previous)
+  const keep = [...assets, ...old, ...(await cssAssets(cache, old))]
   for (const request of await cache.keys()) {
     const { pathname } = new URL(request.url)
     if (pathname.startsWith(ASSETS) && !keep.includes(pathname)) await cache.delete(request)
@@ -65,6 +65,30 @@ async function cacheShell() {
 
 const escape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const assetsOf = (html) => [...new Set(html.match(new RegExp(escape(ASSETS) + '[^"\']+', 'g')))]
+
+// Caches the files and, for the stylesheets among them, the assets/ files they load (fonts), which index.html
+// doesn't name.
+async function withCssAssets(cache, assets) {
+  await cache.addAll(assets)
+  const extra = (await cssAssets(cache, assets)).filter((a) => !assets.includes(a))
+  await cache.addAll(extra)
+  return [...assets, ...extra]
+}
+
+// The assets/ files that the cached stylesheets among `assets` load. Vite writes them as paths relative to the
+// stylesheet, or as absolute ones.
+async function cssAssets(cache, assets) {
+  const found = new Set()
+  for (const path of assets.filter((a) => a.endsWith('.css'))) {
+    const css = (await (await cache.match(path))?.text()) ?? ''
+    for (const [, ref] of css.matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/g)) {
+      if (ref.startsWith('data:')) continue
+      const { pathname } = new URL(ref, self.location.origin + path)
+      if (pathname.startsWith(ASSETS)) found.add(pathname)
+    }
+  }
+  return [...found]
+}
 
 function staleWhileRevalidate(event) {
   const fresh = fetch(event.request).then((response) => store(event.request, response))

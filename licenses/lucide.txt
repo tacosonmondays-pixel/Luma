@@ -1,6 +1,7 @@
 Lucide icons 1.67.0 (https://github.com/lucide-icons/lucide), from npm lucide-static 1.67.0.
 Used for the badge glyphs in src/ui/badgeGlyphs.ts: disc-3, headphones, flame, repeat-1, moon-star,
 sunrise, hourglass, compass, list-music, sparkles. headphones and compass are derived from Feather (MIT, below).
+Also used for icon paths in src/ui/Icon.tsx (e.g. pin) and the profile editor.
 
 ISC License
 

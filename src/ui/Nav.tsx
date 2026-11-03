@@ -1,19 +1,28 @@
+import type { CSSProperties } from 'react'
 import { useLibrary } from '../lib/library.ts'
 import type { Route } from '../lib/router.ts'
 import { Avatar, PlaylistArt } from './Art.tsx'
 import { Icon } from './Icon.tsx'
 import { Link } from './kit.tsx'
+import { profileColors } from './profile/colors.ts'
+import { NameStyle } from './profile/NameStyle.tsx'
+import '../styles/profile.css'
 
 const is = (on: boolean) => (on ? ' active' : '')
 
 export function Sidebar({ route }: { route: Route }) {
   const playlists = useLibrary((s) => s.playlists)
-  const name = useLibrary((s) => s.profile.name)
+  const profile = useLibrary((s) => s.profile)
+  const name = profile.name.trim()
+  const style = name ? profile.nameStyle : undefined
   return (
     <nav className="sidebar">
-      <Link to="/you" className={`side-link side-profile${is(route.name === 'you')}`}>
-        <Avatar size={28} />
-        <span className="ellipsis">{name || 'You'}</span>
+      {/* The nameplate: the name style's plate and font, at rest. */}
+      <Link to="/you" className={`side-link side-profile${style ? ` plate plate-${style}` : ''}${is(route.name === 'you')}`}>
+        <span className="side-plate-vars" style={profileColors(profile, false) as CSSProperties}>
+          <Avatar size={28} />
+          <NameStyle name={name || 'You'} style={style} rest className="ns-plate" />
+        </span>
       </Link>
       <Link to="/search" className={`side-link${is(route.name === 'search')}`}>
         <Icon name="search" size={20} />
@@ -40,6 +49,7 @@ export function Sidebar({ route }: { route: Route }) {
 }
 
 export function TabBar({ route }: { route: Route }) {
+  const hasAvatar = useLibrary((s) => !!s.profile.avatar)
   return (
     <nav className="tabbar">
       <Link to="/" label="Songs" className={is(route.name === 'songs')}>
@@ -51,8 +61,8 @@ export function TabBar({ route }: { route: Route }) {
       <Link to="/search" label="Search" className={is(route.name === 'search')}>
         <Icon name="search" />
       </Link>
-      <Link to="/you" label="You" className={is(route.name === 'you')}>
-        <Icon name="user" />
+      <Link to="/you" label="You" className={`tab-you${is(route.name === 'you')}`}>
+        {hasAvatar ? <Avatar size={26} /> : <Icon name="user" />}
       </Link>
     </nav>
   )

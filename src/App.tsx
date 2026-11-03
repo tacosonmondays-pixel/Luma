@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useBlobUrl } from './lib/blobs.ts'
 import { importFiles } from './lib/files.ts'
 import { useLibrary, useReady } from './lib/library.ts'
@@ -7,6 +7,7 @@ import { parse, usePath, type Route } from './lib/router.ts'
 import { MenuHost } from './ui/Menu.tsx'
 import { Sidebar, TabBar } from './ui/Nav.tsx'
 import { NowPlaying } from './ui/NowPlaying.tsx'
+import { useCardVideo } from './ui/profile/ProfileMedia.tsx'
 import { PlayerBar } from './ui/PlayerBar.tsx'
 import { Playlist } from './views/Playlist.tsx'
 import { Playlists } from './views/Playlists.tsx'
@@ -29,13 +30,20 @@ function View({ route }: { route: Route }) {
   }
 }
 
+/** The app's own background. Its video pauses while the profile card plays a Background video: one video at a time. */
 function Wallpaper() {
   const background = useLibrary((s) => s.background)
   const url = useBlobUrl('background', background?.v)
+  const yield_ = useCardVideo((s) => s.playing)
+  const video = useRef<HTMLVideoElement>(null)
+  useEffect(() => {
+    if (yield_) video.current?.pause()
+    else void video.current?.play().catch(() => {})
+  }, [yield_, url])
   if (!background || !url) return null
   return (
     <div className="wallpaper">
-      {background.kind === 'video' ? <video src={url} autoPlay muted loop playsInline /> : <img src={url} alt="" />}
+      {background.kind === 'video' ? <video ref={video} src={url} autoPlay={!yield_} muted loop playsInline /> : <img src={url} alt="" />}
     </div>
   )
 }

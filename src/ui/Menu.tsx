@@ -1,7 +1,19 @@
 // The one popover menu. openMenu() shows it anchored to an element or a point; MenuHost renders it.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { create } from 'zustand'
-import { addToPlaylist, createPlaylist, deleteTrack, focusNameOf, removeFromPlaylist, setTrackCover, useLibrary } from '../lib/library.ts'
+import {
+  addToPlaylist,
+  createPlaylist,
+  deleteTrack,
+  focusNameOf,
+  pinSong,
+  removeFromPlaylist,
+  setTrackCanvas,
+  setTrackCover,
+  unpinSong,
+  useLibrary,
+} from '../lib/library.ts'
+import { processMedia } from '../lib/media.ts'
 import { playNext, setOpen } from '../lib/player.ts'
 import { navigate } from '../lib/router.ts'
 import { Icon, type IconName } from './Icon.tsx'
@@ -57,9 +69,18 @@ export function openMenu(anchor: HTMLElement | MenuPoint, items: MenuItem[]): vo
   useMenu.setState({ menu: { at: { top: at.top, right: at.right, bottom: at.bottom, left: at.left }, items, key: ++count } })
 }
 
-/** The song menu used everywhere: Play Next, Add to Playlist, Change Cover, Remove from Playlist, Delete. */
+/** A Canvas that can't be used (too large, too long, unsupported) is skipped; there is nowhere to say so in a menu. */
+const pickCanvas = (trackId: string) =>
+  void pickFiles('image/*,video/mp4,video/quicktime,video/webm').then(async ([file]) => {
+    if (!file) return
+    await setTrackCanvas(trackId, await processMedia(file, 'canvas')).catch(() => {})
+  }).catch(() => {})
+
+/** The song menu used everywhere: Play Next, Add to Playlist, Pin, Change Cover, Canvas, Remove from Playlist, Delete. */
 export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, playlistId?: string): void {
-  const { playlists } = useLibrary.getState()
+  const { playlists, profile, tracks } = useLibrary.getState()
+  const pinned = !!profile.pinnedSongs?.includes(trackId)
+  const hasCanvas = !!tracks[trackId]?.canvas
   const items: MenuItem[] = [
     { label: 'Play Next', icon: 'play-next', onSelect: () => playNext(trackId) },
     {
@@ -79,12 +100,17 @@ export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, 
         ...playlists.filter((p) => p.id !== playlistId).map((p) => ({ label: p.name, onSelect: () => addToPlaylist(p.id, [trackId]) })),
       ],
     },
+    pinned
+      ? { label: 'Unpin from Profile', icon: 'unpin', onSelect: () => unpinSong(trackId) }
+      : { label: 'Pin to Profile', icon: 'pin', onSelect: () => pinSong(trackId) },
     {
       label: 'Change Cover',
       icon: 'image',
       onSelect: () => void pickFiles('image/*').then(([file]) => file && setTrackCover(trackId, file)),
     },
+    { label: 'Set Canvas', icon: 'film', onSelect: () => pickCanvas(trackId) },
   ]
+  if (hasCanvas) items.push({ label: 'Remove Canvas', icon: 'remove', onSelect: () => void setTrackCanvas(trackId, null) })
   if (playlistId) items.push({ label: 'Remove from Playlist', icon: 'remove', onSelect: () => removeFromPlaylist(playlistId, trackId) })
   // Deleting can't be undone (an imported file is gone for good), so it asks once more.
   items.push({
