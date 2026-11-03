@@ -51,7 +51,7 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL): Promi
     throw new Fail(405, 'bad-request')
   }
   if (url.pathname === '/api/health') return json(res, 200, { ok: true, ytdlp: await ytdlpVersion() } satisfies Health)
-  if (url.pathname === '/api/search') return json(res, 200, await search(url.searchParams))
+  if (url.pathname === '/api/search') return json(res, 200, await search(res, url.searchParams))
   const [, kind, id = ''] = /^\/api\/(audio|cover)\/([^/]*)$/.exec(url.pathname) ?? []
   if (!kind) throw new Fail(404, 'not-found')
   if (!VIDEO_ID.test(id)) throw new Fail(400, 'bad-request')
@@ -69,7 +69,7 @@ let version: string | null = null
 
 /** The installed yt-dlp version, or null when it is missing. A found version is cached. */
 export async function ytdlpVersion(): Promise<string | null> {
-  version ??= await ytdlp(['--version'], 15_000).done.then(
+  version ??= await ytdlp(['--version'], 15_000).then(
     (r) => r.stdout.trim() || null,
     () => null,
   )
@@ -88,16 +88,18 @@ interface Info {
   entries?: (Info | null)[]
 }
 
-async function search(params: URLSearchParams): Promise<SearchResponse> {
+async function search(res: ServerResponse, params: URLSearchParams): Promise<SearchResponse> {
   const q = params.get('q')?.trim() ?? ''
   const sort = params.get('sort') ?? 'relevance'
   const isUrl = /^https?:\/\//i.test(q)
+  const link = isUrl ? URL.parse(q) : null
   if (!q || q.length > 500 || (sort !== 'relevance' && sort !== 'recent')) throw new Fail(400, 'bad-request')
-  if (isUrl && !YOUTUBE_HOSTS.includes(URL.parse(q)?.hostname ?? '')) throw new Fail(400, 'bad-request')
+  if (isUrl && !YOUTUBE_HOSTS.includes(link?.hostname ?? '')) throw new Fail(400, 'bad-request')
 
-  const target = isUrl ? q : `${sort === 'recent' ? 'ytsearchdate30' : 'ytsearch30'}:${q}`
+  // Pass on the parsed link, not the raw text: yt-dlp parses links differently (e.g. `\`) and could see another host.
+  const target = link ? link.href : `${sort === 'recent' ? 'ytsearchdate30' : 'ytsearch30'}:${q}`
   const args = ['--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', '200', '--', target]
-  const { stdout, stderr } = await ytdlp(args, 30_000).done
+  const { stdout, stderr } = await ytdlp(args, 30_000, res)
   let info: Info
   try {
     info = JSON.parse(stdout)
@@ -123,7 +125,7 @@ async function search(params: URLSearchParams): Promise<SearchResponse> {
 async function audio(res: ServerResponse, id: string): Promise<void> {
   const dir = await mkdtemp(join(tmpdir(), 'luma-'))
   try {
-    const download = ytdlp(
+    await ytdlp(
       [
         '-f', 'bestaudio[ext=m4a]/bestaudio',
         '--no-playlist', '--no-progress', '--no-warnings',
@@ -132,11 +134,8 @@ async function audio(res: ServerResponse, id: string): Promise<void> {
         '--', `https://www.youtube.com/watch?v=${id}`,
       ],
       10 * 60_000,
+      res,
     )
-    // If the client leaves early, stop downloading. (Killing an exited process does nothing.)
-    res.on('close', () => download.child.kill())
-    if (res.destroyed) download.child.kill()
-    await download.done
 
     const [name] = await readdir(dir)
     if (!name) throw new Fail(502, 'failed')
@@ -165,18 +164,24 @@ async function cover(res: ServerResponse, id: string): Promise<void> {
 
 // ── yt-dlp ──────────────────────────────────────────────────────────────
 
-/** Run yt-dlp (no shell). `done` rejects with a Fail; it is killed after `ms`. */
-function ytdlp(args: string[], ms: number) {
-  const child = spawn(process.env.LUMA_YTDLP || 'yt-dlp', args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
-  const timer = setTimeout(() => {
-    console.error(`yt-dlp timed out after ${ms / 1000} s`)
-    child.kill()
-  }, ms)
-  let stdout = ''
-  let stderr = ''
-  child.stdout.setEncoding('utf8').on('data', (s: string) => (stdout += s))
-  child.stderr.setEncoding('utf8').on('data', (s: string) => (stderr += s))
-  const done = new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+/**
+ * Run yt-dlp, without a shell and without the user's yt-dlp config (it could add files or skip downloads).
+ * Rejects with a Fail. It is killed after `ms`, or when `res` closes (the client left, or we are done).
+ */
+function ytdlp(args: string[], ms: number, res?: ServerResponse) {
+  return new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+    const command = process.env.LUMA_YTDLP || 'yt-dlp'
+    const child = spawn(command, ['--ignore-config', ...args], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
+    const timer = setTimeout(() => {
+      console.error(`yt-dlp timed out after ${ms / 1000} s`)
+      child.kill()
+    }, ms)
+    res?.on('close', () => child.kill()) // killing an exited process does nothing
+    if (res?.destroyed) child.kill()
+    let stdout = ''
+    let stderr = ''
+    child.stdout.setEncoding('utf8').on('data', (s: string) => (stdout += s))
+    child.stderr.setEncoding('utf8').on('data', (s: string) => (stderr += s))
     child.on('error', (e: NodeJS.ErrnoException) => {
       reject(e.code === 'ENOENT' ? new Fail(503, 'ytdlp-missing') : e)
     })
@@ -188,5 +193,4 @@ function ytdlp(args: string[], ms: number) {
       reject(new Fail(502, 'failed'))
     })
   })
-  return { child, done }
 }

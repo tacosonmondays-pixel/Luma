@@ -4,11 +4,11 @@ A clean music player for your iPhone and computer. Search, save songs into the a
 
 ## Set up
 
-1. Install [Node.js](https://nodejs.org) 22 or newer.
+1. Install [Node.js](https://nodejs.org) 22.18 or newer.
 2. Install yt-dlp:
    - Windows: `winget install yt-dlp`
    - macOS: `brew install yt-dlp`
-3. In this folder, run:
+3. In a new terminal (so it finds yt-dlp), in this folder, run:
    ```
    npm install
    npm start

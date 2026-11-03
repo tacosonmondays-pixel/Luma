@@ -5,16 +5,10 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { networkInterfaces } from 'node:os'
 import { extname, join } from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { fileURLToPath } from 'node:url'
 import { api, ytdlpVersion } from './api.ts'
-
-if (Number(process.versions.node.split('.')[0]) < 22) {
-  console.error(`Luma needs Node.js 22 or newer (this is ${process.version}).`)
-  process.exit(1)
-}
 
 const DIST = fileURLToPath(new URL('../dist/', import.meta.url))
 const INDEX = join(DIST, 'index.html')
@@ -76,12 +70,20 @@ server.on('error', (e) => {
   process.exit(1)
 })
 
+// On Ctrl+C or a stop request, close every connection: that stops running downloads and removes their temp files.
+// Luma then exits on its own. A second signal stops it at once.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+  process.once(signal, () => {
+    server.close()
+    server.closeAllConnections()
+  })
+}
+
 server.listen(Number(process.env.PORT || 4848), '0.0.0.0', async () => {
   const { port } = server.address() as AddressInfo
-  const ips = Object.values(networkInterfaces())
-    .flat()
-    .flatMap((a) => (a?.family === 'IPv4' && !a.internal ? [a.address] : []))
-  for (const host of ['localhost', ...ips]) console.log(`Luma → http://${host}:${port}`)
+  console.log(`Luma → http://localhost:${port}`)
+  // The phone needs https for the offline app; plain http on the LAN can't install it. See README.
+  console.log(`iPhone → tailscale serve --bg ${port}`)
   const version = await ytdlpVersion()
-  console.log(version ? `yt-dlp ${version}` : 'yt-dlp not found — install it: winget install yt-dlp (Windows) · brew install yt-dlp (macOS)')
+  console.log(version ? `yt-dlp ${version}` : 'yt-dlp not found. Install it (winget install yt-dlp on Windows, brew install yt-dlp on macOS), then start Luma again from a new terminal.')
 })
