@@ -55,6 +55,21 @@ jobs:
           (cd build && zip -qry Luma.ipa Payload)
           ls -l build/Luma.ipa
 
+      - name: Check Luma.ipa
+        working-directory: ios/build
+        run: |
+          mkdir check && (cd check && unzip -q ../Luma.ipa)
+          app=check/Payload/Luma.app
+          zipinfo -1 Luma.ipa | grep -v '/www/assets/' | head -40
+          test -x $app/Luma && file $app/Luma
+          test -f $app/www/index.html && test -f $app/Assets.car
+          plutil -p $app/Info.plist
+          for key in CFBundleIdentifier UIBackgroundModes CFBundleURLTypes MinimumOSVersion UIDeviceFamily CFBundleIcons; do
+            plutil -extract $key raw -expect string $app/Info.plist > /dev/null 2>&1 ||
+              plutil -extract $key xml1 -o - $app/Info.plist > /dev/null || { echo "::error::Info.plist has no $key"; exit 1; }
+          done
+          [ "$(plutil -extract CFBundleIdentifier raw $app/Info.plist)" = com.tacosonmondays.luma ]
+
       - uses: actions/upload-artifact@v4
         with:
           name: Luma-ipa
