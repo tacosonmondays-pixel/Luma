@@ -84,32 +84,55 @@
   animation: spin 700ms linear infinite;
 }
 
-/* ── Segmented control ─────────────────────────────────────────────── */
+/* ── Segmented controls ────────────────────────────────────────────── */
+
+.search-controls {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
 
 .segmented {
   position: relative;
   flex: none;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  width: 200px;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   height: 32px;
   padding: 2px;
   border-radius: 9px;
   background: var(--fill);
 }
 
+.segmented.sort {
+  width: 264px;
+}
+
+.segmented.layouts {
+  grid-auto-columns: 38px;
+}
+
 .segmented button {
   position: relative;
   z-index: 1;
+  display: grid;
+  place-items: center;
   border-radius: 7px;
   color: var(--text-2);
   font-size: 13px;
   font-weight: 600;
-  transition: color 160ms;
+  transition:
+    color 160ms,
+    transform 140ms var(--ease);
 }
 
+.segmented button:hover,
 .segmented button[aria-checked='true'] {
   color: var(--text);
+}
+
+.segmented button:active {
+  transform: scale(0.92);
 }
 
 .segmented-thumb {
@@ -117,15 +140,12 @@
   top: 2px;
   bottom: 2px;
   left: 2px;
-  width: calc(50% - 2px);
+  width: calc((100% - 4px) / var(--n));
   border-radius: 7px;
   background: var(--fill-2);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transform: translateX(calc(var(--i) * 100%));
   transition: transform 240ms var(--ease);
-}
-
-.segmented[data-at='recent'] .segmented-thumb {
-  transform: translateX(100%);
 }
 
 /* ── Results ───────────────────────────────────────────────────────── */
@@ -254,7 +274,7 @@
   color: var(--danger);
 }
 
-.result-state > * {
+.state-btn > * {
   animation: pop 220ms var(--spring);
 }
 
@@ -275,8 +295,185 @@
   transition: stroke-dashoffset 200ms linear;
 }
 
-.result-state > .ring.spin {
+.state-btn > .ring.spin {
   animation: spin 900ms linear infinite;
+}
+
+/* ── Tiles ─────────────────────────────────────────────────────────── */
+
+.tiles {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 28px 16px;
+  padding-top: 4px;
+}
+
+.tiles-1 {
+  --cols: 1;
+  max-width: 720px;
+}
+
+.tiles-2 {
+  --cols: 2;
+  gap: 20px 12px;
+}
+
+.tiles-3 {
+  --cols: 3;
+  gap: 32px 20px;
+}
+
+.tiles-5 {
+  --cols: 5;
+  gap: 24px 14px;
+}
+
+.tile {
+  position: relative;
+  min-width: 0;
+  animation: fade 220ms var(--ease) both;
+}
+
+.tile-main {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.tile-main:active {
+  transform: scale(0.98);
+}
+
+.tile-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.tile-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    opacity 200ms,
+    transform 320ms var(--ease);
+}
+
+.tile-time {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tile.current .tile-title {
+  color: var(--accent);
+}
+
+.tile-artist {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.tiles-1 .tile-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.tiles-1 .tile-artist {
+  font-size: 15px;
+}
+
+.tiles-5 .tile-title {
+  font-size: 14px;
+}
+
+.tiles-5 .tile-artist {
+  font-size: 12px;
+}
+
+.tile .tile-state {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  background: rgba(0, 0, 0, 0.66);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--text);
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 160ms,
+    transform 160ms var(--ease),
+    color 140ms;
+}
+
+.tiles-5 .tile-state {
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+}
+
+.tile:hover .tile-state,
+.tile .tile-state:focus-visible,
+.tile .tile-state.busy,
+.tile .tile-state.saved,
+.tile .tile-state.error {
+  opacity: 1;
+  transform: none;
+}
+
+.tile .tile-state:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.tile .tile-state.saved {
+  color: var(--accent);
+}
+
+.tile .tile-state.error {
+  color: var(--danger);
+}
+
+@media (hover: hover) {
+  .tile:hover .tile-thumb img {
+    transform: scale(1.04);
+  }
+}
+
+@media (hover: none) {
+  .tile .tile-state {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .search-empty .icon {
@@ -317,8 +514,17 @@
     max-width: none;
   }
 
-  .segmented {
+  .search-controls {
+    width: 100%;
+  }
+
+  .segmented.sort {
+    flex: 1;
     width: auto;
+  }
+
+  .segmented.layouts {
+    grid-auto-columns: 40px;
   }
 
   .result {
@@ -338,7 +544,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .spinner,
-  .result-state > .ring.spin {
+  .state-btn > .ring.spin {
     animation-duration: 1.4s !important;
     animation-iteration-count: infinite !important;
   }

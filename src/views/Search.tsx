@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { downloadAll, downloadTrack, health, HelperError, search, useDownloads, type DownloadState } from '../lib/helper.ts'
 import { formatTime } from '../lib/format.ts'
 import { useLibrary } from '../lib/library.ts'
@@ -29,6 +29,114 @@ function statusOf(e: unknown): Status {
   return 'failed'
 }
 
+// ── Layouts ──────────────────────────────────────────────────────────────
+
+/** 'list' is rows; a number is tiles per row. Phones and desktops each remember their own choice. */
+type Layout = 'list' | 1 | 2 | 3 | 5
+const LAYOUTS = { phone: ['list', 1, 2], desktop: ['list', 1, 3, 5] } satisfies Record<string, Layout[]>
+const DEFAULT: Record<Device, Layout> = { phone: 1, desktop: 3 }
+type Device = keyof typeof LAYOUTS
+
+const phoneQuery = matchMedia('(max-width: 899px)')
+const useDevice = (): Device =>
+  useSyncExternalStore(
+    (change) => (phoneQuery.addEventListener('change', change), () => phoneQuery.removeEventListener('change', change)),
+    () => (phoneQuery.matches ? 'phone' : 'desktop'),
+  )
+
+const layoutKey = (device: Device) => `luma-search-layout-${device}`
+
+function readLayout(device: Device): Layout {
+  try {
+    const saved = localStorage.getItem(layoutKey(device))
+    const layout = saved === 'list' ? saved : Number(saved)
+    if ((LAYOUTS[device] as Layout[]).includes(layout as Layout)) return layout as Layout
+  } catch {}
+  return DEFAULT[device]
+}
+
+function useLayout(): [Layout, (layout: Layout) => void, Device] {
+  const device = useDevice()
+  const [chosen, setChosen] = useState<Partial<Record<Device, Layout>>>({})
+  const layout = chosen[device] ?? readLayout(device)
+  const set = (next: Layout) => {
+    setChosen((c) => ({ ...c, [device]: next }))
+    try {
+      localStorage.setItem(layoutKey(device), String(next))
+    } catch {}
+  }
+  return [layout, set, device]
+}
+
+const LAYOUT_LABELS: Record<string, string> = { list: 'List', 1: 'Large tiles', 2: 'Two per row', 3: 'Three per row', 5: 'Five per row' }
+
+/** Filled 24×24 glyphs, drawn here so the shared icon set stays small. */
+function LayoutGlyph({ layout }: { layout: Layout }) {
+  const box = (x: number, y: number, w: number, h: number, r = 1.5) => <rect key={`${x},${y}`} x={x} y={y} width={w} height={h} rx={r} />
+  const grid = (n: number, size: number, gap: number) => {
+    const start = (24 - (n * size + (n - 1) * gap)) / 2
+    const cells: ReactNode[] = []
+    for (let row = 0; row < n; row++) for (let col = 0; col < n; col++) cells.push(box(start + col * (size + gap), start + row * (size + gap), size, size, size / 4))
+    return cells
+  }
+  const shapes =
+    layout === 'list'
+      ? [3.5, 10, 16.5].flatMap((y) => [box(3, y, 4, 4, 1.2), box(9.5, y + 1, 11.5, 2, 1)])
+      : layout === 1
+        ? [box(3, 4, 18, 11, 2.5), box(3, 17.5, 12, 2.5, 1.25)]
+        : layout === 2
+          ? grid(2, 8, 2.5)
+          : layout === 3
+            ? grid(3, 5, 2)
+            : grid(4, 3.5, 1.5)
+  return (
+    <svg className="icon" width={20} height={20} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      {shapes}
+    </svg>
+  )
+}
+
+/** A segmented control: one thumb that slides between equal segments. */
+function Segmented<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+  render,
+  className = '',
+}: {
+  label: string
+  options: readonly T[]
+  value: T
+  onChange: (value: T) => void
+  render: (option: T) => { content: ReactNode; label?: string }
+  className?: string
+}) {
+  const index = Math.max(0, options.indexOf(value))
+  const style = { '--n': options.length, '--i': index } as CSSProperties
+  return (
+    <div className={`segmented ${className}`} role="radiogroup" aria-label={label} style={style}>
+      <span className="segmented-thumb" aria-hidden="true" />
+      {options.map((option) => {
+        const { content, label: name } = render(option)
+        return (
+          <button key={option} type="button" role="radio" aria-checked={option === value} aria-label={name} onClick={() => onChange(option)}>
+            {content}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+const SORTS: { value: SearchSort; label: string }[] = [
+  { value: 'relevance', label: 'Relevant' },
+  { value: 'recent', label: 'Recent' },
+  { value: 'popular', label: 'Popular' },
+]
+
+// ── Screen ───────────────────────────────────────────────────────────────
+
 export function Search() {
   const [input, setInput] = useState(last.input)
   const [sort, setSort] = useState(last.sort)
@@ -36,6 +144,7 @@ export function Search() {
   const [status, setStatus] = useState<Status>(last.status)
   const abort = useRef<AbortController | null>(null)
   const field = useRef<HTMLInputElement>(null)
+  const [layout, setLayout, device] = useLayout()
 
   useEffect(() => {
     Object.assign(last, { input, sort, response, status: status === 'loading' ? last.status : status })
@@ -118,21 +227,31 @@ export function Search() {
             </button>
           )}
         </label>
-        <div className="segmented" role="radiogroup" aria-label="Sort" data-at={sort}>
-          <span className="segmented-thumb" aria-hidden="true" />
-          {(['relevance', 'recent'] as const).map((by) => (
-            <button key={by} type="button" role="radio" aria-checked={sort === by} onClick={() => changeSort(by)}>
-              {by === 'relevance' ? 'Relevant' : 'Recent'}
-            </button>
-          ))}
+        <div className="search-controls">
+          <Segmented
+            label="Sort"
+            className="sort"
+            options={SORTS.map((s) => s.value)}
+            value={sort}
+            onChange={changeSort}
+            render={(by) => ({ content: SORTS.find((s) => s.value === by)!.label })}
+          />
+          <Segmented
+            label="Layout"
+            className="layouts"
+            options={LAYOUTS[device] as Layout[]}
+            value={layout}
+            onChange={setLayout}
+            render={(l) => ({ content: <LayoutGlyph layout={l} />, label: LAYOUT_LABELS[l] })}
+          />
         </div>
       </form>
-      <Body status={status} response={response} />
+      <Body status={status} response={response} layout={layout} />
     </section>
   )
 }
 
-function Body({ status, response }: { status: Status; response: SearchResponse | null }) {
+function Body({ status, response, layout }: { status: Status; response: SearchResponse | null; layout: Layout }) {
   if (status === 'offline') return <Empty icon="offline" text="Offline" />
   if (status === 'missing') return <Empty icon="alert" text="Install yt-dlp" />
   if (status === 'failed') return <Empty text="No results" />
@@ -141,11 +260,19 @@ function Body({ status, response }: { status: Status; response: SearchResponse |
   return (
     <div className={`search-results${status === 'loading' ? ' stale' : ''}`}>
       {response.playlist !== undefined && <PlaylistHead title={response.playlist} results={response.results} />}
-      <ul className="results">
-        {response.results.map((r) => (
-          <Row key={r.id} result={r} />
-        ))}
-      </ul>
+      {layout === 'list' ? (
+        <ul className="results">
+          {response.results.map((r) => (
+            <Row key={r.id} result={r} />
+          ))}
+        </ul>
+      ) : (
+        <ul className={`tiles tiles-${layout}`}>
+          {response.results.map((r) => (
+            <Tile key={r.id} result={r} small={layout === 5} />
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
@@ -173,7 +300,8 @@ function PlaylistHead({ title, results }: { title: string; results: SearchResult
   )
 }
 
-function Row({ result }: { result: SearchResult }) {
+/** What a row or tile shows and does: tap to play if saved, else download and then play. */
+function useResult(result: SearchResult) {
   const saved = useLibrary((s) => Boolean(s.tracks[result.id]))
   const state = useDownloads((s) => s[result.id])
   const current = usePlayer((s) => s.queue.ids[s.queue.index] === result.id)
@@ -203,11 +331,28 @@ function Row({ result }: { result: SearchResult }) {
     if (state === undefined || state === 'error') void download()
   }
 
+  return { saved, state, current, title, artist, open, press }
+}
+
+function Thumb({ id, small }: { id: string; small: boolean }) {
+  return (
+    <img
+      src={`/api/cover/${id}${small ? '?small=1' : ''}`}
+      alt=""
+      loading="lazy"
+      draggable={false}
+      onError={(e) => (e.currentTarget.style.opacity = '0')}
+    />
+  )
+}
+
+function Row({ result }: { result: SearchResult }) {
+  const { saved, state, current, title, artist, open, press } = useResult(result)
   return (
     <li className={`result${current ? ' current' : ''}`}>
       <button type="button" className="result-main" onClick={open}>
         <span className="result-art">
-          <img src={`/api/cover/${result.id}`} alt="" loading="lazy" draggable={false} onError={(e) => (e.currentTarget.style.opacity = '0')} />
+          <Thumb id={result.id} small />
         </span>
         <span className="result-text">
           <span className="result-title ellipsis">{title}</span>
@@ -220,18 +365,48 @@ function Row({ result }: { result: SearchResult }) {
   )
 }
 
-function StateButton({ saved, state, onClick }: { saved: boolean; state: DownloadState | undefined; onClick: (e: MouseEvent) => void }) {
+function Tile({ result, small }: { result: SearchResult; small: boolean }) {
+  const { saved, state, current, title, artist, open, press } = useResult(result)
+  return (
+    <li className={`tile${current ? ' current' : ''}`}>
+      <button type="button" className="tile-main" onClick={open}>
+        <span className="tile-thumb">
+          <Thumb id={result.id} small={small} />
+          {result.duration > 0 && <span className="tile-time">{formatTime(result.duration)}</span>}
+        </span>
+        <span className="tile-title">{title}</span>
+        {artist && <span className="tile-artist ellipsis">{artist}</span>}
+      </button>
+      <StateButton className="tile-state" size={20} saved={saved} state={state} onClick={press} />
+    </li>
+  )
+}
+
+function StateButton({
+  saved,
+  state,
+  onClick,
+  className = 'result-state',
+  size = 22,
+}: {
+  saved: boolean
+  state: DownloadState | undefined
+  onClick: (e: MouseEvent) => void
+  className?: string
+  size?: number
+}) {
+  const busy = !saved && state !== undefined && state !== 'error'
   const [label, view] = saved
-    ? ['Play', <Icon key="check" name="check" size={22} />]
+    ? ['Play', <Icon key="check" name="check" size={size} />]
     : state === 'error'
-      ? ['Retry', <Icon key="alert" name="alert" size={22} />]
-      : state === undefined
-        ? ['Download', <Icon key="download" name="download" size={22} />]
-        : ['Downloading', <Ring key="ring" progress={state} />]
+      ? ['Retry', <Icon key="alert" name="alert" size={size} />]
+      : busy
+        ? ['Downloading', <Ring key="ring" progress={state} size={size} />]
+        : ['Download', <Icon key="download" name="download" size={size} />]
   return (
     <button
       type="button"
-      className={`icon-btn result-state${saved ? ' saved' : ''}${state === 'error' ? ' error' : ''}`}
+      className={`icon-btn state-btn ${className}${saved ? ' saved' : ''}${state === 'error' ? ' error' : ''}${busy ? ' busy' : ''}`}
       aria-label={label}
       onClick={onClick}
     >
@@ -243,13 +418,13 @@ function StateButton({ saved, state, onClick }: { saved: boolean; state: Downloa
 const R = 9.5
 const C = 2 * Math.PI * R
 
-function Ring({ progress }: { progress: number | null }) {
+function Ring({ progress, size }: { progress: number | null; size: number }) {
   const indeterminate = progress === null
   return (
     <svg
       className={`ring${indeterminate ? ' spin' : ''}`}
-      width={22}
-      height={22}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       role="progressbar"
       aria-valuemin={0}

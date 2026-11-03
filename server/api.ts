@@ -11,6 +11,7 @@ import { pipeline } from 'node:stream/promises'
 import type { ApiError, Health, SearchResponse, SearchResult } from '../src/types.ts'
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/
+const SORTS = ['relevance', 'recent', 'popular']
 const YOUTUBE_HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be']
 const AUDIO_TYPES: Record<string, string> = {
   '.m4a': 'audio/mp4',
@@ -55,7 +56,7 @@ async function route(req: IncomingMessage, res: ServerResponse, url: URL): Promi
   const [, kind, id = ''] = /^\/api\/(audio|cover)\/([^/]*)$/.exec(url.pathname) ?? []
   if (!kind) throw new Fail(404, 'not-found')
   if (!VIDEO_ID.test(id)) throw new Fail(400, 'bad-request')
-  return kind === 'audio' ? audio(res, id) : cover(res, id)
+  return kind === 'audio' ? audio(res, id) : cover(res, id, url.searchParams.get('small') === '1')
 }
 
 function json(res: ServerResponse, status: number, body: unknown): void {
@@ -92,11 +93,19 @@ async function search(params: URLSearchParams): Promise<SearchResponse> {
   const q = params.get('q')?.trim() ?? ''
   const sort = params.get('sort') ?? 'relevance'
   const isUrl = /^https?:\/\//i.test(q)
-  if (!q || q.length > 500 || (sort !== 'relevance' && sort !== 'recent')) throw new Fail(400, 'bad-request')
+  if (!q || q.length > 500 || !SORTS.includes(sort)) throw new Fail(400, 'bad-request')
   if (isUrl && !YOUTUBE_HOSTS.includes(URL.parse(q)?.hostname ?? '')) throw new Fail(400, 'bad-request')
 
-  const target = isUrl ? q : `${sort === 'recent' ? 'ytsearchdate30' : 'ytsearch30'}:${q}`
-  const args = ['--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', '200', '--', target]
+  // yt-dlp has no search prefix for view count, but it reads a results page with YouTube's own sort
+  // parameter. `sp` is double-encoded, as in YouTube's own links and yt-dlp's tests ("CAM=" is by views).
+  const popular = !isUrl && sort === 'popular'
+  const target = isUrl
+    ? q
+    : popular
+      ? `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&sp=CAM%253D`
+      : `${sort === 'recent' ? 'ytsearchdate30' : 'ytsearch30'}:${q}`
+  const end = popular ? '30' : '200' // a results page scrolls forever; match the other searches
+  const args = ['--flat-playlist', '--dump-single-json', '--no-warnings', '--playlist-end', end, '--', target]
   const { stdout, stderr } = await ytdlp(args, 30_000).done
   let info: Info
   try {
@@ -152,8 +161,9 @@ async function audio(res: ServerResponse, id: string): Promise<void> {
   }
 }
 
-async function cover(res: ServerResponse, id: string): Promise<void> {
-  for (const size of ['maxresdefault', 'hqdefault']) {
+/** The video thumbnail: the largest one, or with `small` 320×180 for lists and dense grids. */
+async function cover(res: ServerResponse, id: string, small: boolean): Promise<void> {
+  for (const size of small ? ['mqdefault', 'hqdefault'] : ['maxresdefault', 'hqdefault']) {
     const r = await fetch(`https://i.ytimg.com/vi/${id}/${size}.jpg`, { signal: AbortSignal.timeout(15_000) })
     if (!r.ok) continue
     const body = Buffer.from(await r.arrayBuffer())

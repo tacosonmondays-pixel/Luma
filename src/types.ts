@@ -34,7 +34,7 @@ export interface Background {
 
 // ── Helper API (server/api.ts) ──────────────────────────────────────────
 
-export type SearchSort = 'relevance' | 'recent'
+export type SearchSort = 'relevance' | 'recent' | 'popular'
 
 export interface SearchResult {
   id: string // 11-character YouTube video id
