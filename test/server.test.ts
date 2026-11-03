@@ -153,7 +153,7 @@ describe('search', () => {
     const r = await search({ q: 'daft punk & co', sort: 'popular' })
     expect(r.status).toBe(200)
     expect(calls()).toEqual([
-      [...flags.slice(0, 5), '30', '--', 'https://www.youtube.com/results?search_query=daft%20punk%20%26%20co&sp=CAM%253D'],
+      [...flags.slice(0, -2), '30', '--', 'https://www.youtube.com/results?search_query=daft%20punk%20%26%20co&sp=CAM%253D'],
     ])
     expect(await r.json()).toEqual({ results: [{ id: 'dQw4w9WgXcQ', title: 'Never Gonna', channel: 'Rick', duration: 212 }] })
   })
