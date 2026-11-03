@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 // 24×24 icons. Filled glyphs for transport controls, 2px strokes for everything else.
-// pin, unpin (pin-off), film, sparkles, none (ban) and tick (check) are Lucide paths (ISC, licenses/lucide.txt).
+// pin, unpin (pin-off), film, sparkles, none (ban), tick (check) and share are Lucide paths (ISC, licenses/lucide.txt).
 const filled = {
   play: <path d="M7.5 5.1v13.8a1 1 0 0 0 1.53.85l10.9-6.9a1 1 0 0 0 0-1.7L9.03 4.25A1 1 0 0 0 7.5 5.1Z" />,
   pause: (
@@ -48,6 +48,7 @@ const stroked = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  share: <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8M16 6l-4-4-4 4M12 2v13" />,
   close: <path d="M18 6 6 18M6 6l12 12" />,
   'chevron-down': <path d="m6 9 6 6 6-6" />,
   'chevron-right': <path d="m9 6 6 6-6 6" />,

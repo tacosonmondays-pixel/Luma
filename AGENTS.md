@@ -2,13 +2,15 @@
 
 A personal music player. A React web app (installed to the iPhone Home Screen, also works on desktop) plus a tiny helper server that runs on the owner's computer, serves the app, and uses the owner's installed `yt-dlp` to search YouTube and fetch audio. Songs are saved on the device (IndexedDB) and play offline.
 
+An optional server on Supabase adds sign-in (6-digit email codes), library backup and sync, and public profile pages at `/u/<handle>`. Writes are invite-only. Signed out or offline, everything works as before. `docs/server.md` is the contract (schema, policies, RPCs, storage); `supabase/README.md` is the owner's setup.
+
 Two modes, chosen in one place (`src/lib/source.ts`): if `${BASE_URL}api/health` answers, the helper searches and downloads (helper mode). Otherwise (GitHub Pages, iPhone only) search uses the YouTube Data API v3 with the owner's key, and downloads go through the "Save to Luma" iOS Shortcut (yt-dlp in a-Shell); the files come back in through Import (phone mode).
 
 ## Commands
 
 - `npm run dev` — app and API on http://localhost:4848 (the API is mounted into Vite's dev server)
 - `npm start` — production build served by the helper (`server/index.ts`)
-- `npm run check` — typecheck, tests, build. CI runs this; keep it green.
+- `npm run check` — typecheck, tests, build. CI runs this; keep it green. Includes the database tests (`test/db/`), which run `supabase/migrations/0001_luma.sql` on PGlite with stubbed Supabase roles, auth and storage.
 - `LUMA_BASE=/Luma/ npx vite build` — the GitHub Pages build (`.github/workflows/pages.yml` deploys it from main). It also writes `dist/404.html` for deep links.
 
 Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper uses). Never hard-code `/`: app paths go through `router.ts` (`href`, `navigate`, `usePath` strip and add the base), other URLs use `import.meta.env.BASE_URL`, `public/sw.js` works relative to its scope, and the manifest uses relative URLs.
@@ -25,14 +27,16 @@ Base path: Vite's `base` comes from `LUMA_BASE` (default `/`, which the helper u
   - `appearance.ts` theme, cover colors, player style (localStorage) · `palette.ts` accent and wash from cover art
   - `media.ts` profile and canvas media: resize, stills, animation detection, size caps · `gif.ts` + `gif.worker.ts` video → GIF
   - `plays.ts` the play log (`luma-plays`) · `stats.ts` On Repeat and badges
-- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`
+  - `supabase.ts` project URL, publishable key, lazy client, `mediaUrl` · `account.ts` session and `profiles` row: sign-in with email codes, invites, handle · `sync.ts` backup and sync (last write wins), profile media, shared plays · `search-link.ts` open Search with a query
+- `src/ui/` — shared components: `Icon`, `Art` (covers, avatar), `kit` (IconButton, Link, pickFiles), `Menu`, `Nav`, `PlayerBar`, `NowPlaying` (Color, Vinyl, Canvas), `Wash`, `Transport`, `Appearance`, `Badges`, `GifMaker`, `Account` (the account rows and sign-in sheet)
   - `ui/profile/` the profile card, editor, frames, effects and name styles · `ui/y2k/` the Y2K theme's extra markup (LCD)
-- `src/views/` — one file per screen: `Songs`, `Playlists`, `Playlist`, `Search`, `You`
+- `src/views/` — one file per screen: `Songs`, `Playlists`, `Playlist`, `Search`, `You`, `User` (someone's public profile, `/u/:handle`)
 - `src/styles/` — `base.css` (tokens, reset, shell), `themes.css` (dark themes), `y2k.css` (the light Y2K theme, all scoped to `[data-theme='y2k']`), and one file per feature (`player.css`, `wash.css`, `library.css`, `search.css`, `profile.css`, `badges.css`, `appearance.css`, `gif.css`), imported by the component that uses it
 - `src/assets/fonts/` — bundled OFL fonts (name styles, the Y2K LCD)
 - `server/` — `api.ts` (connect-style middleware), `index.ts` (production entry, static files), `exe.ts` + `setup.ts` (Windows Luma.exe: embedded app, first-run yt-dlp and Deno)
-- `public/` — manifest, service worker, icons · `test/` — Vitest (`test/fixtures/` media made with ffmpeg)
-- `docs/` — `customization-spec.md` and `mockups/` · `licenses/` — one license file per third-party font, icon set or palette
+- `public/` — manifest, service worker, icons · `test/` — Vitest (`test/fixtures/` media made with ffmpeg, `test/db/` RLS on PGlite, `test/client/` account and sync against a fake supabase-js)
+- `supabase/` — `migrations/0001_luma.sql` (paste into the SQL Editor; idempotent) and `README.md`
+- `docs/` — `server.md` (the server contract), `customization-spec.md` and `mockups/` · `licenses/` — one license file per third-party font, icon set or palette
 
 ## Rules
 
@@ -44,10 +48,12 @@ Design
 - Motion is quick and subtle (press scale, slide, fade) and respects `prefers-reduced-motion`.
 
 Code
-- No new dependencies without a strong reason. State lives in zustand stores; actions are plain exported functions.
+- No new dependencies without a strong reason. (`@supabase/supabase-js` is the one for the server, loaded lazily so signed-out starts never fetch it.) State lives in zustand stores; actions are plain exported functions.
 - Blobs live in IndexedDB under `audio:<id>`, `cover:<id>`, `canvas:<id>` (plus a `canvas-still:<id>` JPEG while it is an animated image), `playlist-cover:<id>`, `background` (the wallpaper), and the profile's `avatar`, `banner`, `backdrop`, each with a `<key>-still` JPEG while it is animated or a video. Metadata stores a version (`Date.now()`) per blob; bump it to replace the blob. The play log lives in its own `luma-plays` store.
+- Song audio is never uploaded, anywhere. The server holds metadata (library sync, pins, plays) and images and videos (the `media` bucket), never audio. A synced song arrives as `Track.missing` (not downloaded) until it is downloaded again. Never stream audio from the server.
+- The server is optional: no local feature may depend on it, and sync must never block or break offline use. Never commit a secret or the service key; the publishable key in `supabase.ts` is public. Schema changes go in a new idempotent `supabase/migrations/000N_….sql` with tests in `test/db/`, and `docs/server.md` changes with them.
 - `server/*.ts` runs under Node's type stripping: erasable syntax only, `.ts` extensions on relative imports, `import type` for types, Node built-ins only.
-- Verify UI changes with screenshots at 393×852 (iPhone) and 1440×900 (desktop). In dev you can seed data from Playwright with `page.evaluate(async () => (await import('/src/lib/library.ts')).addTrack(...))`.
+- Verify UI changes with screenshots at 393×852 (iPhone) and 1440×900 (desktop). For server features, mock Supabase in Playwright with `context.route('https://kbdevcrqrjnqxsfeszbe.supabase.co/**', …)`; the sandbox can't reach supabase.co. In dev you can seed data from Playwright with `page.evaluate(async () => (await import('/src/lib/library.ts')).addTrack(...))`.
 
 iPhone constraints (deliberate; don't "fix" them)
 - No Web Audio in the playback path: it stops audio on the lock screen.

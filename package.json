@@ -14,6 +14,7 @@
     "exe": "node scripts/build-exe.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "gifenc": "1.0.3",
     "idb-keyval": "6.3.0",
     "react": "19.3.1",
@@ -21,6 +22,7 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.15",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

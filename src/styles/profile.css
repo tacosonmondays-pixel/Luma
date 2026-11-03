@@ -127,16 +127,26 @@
   object-fit: cover;
 }
 
-.pc-edit.pill {
+.pc-actions {
   position: absolute;
   top: calc(100cqw / 3 + 12px);
   right: 16px;
   z-index: 6;
+  display: flex;
+  gap: 8px;
+}
+
+.pc-edit.pill {
   height: 34px;
   padding: 0 16px;
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
   font-size: 14px;
+}
+
+.pc-share.pill {
+  width: 34px;
+  padding: 0;
 }
 
 .pc-avatar {
@@ -363,7 +373,7 @@
     margin-left: 24px;
   }
 
-  .pc-edit.pill {
+  .pc-actions {
     top: calc(100cqw / 3 + 16px);
     right: 24px;
   }

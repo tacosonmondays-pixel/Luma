@@ -6,7 +6,13 @@ import './styles/y2k.css'
 // Side-effect modules: the theme/accent wiring and the play log listen from app start.
 import './lib/appearance.ts'
 import './lib/plays.ts'
+import { resumeAccount } from './lib/account.ts'
+import { startSync } from './lib/sync.ts'
 import { App } from './App.tsx'
+
+// The server is optional: with no saved session this loads nothing.
+startSync()
+resumeAccount()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

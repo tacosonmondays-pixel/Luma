@@ -8,12 +8,13 @@ const SHINE_MS = 1000 // the shine is 900 ms; store the tier once it has played
 const TIP_MS = 1600
 
 /** The earned badges as medallions. Tapping one shows its name. */
-export function BadgeRow({ size }: { size: 'card' | 'small' }) {
-  const badges = useBadges()
+export function BadgeRow({ size, badges: given }: { size: 'card' | 'small'; badges?: Badge[] }) {
+  const own = useBadges()
+  const badges = given ?? own
   const [open, setOpen] = useState<BadgeId>()
 
   // New tiers shine once, then are stored so they stay (and don't shine again).
-  const fresh = badges.filter((b) => b.fresh)
+  const fresh = given ? [] : badges.filter((b) => b.fresh)
   const freshKey = fresh.map((b) => `${b.id}:${b.tier}`).join()
   useEffect(() => {
     if (!fresh.length) return

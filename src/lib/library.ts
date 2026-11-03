@@ -66,12 +66,17 @@ export function useReady(): boolean {
 
 /** Save a song. New songs go on top of Songs, or at `at` (to keep a batch in the order it was picked). */
 export async function addTrack(track: Track, audio: Blob, cover?: Blob | null, at = 0): Promise<void> {
-  const isNew = !getState().tracks[track.id]
+  const before = getState().tracks[track.id]
+  const isNew = !before
   try {
     await putBlob(`audio:${track.id}`, audio)
     if (cover) await putBlob(`cover:${track.id}`, cover)
-    const saved: Track = { ...track, cover: cover ? Date.now() : track.cover }
+    // Downloading a synced song again fills it in where it is, keeping its synced name and date.
+    const kept = before?.missing ? { title: before.title, artist: before.artist, addedAt: before.addedAt, canvas: before.canvas, canvasKind: before.canvasKind } : {}
+    const saved: Track = { ...track, ...kept, cover: cover ? Date.now() : (before?.cover ?? track.cover) }
+    delete saved.missing
     setState((s) => {
+      if (before?.missing) return { tracks: { ...s.tracks, [saved.id]: saved } }
       const order = s.order.filter((id) => id !== saved.id)
       order.splice(at, 0, saved.id)
       return { tracks: { ...s.tracks, [saved.id]: saved }, order }
@@ -91,6 +96,25 @@ export async function addTrack(track: Track, audio: Blob, cover?: Blob | null, a
     throw error
   }
   void navigator.storage?.persist?.()
+}
+
+/** In the library with its audio (not just synced metadata). */
+export const isDownloaded = (track: Track | undefined): track is Track => !!track && !track.missing
+
+/** Songs synced from another device, without audio: they show as not downloaded. Each goes where its date puts it. */
+export function addSyncedTracks(list: Track[]): void {
+  if (!list.length) return
+  setState((s) => {
+    const tracks = { ...s.tracks }
+    const order = [...s.order]
+    for (const t of list) {
+      if (tracks[t.id]) continue
+      tracks[t.id] = { ...t, missing: true, cover: undefined, canvas: undefined, canvasKind: undefined }
+      const at = order.findIndex((id) => (tracks[id]?.addedAt ?? 0) < t.addedAt)
+      order.splice(at < 0 ? order.length : at, 0, t.id)
+    }
+    return { tracks, order }
+  })
 }
 
 export async function deleteTrack(id: string): Promise<void> {
@@ -176,6 +200,17 @@ export async function setPlaylistCover(id: string, image: Blob): Promise<void> {
   updatePlaylist(id, (p) => ({ ...p, cover: Date.now() }))
 }
 
+/** A playlist from sync: replaces the one with its id (keeping the local cover), or joins the end. */
+export function putSyncedPlaylist(p: Omit<Playlist, 'cover'>): void {
+  setState((s) => {
+    const i = s.playlists.findIndex((x) => x.id === p.id)
+    if (i < 0) return { playlists: [...s.playlists, { ...p }] }
+    const playlists = [...s.playlists]
+    playlists[i] = { ...playlists[i], ...p }
+    return { playlists }
+  })
+}
+
 export async function deletePlaylist(id: string): Promise<void> {
   setState((s) => ({
     playlists: s.playlists.filter((p) => p.id !== id),
@@ -245,6 +280,11 @@ async function autoColorsOf(profile: Profile, media: Partial<Record<ProfileSlot,
     const blob = picked ? (picked.still ?? picked.blob) : ((await getBlob(`${slot}-still`)) ?? (await getBlob(slot)))
     if (blob) return imageColors(blob).catch(() => undefined)
   }
+}
+
+/** The profile from sync. Its media blobs are already stored under the versions it names. */
+export function replaceProfile(profile: Profile): void {
+  setState({ profile })
 }
 
 /** Pins a song to the top of the profile; a sixth pin drops the last. Pinning again moves it to the top. */

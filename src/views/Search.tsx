@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type MouseEvent, type ReactNode } from 'react'
 import { useDownloads, type DownloadState } from '../lib/helper.ts'
 import { formatTime } from '../lib/format.ts'
-import { useLibrary } from '../lib/library.ts'
+import { isDownloaded, useLibrary } from '../lib/library.ts'
 import { playTracks, usePlayer } from '../lib/player.ts'
 import { detect, downloadAll, downloadTrack, importDownloads, problemOf, search, thumbnails, useSource, type Problem } from '../lib/source.ts'
+import { askedSearch, clearSearch } from '../lib/search-link.ts'
 import { cleanTitle } from '../lib/titles.ts'
 import { Icon, type IconName } from '../ui/Icon.tsx'
 import { Link, pickFiles } from '../ui/kit.tsx'
@@ -101,7 +102,8 @@ const SORTS: { value: SearchSort; label: string }[] = [
 // ── Screen ───────────────────────────────────────────────────────────────
 
 export function Search() {
-  const [input, setInput] = useState(last.input)
+  const [asked] = useState(askedSearch)
+  const [input, setInput] = useState(asked ?? last.input)
   const [sort, setSort] = useState(last.sort)
   const [response, setResponse] = useState(last.response)
   const [status, setStatus] = useState<Status>(last.status)
@@ -115,6 +117,11 @@ export function Search() {
 
   // With nothing on screen yet, look for the helper (or the YouTube key) so a problem shows up before the first search.
   useEffect(() => {
+    if (asked) {
+      clearSearch()
+      void run(asked, sort)
+      return () => abort.current?.abort()
+    }
     if (last.response || last.status === 'loading') return
     let live = true
     // A search answers for itself; a late check must not replace its outcome.
@@ -268,7 +275,7 @@ function Empty({ icon, text }: { icon?: IconName; text: string }) {
 function PlaylistHead({ title, results }: { title: string; results: SearchResult[] }) {
   const tracks = useLibrary((s) => s.tracks)
   const downloads = useDownloads()
-  const left = results.some((r) => !tracks[r.id] && (downloads[r.id] === undefined || downloads[r.id] === 'error'))
+  const left = results.some((r) => !isDownloaded(tracks[r.id]) && (downloads[r.id] === undefined || downloads[r.id] === 'error'))
   return (
     <div className="search-playlist">
       <h2 className="ellipsis">{title || 'Playlist'}</h2>
@@ -281,7 +288,7 @@ function PlaylistHead({ title, results }: { title: string; results: SearchResult
 
 /** What a row or tile shows and does: tap to play if saved, else download and then play. */
 function useResult(result: SearchResult) {
-  const saved = useLibrary((s) => Boolean(s.tracks[result.id]))
+  const saved = useLibrary((s) => isDownloaded(s.tracks[result.id]))
   const state = useDownloads((s) => s[result.id])
   const current = usePlayer((s) => s.queue.ids[s.queue.index] === result.id)
   const { title, artist } = cleanTitle(result.title, result.channel)
