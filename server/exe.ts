@@ -24,8 +24,17 @@ async function main() {
     }
     process.env.LUMA_YTDLP ||= ytdlp
     process.env.LUMA_JS_RUNTIME ||= `deno:${deno}`
-    // Keep yt-dlp current: YouTube changes often. It replaces itself when done.
-    spawn(ytdlp, ['-U'], { stdio: 'ignore', windowsHide: true }).on('error', () => {})
+    // Keep yt-dlp current: YouTube changes often. It replaces its own file, so wait (20 s at most) before serving:
+    // a download started meanwhile could find yt-dlp half replaced.
+    await new Promise<void>((done) => {
+      const timer = setTimeout(done, 20_000)
+      spawn(ytdlp, ['-U'], { stdio: 'ignore', windowsHide: true })
+        .on('error', () => done())
+        .on('close', () => {
+          clearTimeout(timer)
+          done()
+        })
+    })
   }
 
   const { server } = await import('./index.ts')

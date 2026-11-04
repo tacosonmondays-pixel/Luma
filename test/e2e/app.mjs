@@ -94,7 +94,9 @@ const FAKE_GIS = `window.google = { accounts: { oauth2: {
 } } }`
 
 async function newContext({ helper, google = false, key = true }) {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } })
+  // Without the helper, Luma is an iPhone's (phone mode only exists where the Shortcut runs).
+  const iphone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...(helper ? {} : { userAgent: iphone }) })
   await context.addInitScript((k) => k && localStorage.setItem('luma-youtube-key', k), key ? 'KEY' : '')
   await context.route('https://www.googleapis.com/youtube/v3/**', googleapis)
   await context.route('https://i.ytimg.com/**', (r) => r.fulfill({ contentType: 'image/jpeg', body: thumb }))

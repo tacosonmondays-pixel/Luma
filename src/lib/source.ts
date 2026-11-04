@@ -23,22 +23,43 @@ export const useSource = create<SourceState>()(() => ({ mode: null, importing: f
 
 const BASE = import.meta.env.BASE_URL
 
-/** Look for the helper. Resolves to the problem to show before any search, if there is one. */
+/** Whether this device can run the "Save to Luma" Shortcut: iPhone and iPad (Safari, Home Screen, the iOS app). */
+const canRunShortcuts = () =>
+  location.protocol === 'luma:' ||
+  /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPadOS asks for desktop sites
+
+/**
+ * Look for the helper. Resolves to the problem to show before any search, if there is one. Without the helper,
+ * only an iPhone or iPad turns to phone mode; anywhere else (a PC whose tab opened before Luma.exe did) the helper
+ * is just offline, and the next search or download looks for it again.
+ */
 export async function detect(): Promise<Problem | null> {
   try {
     const h = await helper.health()
     useSource.setState({ mode: 'helper' })
     return h.ytdlp ? null : 'missing'
   } catch {
+    if (!canRunShortcuts()) {
+      useSource.setState({ mode: null })
+      return 'offline'
+    }
     useSource.setState({ mode: 'phone' })
     return youtube.useYouTubeKey.getState().trim() ? null : 'key'
   }
 }
 
+/** The mode, looking for the helper first if it isn't known. Off an iPhone, a missing helper is 'helper' (whose
+ *  calls then fail as offline) rather than phone mode, so a download never goes to a Shortcut that can't run. */
 export async function mode(): Promise<Mode> {
   if (!useSource.getState().mode) await detect()
-  return useSource.getState().mode!
+  return useSource.getState().mode ?? 'helper'
 }
+
+// A PC tab left in phone mode by an older version, or a phone that moved: look again when the app shows.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && useSource.getState().mode !== 'helper' && !canRunShortcuts()) void detect()
+})
 
 export function problemOf(e: unknown): Problem {
   if (e instanceof helper.HelperError) return e.code === 'offline' ? 'offline' : e.code === 'ytdlp-missing' ? 'missing' : 'failed'
@@ -89,7 +110,7 @@ export async function importDownloads(files: File[]): Promise<void> {
  * Shortcut and resolves false: the song arrives later through Import.
  */
 export function downloadTrack(result: SearchResult): Promise<boolean> {
-  if (useSource.getState().mode === 'phone') {
+  if (useSource.getState().mode === 'phone' && canRunShortcuts()) {
     runShortcut(`https://www.youtube.com/watch?v=${result.id}`)
     return Promise.resolve(false)
   }
@@ -98,7 +119,7 @@ export function downloadTrack(result: SearchResult): Promise<boolean> {
 
 /** Download every result of a playlist. `query` is the playlist link that was searched. */
 export function downloadAll(results: SearchResult[], query: string): void {
-  if (useSource.getState().mode === 'phone') {
+  if (useSource.getState().mode === 'phone' && canRunShortcuts()) {
     const list = youtube.parseLink(query)?.list
     if (list) return runShortcut(`https://www.youtube.com/playlist?list=${list}`)
   }

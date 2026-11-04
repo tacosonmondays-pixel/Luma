@@ -4,7 +4,7 @@ A personal music player. A React web app (installed to the iPhone Home Screen, a
 
 An optional server on Supabase adds sign-in (6-digit email codes), library backup and sync, and public profile pages at `/u/<handle>`. Writes are invite-only. Signed out or offline, everything works as before. `docs/server.md` is the contract (schema, policies, RPCs, storage); `supabase/README.md` is the owner's setup.
 
-Two modes, chosen in one place (`src/lib/source.ts`): if `${BASE_URL}api/health` answers, the helper searches and downloads (helper mode). Otherwise (GitHub Pages, iPhone only) search uses the YouTube Data API v3 with the owner's key, and downloads go through the "Save to Luma" iOS Shortcut (yt-dlp in a-Shell); the files come back in through Import (phone mode).
+Two modes, chosen in one place (`src/lib/source.ts`): if `${BASE_URL}api/health` answers, the helper searches and downloads (helper mode). Otherwise (GitHub Pages, iPhone only) search uses the YouTube Data API v3 with the owner's key, and downloads go through the "Save to Luma" iOS Shortcut (yt-dlp in a-Shell); the files come back in through Import (phone mode). Phone mode only exists where the Shortcut runs (iPhone, iPad, the iOS app): on a PC, a missing helper is offline, and the next search or download looks for it again.
 
 ## Commands
 
