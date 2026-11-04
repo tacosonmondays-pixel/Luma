@@ -6,6 +6,8 @@ const CACHE = 'luma-v1'
 const ROOT = new URL(self.registration.scope).pathname
 const ASSETS = ROOT + 'assets/'
 const PAGES = ['get/', 'terms/', 'privacy/'].map((p) => ROOT + p)
+// Served by Luma.exe or `npm start` on this computer: the newest build is a local request away.
+const LOCAL = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname)
 const FILES = ['manifest.webmanifest', 'icon.svg', 'icon-180.png', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'].map((f) => ROOT + f)
 
 self.addEventListener('install', (event) => {
@@ -28,7 +30,7 @@ self.addEventListener('fetch', (event) => {
   if (page) event.respondWith(networkFirst(page + 'index.html'))
   else if (PAGES.includes(url.pathname + '/')) event.respondWith(Response.redirect(url.pathname + '/' + url.search, 301))
   else if (url.pathname.startsWith(ASSETS)) event.respondWith(cacheFirst(request))
-  else if (request.mode === 'navigate') event.respondWith(openShell(event))
+  else if (request.mode === 'navigate') event.respondWith(LOCAL ? openFresh(event) : openShell(event))
   else event.respondWith(staleWhileRevalidate(event))
 })
 
@@ -46,6 +48,15 @@ async function cacheFirst(request) {
 // Every page opens the cached shell without waiting for the network. A new build is fetched for the next launch.
 async function openShell(event) {
   event.waitUntil(cacheShell().catch(() => {}))
+  return (await caches.match(ROOT)) ?? fetch(event.request)
+}
+
+// From the helper on this computer, a page waits (3 s at most) for the newest build, so an updated Luma.exe never
+// opens its previous build first. Without the helper, the cached shell.
+async function openFresh(event) {
+  const shell = cacheShell()
+  event.waitUntil(shell.catch(() => {}))
+  await Promise.race([shell, new Promise((resolve) => setTimeout(resolve, 3000))]).catch(() => {})
   return (await caches.match(ROOT)) ?? fetch(event.request)
 }
 
