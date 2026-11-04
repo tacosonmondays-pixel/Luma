@@ -9,10 +9,10 @@ import { usePlayer } from './player.ts'
 import { playlistOf } from './shelves.ts'
 import type { SearchSort } from '../types.ts'
 
-export type BuiltinShelf = 'continue' | 'quick' | 'jump' | 'repeat' | 'mix' | 'artists' | 'saved' | 'playlists'
+export type BuiltinShelf = 'continue' | 'quick' | 'jump' | 'repeat' | 'mix' | 'artists' | 'friends' | 'friends-new' | 'saved' | 'playlists'
 
-/** The default order. */
-export const BUILTIN: BuiltinShelf[] = ['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'saved', 'playlists']
+/** The default order. The YouTube shelves come first; the social ones (members only) follow them. */
+export const BUILTIN: BuiltinShelf[] = ['continue', 'quick', 'jump', 'repeat', 'mix', 'artists', 'friends', 'friends-new', 'saved', 'playlists']
 
 export const BUILTIN_TITLES: Record<BuiltinShelf, string> = {
   continue: 'Continue',
@@ -21,6 +21,8 @@ export const BUILTIN_TITLES: Record<BuiltinShelf, string> = {
   repeat: 'On Repeat',
   mix: 'Mix',
   artists: 'New from Your Artists',
+  friends: 'Friends Are Listening To',
+  'friends-new': 'New from Friends',
   saved: 'Recently Saved',
   playlists: 'Your Playlists',
 }

@@ -1,0 +1,758 @@
+/* The social screens: post cards and the profile grid (Post.tsx), people (People.tsx), the Viewer, the New Post
+   sheet (Composer.tsx), Reports, the Follow pill and Search's Luma row. Tokens only, and nothing blurs. */
+
+/* ── Post cards ────────────────────────────────────────────────────── */
+
+.post-face {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--fill);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+
+.post-face img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.post-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
+  margin: 12px;
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A film or note on a dark circle: what a card holds beyond its picture. */
+.post-badge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.post-badge-top {
+  top: 8px;
+  right: 8px;
+}
+
+.post-badge-bottom {
+  right: 8px;
+  bottom: 8px;
+}
+
+.post-author {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+@media (hover: hover) {
+  .post-face img {
+    transition: transform 320ms var(--ease);
+  }
+
+  .post-card:hover .post-face img {
+    transform: scale(1.04);
+  }
+}
+
+/* A profile's posts: three across on phones, as many as fit on desktop. */
+.post-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.post-grid .post-face {
+  margin: 0;
+  border-radius: var(--r-s);
+  box-shadow: none;
+}
+
+.post-grid .post-text {
+  margin: 8px;
+  font-size: 13px;
+}
+
+.post-grid .post-badge {
+  width: 24px;
+  height: 24px;
+}
+
+.post-grid .post-badge-top {
+  top: 6px;
+  right: 6px;
+}
+
+.post-grid .post-badge-bottom {
+  right: 6px;
+  bottom: 6px;
+}
+
+/* While a profile's sections load: the grid's outline. */
+.post-ghosts .post-face {
+  box-shadow: none;
+}
+
+@media (min-width: 900px) {
+  .post-grid {
+    grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+    gap: 12px;
+  }
+
+  .post-grid .post-face {
+    border-radius: var(--r);
+  }
+
+  .post-grid .post-text {
+    margin: 12px;
+    font-size: 15px;
+  }
+}
+
+/* A profile's sections under the card: Listening To, then Posts. */
+.user-sections {
+  display: grid;
+  gap: 32px;
+  margin-top: 28px;
+  animation: social-in 200ms var(--ease) both;
+}
+
+/* ── People ────────────────────────────────────────────────────────── */
+
+.person-card {
+  align-items: center;
+  text-align: center;
+}
+
+.person-card .art.round {
+  margin-bottom: 8px;
+  border-radius: 50%; /* over .card .art's corners */
+}
+
+.person-card .card-title {
+  max-width: 100%;
+}
+
+/* Friends who played a song, over its thumbnail's lower left. */
+.faces {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  display: flex;
+}
+
+.faces .art {
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.faces .art + .art {
+  margin-left: -6px;
+}
+
+.faces .avatar-initial {
+  font-size: 10px;
+}
+
+.sheet.people-sheet,
+.sheet.reports-sheet {
+  max-height: min(86dvh, 720px);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.person-row {
+  padding-right: 12px;
+}
+
+.people-sheet li + li {
+  margin-top: 4px;
+}
+
+/* A nameplate keeps its pattern under the pointer, as in the sidebar. */
+@media (hover: hover) {
+  .person-row.plate:hover {
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16);
+  }
+}
+
+.person-row .nameplate {
+  gap: 0;
+}
+
+/* ── Profile card actions ──────────────────────────────────────────── */
+
+.pc-follow.pill {
+  min-width: 96px;
+  animation: social-in 200ms var(--ease) both;
+  transition:
+    background 160ms var(--ease),
+    color 160ms var(--ease),
+    transform 140ms var(--ease),
+    filter 140ms;
+}
+
+.pc-follow.pill[aria-pressed='false'] {
+  background: #fff;
+  color: #0a0a0c;
+}
+
+.pc-follow.wrong {
+  animation: sheet-shake 320ms var(--ease);
+}
+
+/* ── Search's Luma row ─────────────────────────────────────────────── */
+
+.luma-results {
+  margin-bottom: 28px;
+  animation: social-in 160ms var(--ease) both;
+}
+
+.luma-results .person-card,
+.luma-results .post-card {
+  min-width: 0;
+}
+
+/* ── Viewer ────────────────────────────────────────────────────────── */
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--bg);
+  color: var(--text);
+  animation: sheet-up 380ms var(--ease);
+}
+
+.viewer-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  padding: 0 var(--safe-right) calc(var(--safe-bottom) + 20px) var(--safe-left);
+  outline: none;
+}
+
+.viewer-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 56px;
+  padding: calc(var(--safe-top) + 6px) 8px 6px 16px;
+  background: var(--bg);
+}
+
+.viewer-author {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  font-weight: 600;
+  border-radius: var(--r-s);
+}
+
+.viewer-body {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.viewer-video {
+  --viewer-max: calc(100dvh - 220px);
+  display: grid;
+  place-items: center;
+  background: #000;
+}
+
+/* The video and its buttons. Once the picture's shape is known (--ar), the frame is exactly the picture, so the
+   buttons sit on it rather than on the black bars beside or above it. */
+.viewer-frame {
+  position: relative;
+  width: 100%;
+}
+
+.viewer-frame.sized {
+  width: min(100%, var(--viewer-max) * var(--ar));
+  aspect-ratio: var(--ar);
+}
+
+.viewer-video video {
+  display: block;
+  width: 100%;
+  max-height: var(--viewer-max);
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.viewer-frame.sized video {
+  height: 100%;
+}
+
+.viewer button.viewer-sound.icon-btn,
+.viewer button.viewer-step.icon-btn {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff; /* on the picture, in every theme (over y2k.css .icon-btn) */
+}
+
+.viewer button.viewer-sound.icon-btn {
+  right: 12px;
+  bottom: 12px;
+}
+
+.viewer button.viewer-sound.icon-btn:hover,
+.viewer button.viewer-step.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+}
+
+/* Play (reduced motion, or a refused autoplay) and Can't Play, in the middle of the poster. */
+.viewer-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin: auto;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+}
+
+.viewer-play {
+  transition: transform 140ms var(--ease);
+}
+
+.viewer-play:active {
+  transform: scale(0.92);
+}
+
+.viewer-play .icon {
+  margin-left: 3px;
+}
+
+.viewer-images {
+  position: relative;
+}
+
+.viewer-strip {
+  display: flex;
+  width: 100%;
+  aspect-ratio: 1;
+  max-height: calc(100dvh - 220px);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  background: var(--fill);
+}
+
+.viewer-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.viewer-slide {
+  flex: none;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.viewer-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.viewer button.viewer-step.icon-btn {
+  display: none;
+  top: calc(50% - 28px);
+}
+
+.viewer-prev {
+  left: 12px;
+}
+
+.viewer-prev .icon {
+  transform: rotate(180deg);
+}
+
+.viewer-next {
+  right: 12px;
+}
+
+@media (hover: hover) {
+  .viewer button.viewer-step.icon-btn {
+    display: inline-grid;
+  }
+}
+
+.viewer-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding-top: 10px;
+}
+
+.viewer-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-3);
+  transition: background 160ms;
+}
+
+.viewer-dots i.on {
+  background: var(--text);
+}
+
+.viewer-text {
+  padding: 0 16px;
+  font-size: 16px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* A post that is only text: the text is the picture. */
+.viewer-text.alone {
+  padding-top: 8px;
+  font-size: 21px;
+  line-height: 1.35;
+}
+
+.viewer-song {
+  padding: 0 8px;
+}
+
+.viewer-song .result {
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .viewer {
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.6);
+    animation: sheet-fade 200ms var(--ease);
+  }
+
+  .viewer-panel {
+    width: min(520px, 100vw - 48px);
+    min-height: 0;
+    max-height: calc(100dvh - 48px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 0 20px;
+    border-radius: var(--r-l);
+    background: var(--surface);
+    box-shadow:
+      0 0 0 0.5px var(--line),
+      0 24px 64px rgba(0, 0, 0, 0.5);
+    animation: viewer-pop 200ms var(--ease);
+  }
+
+  .viewer-head {
+    padding-top: 6px;
+    background: var(--surface);
+  }
+
+  .viewer-video {
+    --viewer-max: calc(100dvh - 48px - 220px);
+  }
+
+  .viewer-strip {
+    max-height: calc(100dvh - 48px - 220px);
+  }
+}
+
+/* ── New Post ──────────────────────────────────────────────────────── */
+
+.sheet.composer {
+  max-height: calc(100dvh - var(--safe-top) - 12px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.compose-text.sheet-field {
+  align-items: stretch;
+  height: auto;
+  padding: 12px 14px;
+}
+
+.compose-text textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 96px;
+  max-height: 40vh;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 17px; /* 16px or more: iOS doesn't zoom on focus */
+  line-height: 1.35;
+  resize: none;
+  outline: none;
+}
+
+.compose-media {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Not clipped: Remove's 44 px touch area (base.css) reaches past the corner. The image rounds itself. */
+.compose-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r);
+  background: var(--fill);
+  color: var(--text);
+}
+
+.compose-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+.compose-thumb .post-badge-top {
+  top: auto;
+  right: auto;
+  bottom: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+}
+
+/* A failed pick grows to fit its word ("Unsupported"). */
+.compose-thumb.failed {
+  width: auto;
+  min-width: 72px;
+  padding: 0 10px;
+  box-shadow: inset 0 0 0 1.5px var(--danger);
+}
+
+.compose-busy {
+  position: relative;
+}
+
+.compose-thumb img + .compose-busy {
+  color: #fff;
+}
+
+.compose-error {
+  white-space: nowrap;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.compose-thumb button.compose-remove.icon-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+}
+
+.compose-thumb button.compose-remove.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+}
+
+.compose-add.icon-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: var(--r);
+  background: var(--fill);
+  color: var(--text-2);
+}
+
+.compose-add.icon-btn:hover {
+  background: var(--fill-2);
+}
+
+.compose-song {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  height: 44px;
+  padding: 0 14px 0 6px;
+  border-radius: var(--r);
+  background: var(--fill);
+  color: var(--text-2);
+  font-weight: 500;
+  transition:
+    box-shadow 140ms,
+    color 140ms,
+    transform 140ms var(--ease);
+}
+
+.compose-song:active {
+  transform: scale(0.97);
+}
+
+.compose-song[aria-pressed='true'] {
+  color: var(--text);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.compose-song .art {
+  border-radius: 5px;
+}
+
+/* Dark text: white on --danger is under 3:1. */
+.sheet-submit.failed {
+  background: var(--danger);
+  color: #0a0a0c;
+  animation: sheet-shake 320ms var(--ease);
+}
+
+/* The upload's ring, on the Post button: the button's own text color. */
+.sheet-submit .ring-track {
+  stroke: color-mix(in srgb, var(--bg) 25%, transparent);
+}
+
+.sheet-submit .ring-fill {
+  stroke: var(--bg);
+}
+
+@media (min-width: 900px) {
+  .sheet.composer {
+    width: 480px;
+    max-height: calc(100dvh - 48px);
+  }
+}
+
+/* ── Reports ───────────────────────────────────────────────────────── */
+
+.report {
+  max-height: 80px;
+  transition:
+    max-height 200ms var(--ease),
+    opacity 200ms;
+}
+
+.report.leaving {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.report.wrong .sheet-row {
+  animation: sheet-shake 320ms var(--ease);
+}
+
+.report-row {
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.report-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  min-height: 60px;
+  text-align: left;
+}
+
+.report-main .art.round {
+  flex: none;
+}
+
+.report-main .sheet-thumb {
+  color: var(--text-3);
+}
+
+.report-reasons {
+  font-weight: 500;
+}
+
+@keyframes social-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes viewer-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pc-follow.pill,
+  .pc-follow.wrong,
+  .luma-results,
+  .user-sections,
+  .viewer-panel,
+  .sheet-submit.failed,
+  .report.wrong .sheet-row {
+    animation: none;
+  }
+
+  .report {
+    transition: none;
+  }
+
+  /* The Viewer only fades in, quickly. */
+  .viewer {
+    animation: sheet-fade 120ms var(--ease) !important;
+  }
+}
+
+/* ── You ───────────────────────────────────────────────────────────── */
+
+.you-posts {
+  margin-top: 28px;
+}
+
+.invite-code {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  user-select: text;
+  -webkit-user-select: text;
+}

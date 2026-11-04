@@ -4,12 +4,14 @@ import { importFiles } from './lib/files.ts'
 import { useLibrary, useReady } from './lib/library.ts'
 import { audio, restore, seek, setOpen, toggle, useCurrentTrack, usePlayer } from './lib/player.ts'
 import { parse, usePath, type Route } from './lib/router.ts'
+import { useViewer } from './lib/viewer.ts'
 import { Boundary } from './ui/kit.tsx'
 import { MenuHost } from './ui/Menu.tsx'
 import { Sidebar, TabBar } from './ui/Nav.tsx'
 import { NowPlaying } from './ui/NowPlaying.tsx'
 import { useCardVideo } from './ui/profile/ProfileMedia.tsx'
 import { PlayerBar } from './ui/PlayerBar.tsx'
+import { ViewerHost } from './ui/Viewer.tsx'
 import { Home } from './views/Home.tsx'
 import { Playlist } from './views/Playlist.tsx'
 import { Playlists } from './views/Playlists.tsx'
@@ -117,6 +119,7 @@ export function App() {
   const path = usePath()
   const track = useCurrentTrack()
   const nowPlaying = usePlayer((s) => s.open) && !!track
+  const viewing = useViewer((s) => !!s.post)
   useShortcuts()
   useFileDrop()
   useEffect(() => {
@@ -126,9 +129,9 @@ export function App() {
   const route = parse(path)
   return (
     <>
-      <Wallpaper covered={nowPlaying} />
-      {/* Now Playing is a modal sheet: while it shows, keyboard focus can't wander into the page behind it. */}
-      <div inert={nowPlaying}>
+      <Wallpaper covered={nowPlaying || viewing} />
+      {/* Now Playing and the Viewer are modal: while one shows, keyboard focus can't wander into the page behind it. */}
+      <div inert={nowPlaying || viewing}>
         <div className={`app${track ? ' has-track' : ''}`}>
           <Sidebar route={route} />
           <main className="main" key={path}>
@@ -141,6 +144,7 @@ export function App() {
         <TabBar route={route} />
       </div>
       <NowPlaying />
+      <ViewerHost />
       <MenuHost />
     </>
   )

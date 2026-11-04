@@ -3,7 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 import { expect, it } from 'vitest'
-import { createDb, MIGRATION } from './harness.ts'
+import { createDb, FIRST, MIGRATION, MIGRATIONS } from './harness.ts'
 
 const PREVIOUS = readFileSync(new URL('./fixtures/0001_luma.previous.sql', import.meta.url), 'utf8')
 const EVIL = '00000000-0000-4000-8000-00000000e711'
@@ -43,10 +43,24 @@ it('a second run, and an upgrade from the previous release, give a fresh install
   const fresh = await createDb()
   const again = await createDb(MIGRATION)
   const upgraded = await createDb(PREVIOUS + HOSTILE)
+  // The owner re-runs 0001 alone, then (as the README says) 0002 after it.
+  const rerun = await createDb()
+  await rerun.pg.exec(FIRST)
+  for (const later of MIGRATIONS.slice(1)) await rerun.pg.exec(later)
   const a = await snapshot(fresh.pg)
   expect(await snapshot(again.pg)).toEqual(a)
   expect(await snapshot(upgraded.pg)).toEqual(a)
+  expect(await snapshot(rerun.pg)).toEqual(a)
 }, 120_000)
+
+it('a post from before 0002 is still found by its body', async () => {
+  const db = await createDb(FIRST + `
+    insert into auth.users (id, email) values ('${EVIL}', 'old@example.com');
+    insert into public.profiles (id, member, handle) values ('${EVIL}', true, 'oldtimer');
+    insert into public.posts (user_id, body) values ('${EVIL}', 'Synthwave sunsets');`)
+  const found = await db.as<{ kind: string; user_id: string }>('anon', `select kind, user_id from public.luma_search('synthw')`)
+  expect(found).toEqual([{ kind: 'post', user_id: EVIL }])
+}, 60_000)
 
 it('an upgrade brings old rows within the rules, and the admin RPCs work on them', async () => {
   const db = await createDb(PREVIOUS + HOSTILE)
@@ -59,6 +73,7 @@ it('an upgrade brings old rows within the rules, and the admin RPCs work on them
   expect(p.sharing_since).not.toBeNull()
   const posts = await db.as<{ body: string }>('owner', 'select body from public.posts where user_id = $1', [EVIL])
   expect(posts.map((r) => r.body)).toEqual(['fine'])
+  expect(await db.as('anon', `select kind, title from public.luma_search('fine')`)).toEqual([{ kind: 'post', title: 'fine' }])
   const videos = await db.as<{ path: string; still_path: string | null }>('owner', 'select path, still_path from public.videos where user_id = $1', [EVIL])
   expect(videos).toEqual([{ path: `${EVIL}/videos/ok.mp4`, still_path: null }])
   const [t] = await db.as<{ updated_at: Date }>('owner', 'select updated_at from public.library_tracks where user_id = $1', [EVIL])

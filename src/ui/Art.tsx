@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useBlobUrl } from '../lib/blobs.ts'
 import { useCrop } from '../lib/crop.ts'
 import { gradientFor } from '../lib/format.ts'
@@ -51,9 +51,9 @@ export function PlaylistArt({ playlist, ...rest }: { playlist: Playlist } & Omit
 }
 
 /** A profile image placed by its crop. Its parent is the `.crop-box`. */
-export function CropImg({ src, crop }: { src: string; crop?: Crop }) {
+export function CropImg({ src, crop, onError }: { src: string; crop?: Crop; onError?: () => void }) {
   const { onLoadedMetadata: _, ...props } = useCrop(crop)
-  return <img src={src} alt="" draggable={false} {...props} />
+  return <img src={src} alt="" draggable={false} onError={onError} {...props} />
 }
 
 /** The profile photo (always its still: lists and bars never animate), else the first letter of the name. */
@@ -61,19 +61,41 @@ export function Avatar({ size }: { size: number }) {
   const profile = useLibrary((s) => s.profile)
   const animated = !!profile.avatarKind && profile.avatarKind !== 'image'
   const url = useBlobUrl(animated ? 'avatar-still' : 'avatar', profile.avatar)
-  const initial = profile.name.trim().charAt(0).toUpperCase()
+  return <Round src={url} crop={profile.avatarCrop} letter={profile.name} size={size} />
+}
+
+/** What PersonAvatar needs of someone: `avatar` is their photo's still (a URL), `crop` its placement. */
+export interface AvatarPerson {
+  name: string
+  handle: string
+  avatar?: string
+  crop?: Crop
+}
+
+/** Someone's photo (always the still, so lists never animate), else the first letter of their name or handle. Without
+ * `size` it fills its parent's width (a person card). */
+export function PersonAvatar({ person, size }: { person: AvatarPerson; size?: number }) {
+  return <Round src={person.avatar} crop={person.crop} letter={person.name.trim() || person.handle} size={size} />
+}
+
+/** A round photo placed by its crop, else `letter`'s first character, else the user icon. */
+function Round({ src, crop, letter, size }: { src?: string; crop?: Crop; letter: string; size?: number }) {
+  const initial = letter.trim().charAt(0).toUpperCase()
   // Without a photo: --fill-2 made opaque, so it looks the same over the banner, the page and a wallpaper.
-  const background = url ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
+  const background = src ? undefined : 'linear-gradient(var(--fill-2), var(--fill-2)) var(--bg)'
+  const [failed, setFailed] = useState<string>()
+  const shown = src && src !== failed ? src : undefined
   return (
-    <div className="art round crop-box" style={{ width: size, height: size, background }}>
-      {url ? (
-        <CropImg src={url} crop={profile.avatarCrop} />
+    <div className="art round crop-box" style={{ width: size ?? '100%', height: size, background: shown ? undefined : background }}>
+      {shown ? (
+        <CropImg src={shown} crop={crop} onError={() => setFailed(shown)} />
       ) : initial ? (
-        <span className="avatar-initial" style={{ fontSize: size * 0.42 }}>
+        // Filling its parent, the letter scales with the circle (the box is a size container).
+        <span className="avatar-initial" style={{ fontSize: size ? size * 0.42 : '42cqw' }}>
           {initial}
         </span>
       ) : (
-        <Icon name="user" size={Math.round(size * 0.55)} />
+        <Icon name="user" size={Math.round((size ?? 120) * 0.55)} />
       )}
     </div>
   )

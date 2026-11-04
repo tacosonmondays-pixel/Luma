@@ -1,9 +1,9 @@
-// Profile and Canvas media: checks a picked image, animated image or video, shrinks still images, and makes
+// Profile, Canvas and post media: checks a picked image, animated image or video, shrinks still images, and makes
 // the still copy that lists and paused cards show. Decoding happens on detached elements and never touches the
 // music <audio> element or the Media Session.
 import type { MediaKind } from '../types.ts'
 
-export type MediaSlot = 'avatar' | 'banner' | 'backdrop' | 'canvas'
+export type MediaSlot = 'avatar' | 'banner' | 'backdrop' | 'canvas' | 'post' | 'video'
 export type MediaErrorCode = 'too-large' | 'too-long' | 'unsupported'
 
 /** A processed pick: what gets stored under the slot's key, plus its `-still` copy for animations and videos. */
@@ -11,6 +11,7 @@ export interface Media {
   blob: Blob
   still?: Blob
   kind: MediaKind
+  duration?: number // seconds, for a video
 }
 
 export class MediaError extends Error {
@@ -23,8 +24,11 @@ export class MediaError extends Error {
 
 interface Limits {
   still: { width: number; height: number; quality: number; crop: boolean }
-  animated: { bytes: number; maxWidth?: number; maxSide?: number; pixels: number }
+  /** Without it, an animated image becomes its first frame (a still image). */
+  animated?: { bytes: number; maxWidth?: number; maxSide?: number; pixels: number }
   video?: { bytes: number; seconds: number; maxSide?: number }
+  /** False: the slot takes videos only. */
+  images?: false
 }
 
 const MB = 1024 * 1024
@@ -49,7 +53,26 @@ export const LIMITS: Record<MediaSlot, Limits> = {
     animated: { bytes: 4 * MB, maxWidth: 1080, pixels: 48e6 },
     video: { bytes: 8 * MB, seconds: 12 },
   },
+  // A post's images: re-encoded (which drops EXIF, location included), never cropped; an animated one keeps its first frame.
+  post: {
+    still: { width: 1600, height: 1600, quality: 0.82, crop: false },
+  },
+  // A posted video is stored as it is, with sound (it plays muted until unmuted), but without its metadata (location
+  // included: withoutMetadata), plus a still for lists.
+  video: {
+    still: { width: 1080, height: 1080, quality: 0.82, crop: false },
+    video: { bytes: 50 * MB, seconds: 60 },
+    images: false,
+  },
 }
+
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'webp', 'image/apng': 'apng',
+  'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm',
+}
+
+/** The file extension the media bucket takes for this MIME type, if it takes it at all. */
+export const extOf = (type: string): string | undefined => EXT[type]
 
 // ── Reading the bytes (pure, tested) ─────────────────────────────────────
 
@@ -146,9 +169,82 @@ export function imageInfo(b: Uint8Array): ImageInfo {
   return gifInfo(b) ?? pngInfo(b) ?? webpInfo(b) ?? { type: 'other', width: 0, height: 0, frames: 1 }
 }
 
-/** The cap an animated image breaks in this slot, if any. */
+/** An MP4 or QuickTime box's type and extent, read from its header at `at`, or undefined when there is no well-formed
+ * box there. `end` is where its parent ends (a size of 0 runs to it). */
+function boxAt(b: Uint8Array, at: number, end: number): { type: string; size: number; body: number } | undefined {
+  if (at + 8 > end || at + 8 > b.length) return
+  const view = new DataView(b.buffer, b.byteOffset, b.byteLength)
+  let size = view.getUint32(at)
+  let body = at + 8
+  if (size === 1) {
+    if (at + 16 > b.length) return
+    size = Number(view.getBigUint64(at + 8))
+    body = at + 16
+  } else if (size === 0) size = end - at
+  if (size < body - at || at + size > end) return
+  return { type: ascii(b, at + 4, 4), size, body }
+}
+
+const METADATA = new Set(['udta', 'meta'])
+
+/** A metadata box: where it starts, where its body starts (after the header) and where it ends. */
+export interface Span {
+  at: number
+  body: number
+  end: number
+}
+
+/** Where a `moov` box's metadata is: each `udta` and `meta` box in it and in its tracks. That's where the place a
+ * video was filmed lives (©xyz, com.apple.quicktime.location.ISO6709), and the camera. */
+export function metadataBoxes(moov: Uint8Array): Span[] {
+  const found: Span[] = []
+  const walk = (from: number, end: number, inTrack: boolean) => {
+    for (let at = from; at < end; ) {
+      const box = boxAt(moov, at, end)
+      if (!box) return
+      if (METADATA.has(box.type)) found.push({ at, body: box.body, end: at + box.size })
+      else if (box.type === 'trak' && !inTrack) walk(box.body, at + box.size, true)
+      at += box.size
+    }
+  }
+  const top = boxAt(moov, 0, moov.length)
+  if (top?.type === 'moov') walk(top.body, top.size, false)
+  return found
+}
+
+/**
+ * A video without its metadata: each `udta` and `meta` box at the top, in `moov` and in its tracks becomes a `free`
+ * box of the same size, its body zeroed. Nothing moves (chunk offsets stay right), players skip it, and the bytes are
+ * gone. Only the box headers and `moov` are read, not the media. MP4 and QuickTime; anything else, or a file it
+ * can't walk, comes back as it is.
+ */
+export async function withoutMetadata(file: Blob): Promise<Blob> {
+  if (file.type !== 'video/mp4' && file.type !== 'video/quicktime') return file
+  const read = async (at: number, n: number) => new Uint8Array(await file.slice(at, at + n).arrayBuffer())
+  const spans: Span[] = []
+  for (let at = 0; at < file.size; ) {
+    const box = boxAt(await read(at, 16), 0, file.size - at)
+    if (!box) break
+    if (METADATA.has(box.type)) spans.push({ at, body: at + box.body, end: at + box.size })
+    else if (box.type === 'moov') spans.push(...metadataBoxes(await read(at, box.size)).map((m) => ({ at: at + m.at, body: at + m.body, end: at + m.end })))
+    at += box.size
+  }
+  if (!spans.length) return file
+  const parts: BlobPart[] = []
+  let from = 0
+  for (const { at, body, end } of spans.sort((a, b) => a.at - b.at)) {
+    // Its size stays (and a 64-bit size's extra 8 bytes); the type becomes `free`; the body, zeros.
+    parts.push(file.slice(from, at + 4), 'free', file.slice(at + 8, body), new Uint8Array(end - body))
+    from = end
+  }
+  parts.push(file.slice(from))
+  return new Blob(parts, { type: file.type })
+}
+
+/** The cap an animated image breaks in this slot, if any. A slot without animations keeps the first frame instead. */
 export function checkAnimated(slot: MediaSlot, bytes: number, info: Pick<ImageInfo, 'width' | 'height' | 'frames'>): MediaErrorCode | undefined {
   const cap = LIMITS[slot].animated
+  if (!cap) return
   const { width, height, frames } = info
   if (bytes > cap.bytes) return 'too-large'
   if (cap.maxSide && Math.max(width, height) > cap.maxSide) return 'too-large'
@@ -156,7 +252,8 @@ export function checkAnimated(slot: MediaSlot, bytes: number, info: Pick<ImageIn
   if (width * height * frames > cap.pixels) return 'too-large'
 }
 
-/** The cap a video breaks in this slot, if any. Avatar and banner take no video: it goes through the GIF maker. */
+/** The cap a video breaks in this slot, if any. Avatar and banner take no video (it goes through the GIF maker), nor
+ * does a post's image slot. */
 export function checkVideo(slot: MediaSlot, bytes: number, video: { duration: number; width: number; height: number }): MediaErrorCode | undefined {
   const cap = LIMITS[slot].video
   if (!cap) return 'unsupported'
@@ -307,7 +404,7 @@ async function readVideo(
 
 /**
  * Turns a picked file into what a slot stores. Still images are shrunk to JPEG and never rejected; animated
- * images and videos are stored as they are, within the slot's caps. `made` marks a GIF the GIF maker just
+ * images and videos are stored as they are, within the slot's caps (a video without its metadata). `made` marks a GIF the GIF maker just
  * produced, which its own limits already bound. Throws a MediaError.
  */
 export async function processMedia(file: Blob, slot: MediaSlot, { made }: { made?: boolean } = {}): Promise<Media> {
@@ -320,11 +417,12 @@ export async function processMedia(file: Blob, slot: MediaSlot, { made }: { made
       video.release()
       throw new MediaError(error)
     }
-    return { blob: file, still: await video.still(), kind: 'video' }
+    return { blob: await withoutMetadata(file), still: await video.still(), kind: 'video', duration: video.duration }
   }
-  if (type && !type.startsWith('image/')) throw new MediaError('unsupported')
+  if ((type && !type.startsWith('image/')) || LIMITS[slot].images === false) throw new MediaError('unsupported')
   const bytes = new Uint8Array(await file.slice(0, Math.min(file.size, 64 * MB)).arrayBuffer())
   const info = imageInfo(bytes)
+  if (info.frames > 1 && !LIMITS[slot].animated) return { blob: await firstFrame(file, slot), kind: 'image' }
   if (info.frames > 1) {
     const error = made ? undefined : checkAnimated(slot, file.size, info)
     if (error) throw new MediaError(error)

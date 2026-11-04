@@ -1,7 +1,7 @@
 // The profile card: banner, avatar with its frame, the styled name, badges, bio, then Pinned, Playlists and
 // On Repeat. The same card shows on You and in the editor's live preview. Its layout follows its own width
 // (a container query), so the preview at 440px matches the phone.
-import { useEffect, useState, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode, type RefObject } from 'react'
 import { gradientFor } from '../../lib/format.ts'
 import { useLibrary } from '../../lib/library.ts'
 import { playTracks, usePlayer } from '../../lib/player.ts'
@@ -11,7 +11,7 @@ import { thumbnails } from '../../lib/youtube.ts'
 import type { Badge, PinnedSong, Profile } from '../../types.ts'
 import { PlaylistArt, TrackArt } from '../Art.tsx'
 import { BadgeRow } from '../Badges.tsx'
-import { Icon } from '../Icon.tsx'
+import { Icon, type IconName } from '../Icon.tsx'
 import { Link } from '../kit.tsx'
 import { profileColors } from './colors.ts'
 import { Effect } from './Effect.tsx'
@@ -166,17 +166,26 @@ interface CardProps {
   live: boolean
   /** ms the effect plays before fading; omit to loop (the editor preview). */
   effectFor?: number
-  onEdit?: () => void
+  /** The buttons at the banner's lower right: `CardIcon`s and `.pill.pc-edit` pills. */
+  actions?: ReactNode
   /** Bump to play the effect again from the start (picking one in the editor). */
   effectRun?: number
   /** Tells the Wallpaper to pause while this card plays a Background video (the You page, the editor's preview). */
   claimsVideo?: boolean
-  onShare?: () => void
   /** Someone's public profile (/u/:handle): its pins and badges come from the server, not this library. */
   remote?: { pinned: PinnedSong[]; badges: Badge[] }
 }
 
-export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, onEdit, claimsVideo, onShare, remote }: CardProps) {
+/** A round button among the card's actions (Share, More). */
+export function CardIcon({ icon, label, onClick }: { icon: IconName; label: string; onClick: (e: MouseEvent<HTMLButtonElement>) => void }) {
+  return (
+    <button type="button" className="pill pc-edit pc-share" aria-label={label} onClick={onClick}>
+      <Icon name={icon} size={17} />
+    </button>
+  )
+}
+
+export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, actions, claimsVideo, remote }: CardProps) {
   const playing = usePlayer((s) => s.playing) && !remote
   const reduced = useReducedMotion()
   const plays = playingSlots(media, live)
@@ -201,20 +210,7 @@ export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, on
           </div>
         )}
         <div className="pc-banner crop-box">{banner && <ProfileMedia media={banner} play={plays.has('banner')} crop={profile.bannerCrop} />}</div>
-        {(onEdit || onShare) && (
-          <div className="pc-actions">
-            {onShare && (
-              <button type="button" className="pill pc-edit pc-share" aria-label="Share Profile" onClick={onShare}>
-                <Icon name="share" size={17} />
-              </button>
-            )}
-            {onEdit && (
-              <button type="button" className="pill pc-edit" onClick={onEdit}>
-                Edit Profile
-              </button>
-            )}
-          </div>
-        )}
+        {actions && <div className="pc-actions">{actions}</div>}
         <div className="pc-avatar">
           <div className="pc-photo crop-box">{avatar ? <ProfileMedia media={avatar} play={plays.has('avatar')} crop={profile.avatarCrop} /> : <Initial name={profile.name} />}</div>
           <Frame id={profile.frame} live={live} />

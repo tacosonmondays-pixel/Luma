@@ -1,5 +1,6 @@
 // Home's building blocks: a titled shelf, a row that scrolls on phones and fills one grid row on desktop, the
-// cards in it, and a shelf that loads from the network once it scrolls near.
+// cards in it, and a shelf that loads from the network once it scrolls near (its outline meanwhile). Also a sentinel
+// that asks for a list's next page as it scrolls near.
 
 import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode, type RefObject } from 'react'
 import { peek } from '../lib/feed.ts'
@@ -47,25 +48,37 @@ export function Shelf({ title, more, children, className = '' }: { title: string
   )
 }
 
-/** Cards in a row. Phones scroll it sideways with snap; desktops show as many as fit one grid row. */
-export function Row({ wide, children }: { wide?: boolean; children: ReactNode[] }) {
+/**
+ * Cards in a row. Phones scroll it sideways with snap; desktops show as many as fit one grid row. With `all`, every
+ * card shows, wrapping onto more rows of the same columns (phones too).
+ */
+export function Row({ wide, all, children }: { wide?: boolean; all?: boolean; children: ReactNode[] }) {
   const phone = usePhone()
+  const grid = all || !phone
   const ref = useRef<HTMLDivElement>(null)
   const [cols, setCols] = useState(0)
   useLayoutEffect(() => {
     const el = ref.current
-    if (phone || !el) return
+    if (!grid || !el) return
     const min = wide ? 232 : 150
-    const gap = 20
-    const fit = () => setCols(Math.max(2, Math.floor((el.clientWidth + gap) / (min + gap))))
+    const fit = () => {
+      const style = getComputedStyle(el)
+      const gap = parseFloat(style.columnGap) || 0
+      const width = el.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      setCols(Math.max(2, Math.floor((width + gap) / (min + gap))))
+    }
     fit()
     const observer = new ResizeObserver(fit)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [phone, wide])
-  const shown = phone ? children : children.slice(0, cols || 0)
+  }, [grid, wide])
+  const shown = all || phone ? children : children.slice(0, cols || 0)
   return (
-    <div ref={ref} className={`row${wide ? ' wide' : ''}`} style={phone ? undefined : { gridTemplateColumns: `repeat(${cols || 1}, minmax(0, 1fr))` }}>
+    <div
+      ref={ref}
+      className={`row${wide ? ' wide' : ''}${all ? ' all' : ''}`}
+      style={grid ? { gridTemplateColumns: `repeat(${cols || 1}, minmax(0, 1fr))` } : undefined}
+    >
       {shown}
     </div>
   )
@@ -96,8 +109,9 @@ export function PlaylistCard({ id }: { id: string }) {
   )
 }
 
-/** True once the element is within a screen of being visible (in the nearest scroller: Y2K's desktop window). */
-function useNear(ref: RefObject<HTMLElement | null>): boolean {
+/** True once the element is within a screen of being visible (in the nearest scroller: Y2K's desktop window). It stays
+ * true: key the element's owner to watch again. */
+export function useNear(ref: RefObject<HTMLElement | null>): boolean {
   const [near, setNear] = useState(false)
   useEffect(() => {
     const el = ref.current
@@ -112,6 +126,28 @@ function useNear(ref: RefObject<HTMLElement | null>): boolean {
     return () => observer.disconnect()
   }, [ref, near])
   return near
+}
+
+/** A shelf's outline while it loads: wide 16:9 tiles, else square cards. */
+export function GhostShelf({ title, wide }: { title: string; wide?: boolean }) {
+  return (
+    <Shelf title={title} className="loading">
+      <Row wide={wide}>{Array.from({ length: 6 }, (_, i) => <div key={i} className={wide ? 'tile-ghost' : 'card-ghost'} />)}</Row>
+    </Shelf>
+  )
+}
+
+/** Calls `onNear` once it comes within a screen of being visible: the next page of a list. Key it by the list's
+ * cursor, so each page asks once. */
+export function Sentinel({ onNear }: { onNear: () => void }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const near = useNear(ref)
+  const call = useRef(onNear)
+  call.current = onNear
+  useEffect(() => {
+    if (near) call.current()
+  }, [near])
+  return <div ref={ref} className="sentinel" aria-hidden="true" />
 }
 
 /**
@@ -150,18 +186,14 @@ export function NetShelf({
   if (results === undefined)
     return (
       <div ref={ref} className="shelf-pending">
-        {near && (
-          <Shelf title={title} className="loading">
-            <Row wide>{Array.from({ length: 6 }, (_, i) => <div key={i} className="tile-ghost" />)}</Row>
-          </Shelf>
-        )}
+        {near && <GhostShelf title={title} wide />}
       </div>
     )
   return (
     <Shelf title={title} more={results.length > 4 ? more : undefined}>
       <Row wide>
         {results.slice(0, 12).map((r) => (
-          <ResultTile key={r.id} result={r} />
+          <ResultTile key={r.id} result={r} small />
         ))}
       </Row>
     </Shelf>

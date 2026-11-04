@@ -113,7 +113,7 @@ export interface ApiError {
   error: 'ytdlp-missing' | 'bad-request' | 'not-found' | 'failed'
 }
 
-// ── Server (Supabase, supabase/migrations/0001_luma.sql) ────────────────
+// ── Server (Supabase, supabase/migrations/) ─────────────────────────────
 
 /** A pinned song as the public profile shows it: metadata only, never audio. */
 export interface PinnedSong {
@@ -160,3 +160,72 @@ export interface ProfileRow {
 }
 
 export type RedeemResult = 'ok' | 'member' | 'invalid' | 'rate_limited' | 'banned'
+
+/** A `videos` row. Paths are '<user_id>/videos/<file>'; the song is metadata only. */
+export interface VideoRow {
+  id: string
+  user_id: string
+  path: string
+  still_path: string | null
+  caption: string
+  youtube_id: string | null
+  track_title: string | null
+  track_artist: string | null
+  duration: number
+  created_at: string
+  removed_at: string | null
+}
+
+/** A `posts` row: text and up to 4 images ('<user_id>/posts/<file>'), and a song as metadata (0002). */
+export interface PostRow {
+  id: string
+  user_id: string
+  body: string
+  image_paths: string[]
+  youtube_id: string | null
+  track_title: string | null
+  track_artist: string | null
+  created_at: string
+  removed_at: string | null
+}
+
+/** A `plays` row as the feed reads it. */
+export interface PlayRow {
+  user_id: string
+  track_id: string
+  youtube_id: string | null
+  title: string
+  artist: string
+  played_at: string
+}
+
+export interface FollowRow {
+  follower_id: string
+  followee_id: string
+  created_at: string
+}
+
+export type ReportKind = 'profile' | 'video' | 'post'
+/** The reasons the app offers. The column takes any text up to 500 characters. */
+export const REPORT_REASONS = ['spam', 'abuse', 'explicit', 'copyright', 'other'] as const
+export type ReportReason = (typeof REPORT_REASONS)[number]
+
+export interface ReportRow {
+  id: string
+  reporter_id: string
+  kind: ReportKind
+  target_id: string
+  reason: string
+  created_at: string
+  resolved_at: string | null
+}
+
+/** A row of `luma_search(q)`, best first. */
+export interface LumaSearchRow {
+  kind: ReportKind
+  id: string
+  user_id: string
+  handle: string
+  title: string
+  rank: number
+}

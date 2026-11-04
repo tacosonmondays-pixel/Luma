@@ -2,7 +2,7 @@
 // (the anon/authenticated roles, auth.users, auth.uid() from the request's JWT setting, and enough of
 // storage.buckets/objects to run the storage policies). Then the real migration on top.
 
-import { readFileSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { PGlite } from '@electric-sql/pglite'
 
 const STUB = `
@@ -60,7 +60,14 @@ alter table storage.objects enable row level security;
 alter table storage.buckets enable row level security;
 `
 
-export const MIGRATION = readFileSync(new URL('../../supabase/migrations/0001_luma.sql', import.meta.url), 'utf8')
+const DIR = new URL('../../supabase/migrations/', import.meta.url)
+
+/** Every migration, in the order the owner runs them (0001, then 0002, …). */
+export const MIGRATIONS = readdirSync(DIR).filter((f) => f.endsWith('.sql')).sort().map((f) => readFileSync(new URL(f, DIR), 'utf8'))
+/** All of them, in order: what a fresh install runs. */
+export const MIGRATION = MIGRATIONS.join('\n')
+/** 0001 alone: what a lone re-run of it does. */
+export const FIRST = MIGRATIONS[0]
 
 export type Who = 'anon' | 'owner' | { id: string }
 
@@ -77,7 +84,7 @@ export interface Db {
 
 let n = 0
 
-/** A database with the migration run on it; `before` runs first (say, an earlier release of it and its data). */
+/** A database with every migration run on it; `before` runs first (say, an earlier release of them and its data). */
 export async function createDb(before?: string): Promise<Db> {
   const pg = new PGlite()
   await pg.exec(STUB)

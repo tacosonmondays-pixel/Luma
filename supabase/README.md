@@ -6,13 +6,16 @@ The app already holds the project URL and the publishable key (`src/lib/supabase
 
 ## 1. Create the database
 
+The database comes in files in `supabase/migrations/`, run in order: `0001_luma.sql`, then `0002_social.sql`.
+
 1. Open the project in the Supabase dashboard.
 2. In the left sidebar, click **SQL Editor**.
 3. Click **New query**.
-4. Open `supabase/migrations/0001_luma.sql` from this repo. Copy all of it and paste it into the editor.
-5. Click **Run**. You should see "Success. No rows returned".
+4. Paste 0001, Run; then paste 0002, Run. That is: open `supabase/migrations/0001_luma.sql` from this repo, copy all of it, paste it into the editor and click **Run**. Then replace it with all of `supabase/migrations/0002_social.sql` and click **Run** again. Each time you should see "Success. No rows returned".
 
-You can run the file again later, for example after an update. It doesn't delete data, except values outside the current limits (only a crafted request could have written them).
+**Whenever you run 0001 again, run 0002 after it.** 0001 resets permissions that 0002 adds: on its own, it stops posts from carrying a song until 0002 runs again.
+
+You can run the files again later, for example after an update (always in order). They don't delete data, except values outside the current limits (only a crafted request could have written them).
 
 To check: click **Table Editor**. You should see `profiles`, `invites`, `follows`, `plays`, `library_tracks`, `library_playlists`, `videos`, `posts` and `reports`. Click **Storage**: a bucket named `media` should be there, marked Public.
 
@@ -68,7 +71,7 @@ Each code works once and expires after 30 days. Run this in the **SQL Editor** t
 select * from create_invites(5);
 ```
 
-`create_invites`, `admin_remove` and `admin_ban` work for admins in the app and for you in the SQL Editor. For codes that never expire, use `create_invites(5, null)`.
+`create_invites`, `admin_remove`, `admin_ban`, `admin_purge` and `admin_dismiss` work for admins in the app and for you in the SQL Editor. For codes that never expire, use `create_invites(5, null)`.
 
 Send each friend one code. In Luma they go to **You → Sign In**, enter their email and the emailed code, then the invite code and a handle.
 
@@ -79,16 +82,18 @@ To see which codes are used: `select * from invites order by created_at desc;` A
 From the SQL Editor:
 
 - Ban someone: `select admin_ban('<user id>');` To unban: `select admin_ban('<user id>', false);` A ban sticks to the email too: if you delete the account in **Authentication → Users**, signing up again with that email stays banned. To lift that for a deleted account: `delete from luma.banned_emails where email = 'them@example.com';`
+- After a ban, remove everything they posted and clear their profile: `select admin_purge('<user id>');` Ban in the app does both, and deletes their files too. An unban doesn't bring any of it back.
 - Hide a post or video: `select admin_remove('post', '<id>');` or `select admin_remove('video', '<id>');`
 - Clear a profile's name, bio and pictures: `select admin_remove('profile', '<user id>');`
+- Close a target's reports and leave it be: `select admin_dismiss('post', '<id>');` (or `'video'`, `'profile'`).
 - Open reports: `select * from reports where resolved_at is null;`
 
 These always work, whatever a member has written to their own rows.
 
-Each member also has limits, so nobody can fill the free plan's database: 100 posts and 25 videos a day, 50 open reports, 20,000 songs and 2,000 playlists in their backup, and their newest 5,000 plays. `docs/server.md` lists them all.
+Each member also has limits, so nobody can fill the free plan: 100 posts and 25 videos a day, 50 open reports, 20,000 songs and 2,000 playlists in their backup, their newest 5,000 plays, and 200 MB and 2,000 files in Storage (admins have no Storage limit). `docs/server.md` lists them all. To change the Storage quota, edit the number in `luma.media_quota()` in `0002_social.sql` and run it again. To see what someone has left, run `select media_left();` as them, or look at their folder in **Storage → media**.
 
-Hiding content doesn't delete its files from Storage. The bucket is public, so anyone who already has a file's address can still open it. To remove the files too, open **Storage → media → \<user id\>** and delete them.
+Hiding content from the SQL Editor doesn't delete its files from Storage. The bucket is public, so anyone who already has a file's address can still open it. To remove the files too, open **Storage → media → \<user id\>** and delete them. Remove and Ban in the app delete the files first. Posted images and videos are cached for a day, so a deleted one can still show for up to a day at its old address.
 
 ## What the server never stores
 
-Song audio. Library sync sends titles, artists, durations and playlists, nothing more. On a new device, synced songs show as not downloaded until you download them again. The `media` bucket only accepts images and videos (avatar, banner, profile background, and later videos and post images), up to 50 MB per file, the limit of Supabase's free plan.
+Song audio. Library sync sends titles, artists, durations and playlists, nothing more. On a new device, synced songs show as not downloaded until you download them again. A post or video can name the song that was playing, as text. The `media` bucket only accepts images and videos (avatar, banner, profile background, posted videos and post images), up to 50 MB per file, the limit of Supabase's free plan.

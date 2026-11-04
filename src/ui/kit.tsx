@@ -54,6 +54,23 @@ export function pickFiles(accept: string, multiple = false): Promise<File[]> {
   })
 }
 
+const FOCUSABLE = 'a[href], button:not(:disabled), input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])'
+
+/** In a modal (a sheet, the Viewer): Tab and Shift+Tab go round inside `root` instead of on to the page behind. */
+export function wrapTab(e: KeyboardEvent, root: HTMLElement): void {
+  if (e.key !== 'Tab') return
+  const items = [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.getClientRects().length > 0)
+  const now = document.activeElement
+  const first = items[0]
+  const last = items.at(-1)
+  if (!first || !last) return e.preventDefault()
+  const out = !now || !root.contains(now)
+  if (e.shiftKey ? out || now === first || now === root : out || now === last) {
+    e.preventDefault()
+    ;(e.shiftKey ? last : first).focus()
+  }
+}
+
 /** Keeps a screen's failure to itself: it shows nothing, and the nav and the player keep working. Remount it (a key)
  * to try again, as App does on every route change. */
 export class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {

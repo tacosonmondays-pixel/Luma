@@ -58,24 +58,24 @@ export function YouTubeSheet({ onClose }: { onClose: () => void }) {
           <IconButton icon="close" label="Close" size={20} onClick={onClose} />
         </div>
         {load === 'loading' ? (
-          <div className="yt-state">
+          <div className="sheet-state">
             <span className="spinner" aria-label="Loading" />
           </div>
         ) : load === 'failed' ? (
-          <div className="yt-state">
+          <div className="sheet-state">
             <button type="button" className="pill" onClick={() => void ensureToken().then(() => setAttempt((n) => n + 1), () => {})}>
               <Icon name="refresh" size={18} />
               Try Again
             </button>
           </div>
         ) : (
-          <ul className="yt-lists">
+          <ul className="sheet-list">
             {load.map((p) => {
               const local = linked.get(p.id)
               const state = busy[p.id]
               return (
-                <li key={p.id} className="yt-list">
-                  <span className="yt-thumb" style={p.thumbnail ? undefined : { background: gradientFor(p.id) }}>
+                <li key={p.id} className="sheet-row">
+                  <span className="sheet-thumb" style={p.thumbnail ? undefined : { background: gradientFor(p.id) }}>
                     {p.thumbnail ? <img src={p.thumbnail} alt="" loading="lazy" draggable={false} /> : <Icon name="music" size={18} />}
                   </span>
                   <span className="yt-title ellipsis">{p.title}</span>
