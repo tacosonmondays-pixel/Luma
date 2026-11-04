@@ -309,6 +309,19 @@ export function unpinSong(id: string): void {
   setState((s) => ({ profile: { ...s.profile, pinnedSongs: (s.profile.pinnedSongs ?? []).filter((x) => x !== id) } }))
 }
 
+/** Pins a playlist to the front of the profile's Board; a seventh pin drops the last. Pinning again moves it to the front. */
+export function pinPlaylist(id: string): void {
+  setState((s) => {
+    if (!s.playlists.some((p) => p.id === id)) return s
+    const pinned = [id, ...(s.profile.pinnedPlaylists ?? []).filter((x) => x !== id)].slice(0, MAX_PINNED_PLAYLISTS)
+    return { profile: { ...s.profile, pinnedPlaylists: pinned } }
+  })
+}
+
+export function unpinPlaylist(id: string): void {
+  setState((s) => ({ profile: { ...s.profile, pinnedPlaylists: (s.profile.pinnedPlaylists ?? []).filter((x) => x !== id) } }))
+}
+
 export async function setBackground(file: Blob | null): Promise<void> {
   if (!file) {
     setState({ background: undefined })

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { deletePlaylist, renamePlaylist, setPlaylistCover, takeNameFocus, useLibrary } from '../lib/library.ts'
+import { deletePlaylist, pinPlaylist, renamePlaylist, setPlaylistCover, takeNameFocus, unpinPlaylist, useLibrary } from '../lib/library.ts'
 import { useDownloads } from '../lib/helper.ts'
 import { navigate } from '../lib/router.ts'
 import { refreshPlaylist } from '../lib/save.ts'
@@ -40,6 +40,7 @@ function DownloadMissing({ playlist }: { playlist: PlaylistData }) {
 export function Playlist({ id }: { id: string }) {
   const [refresh, setRefresh] = useState<'busy' | 'failed'>()
   const playlist = useLibrary((s) => s.playlists.find((p) => p.id === id))
+  const pinned = useLibrary((s) => !!s.profile.pinnedPlaylists?.includes(id))
   const [name, setName] = useState(playlist?.name ?? '')
   const input = useRef<HTMLInputElement>(null)
 
@@ -72,6 +73,9 @@ export function Playlist({ id }: { id: string }) {
         icon: 'image',
         onSelect: () => void pickFiles('image/*').then(([file]) => file && setPlaylistCover(id, file)),
       },
+      pinned
+        ? { label: 'Unpin from Profile', icon: 'unpin', onSelect: () => unpinPlaylist(id) }
+        : { label: 'Pin to Profile', icon: 'pin', onSelect: () => pinPlaylist(id) },
       {
         label: 'Delete Playlist',
         icon: 'trash',

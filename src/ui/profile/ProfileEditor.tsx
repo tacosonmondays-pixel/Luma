@@ -1,5 +1,6 @@
 // The profile editor: one draft, a live preview, and seven sections. Phones show the sections as tabs over a
 // tray under the preview; desktop stacks them beside it. Done saves the draft; Cancel throws it away.
+// A Profile | Settings switch in the header shows the app's settings instead (Settings.tsx); they apply at once.
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { MAX_PINNED_PLAYLISTS, PROFILE_SLOTS, saveProfile, useLibrary, type ProfileSlot } from '../../lib/library.ts'
 import { errorLabel, processMedia, type Media } from '../../lib/media.ts'
@@ -17,11 +18,16 @@ import { FRAMES } from './frames.ts'
 import { ImageCrop } from './ImageCrop.tsx'
 import { NAME_STYLES, NameStyle } from './NameStyle.tsx'
 import { ProfileCard, useReducedMotion } from './ProfileCard.tsx'
+import { Segmented } from '../Segmented.tsx'
+import { Settings } from '../Settings.tsx'
 import { useSavedMedia, type CardMedia, type ShownMedia } from './ProfileMedia.tsx'
 import '../../styles/profile.css'
 
 const TABS = ['Images', 'Colors', 'Frame', 'Effect', 'Name', 'Bio', 'Pinned'] as const
 type Tab = (typeof TABS)[number]
+/** Where the editor opens: the profile (on a section) or the settings. */
+export type EditorStart = 'Profile' | 'Pinned' | 'Settings'
+const PAGES = ['Profile', 'Settings'] as const
 
 const SLOT_LABEL: Record<ProfileSlot, string> = { avatar: 'Avatar', banner: 'Banner', backdrop: 'Background' }
 const PRESET_NAMES = ['Pink', 'Sky', 'Lime', 'Ember', 'Rose', 'Honey', 'Mint', 'Lavender', 'Silver', 'Midnight']
@@ -259,12 +265,13 @@ function PinnedSection({ draft, change }: SectionProps) {
 
 // ── The sheet ────────────────────────────────────────────────────────────
 
-export function ProfileEditor({ onClose }: { onClose: () => void }) {
+export function ProfileEditor({ onClose, start = 'Profile' }: { onClose: () => void; start?: EditorStart }) {
   const stored = useLibrary((s) => s.profile)
   const [draft, setDraft] = useState<Profile>(() => ({ ...stored }))
   const [picks, setPicks] = useState<Picks>({})
   const [errors, setErrors] = useState<Partial<Record<ProfileSlot, string>>>({})
-  const [tab, setTab] = useState<Tab>('Images')
+  const [tab, setTab] = useState<Tab>(start === 'Pinned' ? 'Pinned' : 'Images')
+  const [page, setPage] = useState<(typeof PAGES)[number]>(start === 'Settings' ? 'Settings' : 'Profile')
   const [gif, setGif] = useState<{ file: File; slot: 'avatar' | 'banner' }>()
   // The crop sheet: for a new pick (not yet in `picks`) or for the slot's current media.
   const [cropping, setCropping] = useState<{ slot: ProfileSlot; shown: ShownMedia; pick?: Media; aspect: number }>()
@@ -398,6 +405,7 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
       close()
     } catch (error) {
       setBusy(false)
+      setPage('Profile')
       setTab('Images')
       // Writes fail when storage is full.
       fail(PROFILE_SLOTS.find((s) => picks[s]) ?? 'avatar', new DOMException(String(error), 'QuotaExceededError'))
@@ -406,7 +414,8 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || gif || cropping || document.querySelector('.menu')) return
+      // A menu or a sheet over the editor (Sign In, YouTube, Reports) takes Escape for itself.
+      if (e.key !== 'Escape' || gif || cropping || document.querySelector('.menu, .sheet-scrim')) return
       e.preventDefault()
       close()
     }
@@ -414,14 +423,10 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   })
 
-  const showTab = (next: Tab) => {
-    setTab(next)
-    const preview = previewRef.current
-    if (!preview) return
-    const target = next === 'Pinned' ? preview.querySelector<HTMLElement>('[data-section="pinned"], [data-section="playlists"]') : null
-    const top = target ? target.getBoundingClientRect().top - preview.getBoundingClientRect().top + preview.scrollTop - 12 : 0
-    preview.scrollTo({ top, behavior: reduced ? 'auto' : 'smooth' })
-  }
+  // Opened on Pinned (a Board section's Edit): desktop stacks every section, so bring that one into view.
+  useEffect(() => {
+    if (start === 'Pinned' && isWide) document.querySelector('.pe-section-pinned')?.scrollIntoView({ block: 'start' })
+  }, [])
 
   const props: SectionProps = { draft, change, media, live }
   const section = (which: Tab) => {
@@ -451,41 +456,48 @@ export function ProfileEditor({ onClose }: { onClose: () => void }) {
           <button type="button" className="pe-cancel" onClick={close}>
             Cancel
           </button>
+          <Segmented label="Edit" className="pe-pages" options={PAGES} value={page} onChange={setPage} render={(p) => ({ content: p })} />
           <button type="button" className="pe-done" onClick={() => void done()} disabled={busy}>
             Done
           </button>
         </header>
-        <div className="pe-main">
-          {isWide && (
-            <div className="pe-sections">
-              {TABS.map((which) => (
-                <section key={which} className={`pe-section pe-section-${which.toLowerCase()}`}>
-                  <h3>{which}</h3>
-                  {section(which)}
-                </section>
-              ))}
-            </div>
-          )}
-          <div className="pe-preview" ref={previewRef}>
-            <div className="pe-card" inert>
-              <ProfileCard profile={draft} media={media} live={live} effectRun={effectRun} claimsVideo />
-            </div>
+        {page === 'Settings' ? (
+          <div className="pe-settings">
+            <Settings />
           </div>
-          {!isWide && (
-            <>
-              <nav className="pe-tabs" role="tablist">
+        ) : (
+          <div className="pe-main">
+            {isWide && (
+              <div className="pe-sections">
                 {TABS.map((which) => (
-                  <button key={which} type="button" role="tab" aria-selected={tab === which} className={`pe-chip${tab === which ? ' on' : ''}`} onClick={() => showTab(which)}>
-                    {which}
-                  </button>
+                  <section key={which} className={`pe-section pe-section-${which.toLowerCase()}`}>
+                    <h3>{which}</h3>
+                    {section(which)}
+                  </section>
                 ))}
-              </nav>
-              <div className={`pe-tray pe-tray-${tab.toLowerCase()}`} role="tabpanel">
-                {section(tab)}
               </div>
-            </>
-          )}
-        </div>
+            )}
+            <div className="pe-preview" ref={previewRef}>
+              <div className="pe-card" inert>
+                <ProfileCard profile={draft} media={media} live={live} effectRun={effectRun} claimsVideo />
+              </div>
+            </div>
+            {!isWide && (
+              <>
+                <nav className="pe-tabs" role="tablist">
+                  {TABS.map((which) => (
+                    <button key={which} type="button" role="tab" aria-selected={tab === which} className={`pe-chip${tab === which ? ' on' : ''}`} onClick={() => setTab(which)}>
+                      {which}
+                    </button>
+                  ))}
+                </nav>
+                <div className={`pe-tray pe-tray-${tab.toLowerCase()}`} role="tabpanel">
+                  {section(tab)}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
       {gif && (
         <GifMaker

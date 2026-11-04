@@ -1,6 +1,7 @@
-// Someone's public profile, /u/<handle>: a read-only card from their server row and the public media URLs, then
-// what they're listening to (members who follow them, while they share it) and their posts. Works signed out.
-// Pinned songs show art and title; tapping one searches for it (no audio comes from the server).
+// Someone's public profile, /u/<handle>: a read-only card from their server row and the public media URLs, and
+// beside it the tabs: Board (their pinned songs), Activity (what they're listening to: members who follow them,
+// while they share it) and Posts. Works signed out. Pinned songs show art and title; tapping one searches for it
+// (no audio comes from the server). Pinned playlists stay private: playlists aren't public.
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
 import { badgesOf, ensureRow, fetchPublicProfile, pinnedOf, profileFromRow, profilePath, useAccount } from '../lib/account.ts'
 import { usePlayer } from '../lib/player.ts'
@@ -15,11 +16,11 @@ import { Icon } from '../ui/Icon.tsx'
 import { openMenu } from '../ui/Menu.tsx'
 import { PeopleSheet, profileMenuItems } from '../ui/People.tsx'
 import { PostGrid } from '../ui/Post.tsx'
+import { BoardGhost, BoardSection, ProfileTabs, RemoteSongGrid } from '../ui/profile/Board.tsx'
 import { CardIcon, ProfileCard, useLive } from '../ui/profile/ProfileCard.tsx'
 import type { CardMedia } from '../ui/profile/ProfileMedia.tsx'
 import { SongTile } from '../ui/ResultTile.tsx'
-import { Row, Shelf } from '../ui/Shelf.tsx'
-import type { MediaKind, ProfileRow } from '../types.ts'
+import type { MediaKind, PinnedSong, ProfileRow } from '../types.ts'
 import '../styles/profile.css'
 import '../styles/social.css'
 
@@ -60,7 +61,7 @@ export function User({ handle }: { handle: string }) {
   const covered = usePlayer((s) => s.open) || viewing
   const live = useLive(cardRef, !covered)
   const { row } = state
-  const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), remote: { pinned: pinnedOf(row), badges: badgesOf(row).map((b) => ({ ...b, name: badgeName(b.id, b.tier), fresh: false })) } }, [row])
+  const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), pinned: pinnedOf(row), remote: { badges: badgesOf(row).map((b) => ({ ...b, name: badgeName(b.id, b.tier), fresh: false })) } }, [row])
   const person = useMemo(() => (row ? personOf(row) : undefined), [row])
   const me = useMe()
   const self = !!me && me.id === row?.id
@@ -75,7 +76,7 @@ export function User({ handle }: { handle: string }) {
 
   if (!view)
     return (
-      <section className="you user-page">
+      <section className="profile user-page">
         {(state.offline || row === null) && (
           <div className="user-missing" aria-label={state.offline ? 'Offline' : 'Not Found'} role="img">
             <Icon name={state.offline ? 'offline' : 'user'} size={44} />
@@ -86,8 +87,8 @@ export function User({ handle }: { handle: string }) {
   const more = (e: MouseEvent<HTMLButtonElement>) =>
     person && openMenu(e.currentTarget, profileMenuItems({ person, self, onPeople: setPeople, onChange: () => setReload((n) => n + 1) }))
   return (
-    <section className="you user-page">
-      <div ref={cardRef}>
+    <section className="profile user-page">
+      <div className="profile-side" ref={cardRef}>
         <ProfileCard
           profile={view.profile}
           media={view.media}
@@ -105,7 +106,7 @@ export function User({ handle }: { handle: string }) {
           claimsVideo
         />
       </div>
-      {row && <Sections key={row.id} userId={row.id} />}
+      {row && <Tabs key={row.id} userId={row.id} pinned={view.pinned} />}
       {people && row && <PeopleSheet userId={row.id} which={people} onClose={() => setPeople(undefined)} />}
     </section>
   )
@@ -134,10 +135,10 @@ function FollowPill({ id }: { id: string }) {
   )
 }
 
-/** Listening To and Posts, together once both have answered (a ghost grid until then), so nothing jumps. Each shows
- * only with something in it. Waits for the account, so a member's Listening To doesn't arrive late; a row that
+/** The tabs, once Listening To and Posts have both answered (a ghost row until then), so nothing jumps. Each tab
+ * shows only with something in it. Waits for the account, so a member's Listening To doesn't arrive late; a row that
  * didn't load (a failure at start) is asked for once more, and then the posts load whatever the answer. */
-function Sections({ userId }: { userId: string }) {
+function Tabs({ userId, pinned }: { userId: string; pinned: PinnedSong[] }) {
   const known = useAccount((s) => s.ready && (!s.user || s.row !== undefined))
   const checked = useAccount((s) => s.ready)
   const online = useOnline()
@@ -166,34 +167,31 @@ function Sections({ userId }: { userId: string }) {
     }
   }, [userId, ready, online, me?.id])
 
-  if (!loaded)
-    return (
-      <div className="user-sections">
-        <div className="post-grid post-ghosts" aria-hidden="true">
-          {Array.from({ length: 6 }, (_, i) => (
-            <span key={i} className="post-face" />
-          ))}
-        </div>
-      </div>
-    )
+  if (!loaded) return <BoardGhost />
   const listening = loaded.me === me?.id ? (loaded.listening ?? []) : []
-  if (!listening.length && !list?.items.length) return null
   return (
-    <div className="user-sections">
-      {listening.length > 0 && (
-        <Shelf title="Listening To">
-          <Row wide>
-            {listening.map((p) => (
-              <SongTile key={p.key} song={p.song} />
-            ))}
-          </Row>
-        </Shelf>
-      )}
-      {!!list?.items.length && (
-        <Shelf title="Posts">
-          <PostGrid userId={userId} />
-        </Shelf>
-      )}
-    </div>
+    <ProfileTabs
+      panels={{
+        board: pinned.length > 0 && (
+          <BoardSection title="Songs" section="pinned">
+            <RemoteSongGrid songs={pinned} />
+          </BoardSection>
+        ),
+        activity: listening.length > 0 && (
+          <BoardSection title="Listening To" section="listening">
+            <div className="board-tiles">
+              {listening.map((p) => (
+                <SongTile key={p.key} song={p.song} />
+              ))}
+            </div>
+          </BoardSection>
+        ),
+        posts: !!list?.items.length && (
+          <BoardSection title="Posts" section="posts">
+            <PostGrid userId={userId} />
+          </BoardSection>
+        ),
+      }}
+    />
   )
 }

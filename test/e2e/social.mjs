@@ -1,5 +1,6 @@
-// The social screens end to end, against a pretend Supabase: profiles with Follow, Listening To and Posts; Home's two
-// friends shelves; Search's Luma row; You with New Post, More, the Posts shelf and the admin rows; the composer; the
+// The social screens end to end, against a pretend Supabase: profiles with Follow and the Board, Activity (Listening To)
+// and Posts tabs; Home's two friends shelves; Search's Luma row; You with New Post, More, its tabs and pins, and the
+// settings (account and admin rows) inside Edit Profile; the composer; the
 // Viewer; the People and Reports sheets; and the signed-out and offline cases. It checks a few behaviors and takes
 // every screenshot at 393×852 and 1440×900, in Luma (dark) and Y2K.
 //
@@ -122,7 +123,12 @@ function seedData() {
     profile({
       id: ALICE, handle: 'alice', name: 'Alice Moon', name_style: 'chrome', colors: ['#38bdf8', '#1e3a8a'], bio: 'Night drives and moonrise playlists.',
       banner_path: `${ALICE}/profile/banner.jpg`, banner_kind: 'image',
-      pinned_songs: [{ id: 'aaaaaaaaaaa', source: 'youtube', title: 'One More Time', artist: 'Daft Punk' }],
+      pinned_songs: [
+        { id: 'aaaaaaaaaaa', source: 'youtube', title: 'One More Time', artist: 'Daft Punk' },
+        { id: 'bbbbbbbbbbb', source: 'youtube', title: 'Dreams', artist: 'Fleetwood Mac' },
+        { id: 'fffffffffff', source: 'youtube', title: 'Running Up That Hill', artist: 'Kate Bush' },
+        { id: 'f-field', source: 'file', title: 'Field Recording', artist: 'Cleo Park' },
+      ],
       badges: [{ id: 'founder', tier: 4 }, { id: 'hours', tier: 2 }],
     }),
     profile({ id: BRAM, handle: 'moonboy', name: 'Bram Okafor', name_style: 'aurora' }),
@@ -494,7 +500,14 @@ async function seedLibrary(page) {
     for (let d = 0; d < 4; d++) for (let i = 0; i < 5; i++) plays.push([songs[i].id, now - d * 86400000 - i * 60000 - 3600000, 90000])
     await addPlays(plays)
     usePlayer.setState({ queue: { ids: [songs[2].id], index: 0, original: null } })
-    const { saveProfile, useLibrary } = await import('/src/lib/library.ts')
+    const { createPlaylist, pinPlaylist, pinSong, renamePlaylist, saveProfile, useLibrary } = await import('/src/lib/library.ts')
+    // Two playlists, the first pinned (the second is pinned from its own screen); three songs pinned.
+    const night = createPlaylist([songs[0].id, songs[1].id, songs[2].id])
+    renamePlaylist(night, 'Night Drive')
+    const slow = createPlaylist([songs[3].id, songs[4].id])
+    renamePlaylist(slow, 'Slow Mornings')
+    pinPlaylist(night)
+    for (const s of [songs[4], songs[1], songs[0]]) pinSong(s.id)
     await saveProfile({ ...useLibrary.getState().profile, name: 'Ada Lovelace', nameStyle: 'neon', colors: ['#ff7ab8', '#6b5bff'], bio: 'Poetical science.' })
   }, RESULTS)
   await sleep(200)
@@ -526,6 +539,27 @@ const shot = async (page, name) => {
 }
 
 const menuItem = (page, name) => page.locator('.menu .menu-item', { hasText: name })
+/** Shows a profile tab once the tabs are in, if there is a tab row (a lone tab shows without one). */
+async function showTab(page, name) {
+  await page.locator('.board-panel').first().waitFor()
+  const tab = page.getByRole('tab', { name, exact: true })
+  if (await tab.count()) {
+    await tab.click()
+    await page.locator(`.board-panel[data-tab="${name.toLowerCase()}"]`).waitFor()
+  }
+}
+/** Opens Edit Profile on its Settings page. */
+async function openSettings(page) {
+  await page.locator('.pc-actions').getByRole('button', { name: 'Edit Profile' }).click()
+  const editor = page.getByRole('dialog', { name: 'Edit Profile' })
+  await editor.getByRole('radio', { name: 'Settings' }).click()
+  await editor.locator('.pe-settings .group').first().waitFor()
+  return editor
+}
+async function closeEditor(page) {
+  await page.getByRole('dialog', { name: 'Edit Profile' }).getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('dialog', { name: 'Edit Profile' }).waitFor({ state: 'detached' })
+}
 const onlySocialCalls = () => server.calls.filter((c) => /\/rest\/v1\/(follows|plays|posts|videos|reports|rpc)/.test(c))
 
 const files = (n) =>
@@ -568,11 +602,18 @@ for (const theme of ['luma', 'y2k']) {
       step('signed-out Home: no friends shelves, none in Edit Home')
 
       await go(page, '/u/alice')
-      await page.locator('.post-grid .post-card').first().waitFor()
+      await page.locator('.board-panel[data-tab="board"] .board-tile').first().waitFor()
       assert.equal(await page.locator('.pc-follow').count(), 0)
       assert.equal(await page.getByText('Listening To').count(), 0)
+      // Board and Posts; no Activity (signed out), and no Pinned left inside the card.
+      assert.deepEqual(await page.getByRole('tab').allTextContents(), ['Board', 'Posts'])
+      assert.equal(await page.locator('.board-section[data-section="pinned"] .board-tile').count(), 4)
+      assert.equal(await page.locator('.pc .board-section, .pc [data-section]').count(), 0)
+      assert.equal(await page.locator('.board-more').count(), 0, "someone else's Board has no section menus")
       await shot(page, '01-u-alice')
-      await scrollTo(page, '.user-sections')
+      await showTab(page, 'Posts')
+      await page.locator('.post-grid .post-card').first().waitFor()
+      await scrollTo(page, '.board')
       await shot(page, '01-u-alice-posts')
       await scrollTo(page, '.pc-wrap')
       await page.locator('.pc-actions').getByRole('button', { name: 'More', exact: true }).click()
@@ -601,6 +642,62 @@ for (const theme of ['luma', 'y2k']) {
       assert.ok(await page.locator('.post-grid .post-card').nth(1).evaluate((el) => el === document.activeElement))
       step('Viewer: focus goes back to the card it opened from')
 
+      // Your own profile, signed out: Board (pinned playlists and songs) and Activity; no Posts.
+      await go(page, '/you')
+      await page.locator('.board-section[data-section="playlists"] .board-tile').first().waitFor()
+      assert.deepEqual(await page.getByRole('tab').allTextContents(), ['Board', 'Activity'])
+      assert.equal(await page.locator('.board-section[data-section="playlists"] .board-tile').count(), 1)
+      assert.equal(await page.locator('.board-section[data-section="pinned"] .board-tile').count(), 3)
+      assert.equal(await page.locator('.group-row').count(), 0, 'settings show on the profile')
+      await shot(page, '13-you-board')
+      // A playlist pins from its own screen's More menu, and shows on the Board first.
+      await go(page, '/playlists')
+      await page.locator('.playlist-tile', { hasText: 'Slow Mornings' }).click()
+      const playlistMore = page.locator('.playlist-actions').getByRole('button', { name: 'More', exact: true })
+      await playlistMore.click()
+      await menuItem(page, 'Pin to Profile').click()
+      await playlistMore.click()
+      await menuItem(page, 'Unpin from Profile').waitFor()
+      await page.keyboard.press('Escape')
+      await go(page, '/you')
+      const lists = page.locator('.board-section[data-section="playlists"] .board-tile')
+      await lists.nth(1).waitFor()
+      assert.deepEqual(await lists.allTextContents(), ['Slow Mornings', 'Night Drive'])
+      // The section's More: Pin Playlist (none left to pin), Unpin, Edit.
+      await page.getByRole('button', { name: 'Playlists Options' }).click()
+      await menuItem(page, 'Unpin').waitFor()
+      assert.equal(await menuItem(page, 'Pin Playlist').count(), 0)
+      await shot(page, '13-you-board-menu')
+      await menuItem(page, 'Unpin').click()
+      await menuItem(page, 'Slow Mornings').click()
+      await page.waitForFunction(() => document.querySelectorAll('.board-section[data-section="playlists"] .board-tile').length === 1)
+      // Edit opens the editor on its pins.
+      await page.getByRole('button', { name: 'Songs Options' }).click()
+      await menuItem(page, 'Edit').click()
+      await page.getByRole('dialog', { name: 'Edit Profile' }).locator('.pe-pinned').first().waitFor()
+      await closeEditor(page)
+      step('own Board: pin a playlist from its screen, unpin from the section menu, Edit')
+
+      await showTab(page, 'Activity')
+      await page.locator('.board-section[data-section="recent"] .board-tile').first().waitFor()
+      assert.equal(await page.locator('.board-section[data-section="on-repeat"]').count(), 1)
+      await shot(page, '13-you-activity')
+      step('own Activity: Recently Played and On Repeat')
+
+      // Settings live in Edit Profile; signed out it offers Sign In.
+      const editor = await openSettings(page)
+      await editor.getByRole('button', { name: 'Sign In' }).waitFor()
+      await shot(page, '14-editor-settings-signedout')
+      await editor.getByRole('button', { name: 'Sign In' }).click()
+      await page.getByRole('dialog', { name: 'Sign In' }).waitFor()
+      await page.keyboard.press('Escape')
+      await page.getByRole('dialog', { name: 'Sign In' }).waitFor({ state: 'detached' })
+      assert.equal(await editor.count(), 1, 'Escape on the Sign In sheet closed the editor too')
+      await editor.getByRole('radio', { name: 'Profile' }).click()
+      await editor.locator('.pe-preview .pc').waitFor()
+      await closeEditor(page)
+      step('editor settings, signed out: Sign In over the editor, Escape closes just the sheet')
+
       // Offline: the existing glyph, and nothing social is asked for.
       await go(page, '/')
       await context.setOffline(true)
@@ -613,6 +710,23 @@ for (const theme of ['luma', 'y2k']) {
       await context.setOffline(false)
       server.offline = false
       step('offline profile: the glyph, no social calls')
+      await context.close()
+    }
+
+    // ── Empty profiles: nothing pinned, played or posted shows the card alone ──
+    {
+      const { context, page } = await newContext({ theme, phone })
+      await page.goto(`${BASE}/you`)
+      await page.locator('.pc-wrap').waitFor()
+      await sleep(600)
+      assert.equal(await page.locator('.board, [role="tablist"]').count(), 0)
+      await shot(page, '15-you-empty')
+      await go(page, '/u/dev')
+      await page.locator('.pc-wrap').waitFor()
+      await page.locator('.post-ghosts').waitFor({ state: 'detached' })
+      assert.equal(await page.locator('.board, [role="tablist"]').count(), 0)
+      await shot(page, '15-u-empty')
+      step('empty profiles: the card alone, no tabs')
       await context.close()
     }
 
@@ -669,9 +783,12 @@ for (const theme of ['luma', 'y2k']) {
       assert.ok(follows(ADA, ALICE))
       await shot(page, '02-u-alice-following')
       await page.reload()
+      await showTab(page, 'Activity')
       await page.getByText('Listening To').waitFor()
-      await scrollTo(page, '.user-sections')
+      assert.deepEqual(await page.getByRole('tab').allTextContents(), ['Board', 'Activity', 'Posts'])
+      await scrollTo(page, '.board')
       await shot(page, '02-u-alice-listening')
+      await showTab(page, 'Posts')
       await scrollTo(page, '.pc-wrap')
       await page.locator('.pc-actions').getByRole('button', { name: 'More', exact: true }).click()
       await menuItem(page, 'Report').click()
@@ -738,6 +855,7 @@ for (const theme of ['luma', 'y2k']) {
       // Bram's card has a video Background: it plays on his page, and rests while the Viewer covers the page.
       Object.assign(person(BRAM), { backdrop_path: `${BRAM}/profile/backdrop.mp4`, backdrop_kind: 'video', backdrop_still_path: `${BRAM}/profile/backdrop-still.jpg` })
       await go(page, '/u/moonboy')
+      await showTab(page, 'Posts')
       const backdrop = page.locator('.pc-backdrop video')
       await page.waitForFunction(() => document.querySelector('.pc-backdrop video')?.paused === false)
       await page.locator('.post-grid .post-card:has(.post-badge-top)').first().click()
@@ -751,14 +869,19 @@ for (const theme of ['luma', 'y2k']) {
       await page.locator('.viewer').waitFor({ state: 'detached' })
       step("Viewer: a song posted as a video can't play; the card's video rests under the Viewer")
 
-      // You: New Post, More, the Posts shelf and the @handle row.
+      // You: New Post, More, the tabs (Posts among them) and, in Edit Profile, the @handle row.
       await go(page, '/you')
       await page.getByRole('button', { name: 'New Post' }).waitFor()
-      await page.locator('.you-posts .post-card').first().waitFor()
+      await page.getByRole('tab', { name: 'Posts' }).waitFor()
+      assert.deepEqual(await page.getByRole('tab').allTextContents(), ['Board', 'Activity', 'Posts'])
       await shot(page, '07-you-member')
-      await scrollTo(page, '.you-settings .group:last-child')
+      await showTab(page, 'Posts')
+      await page.locator('.you .post-grid .post-card').first().waitFor()
+      await shot(page, '07-you-member-posts')
+      let editor = await openSettings(page)
       await shot(page, '07-you-member-settings')
-      assert.equal(await page.locator('a.group-row', { hasText: '@ada' }).getAttribute('href'), '/u/ada')
+      assert.equal(await editor.locator('a.group-row', { hasText: '@ada' }).getAttribute('href'), '/u/ada')
+      await closeEditor(page)
       await scrollTo(page, '.pc-wrap')
       await page.locator('.pc-actions').getByRole('button', { name: 'More', exact: true }).click()
       await menuItem(page, 'Following').waitFor()
@@ -776,7 +899,7 @@ for (const theme of ['luma', 'y2k']) {
       step('People sheet: focus moves in, Tab stays in, and goes back to More')
 
       // Owner's More in the Viewer.
-      await page.locator('.you-posts .post-card').first().click()
+      await page.locator('.you .post-grid .post-card').first().click()
       await page.locator('.viewer').getByRole('button', { name: 'More', exact: true }).click()
       await menuItem(page, 'Delete').click()
       await menuItem(page, 'Delete Post').waitFor()
@@ -816,7 +939,7 @@ for (const theme of ['luma', 'y2k']) {
       server.hold = null
       release()
       await sheet.waitFor({ state: 'detached' })
-      assert.equal(await page.locator('.you-posts .post-card').first().getAttribute('aria-label'), 'Four from the harbor walk.')
+      assert.equal(await page.locator('.you .post-grid .post-card').first().getAttribute('aria-label'), 'Four from the harbor walk.')
       const made = server.data.posts.at(-1)
       assert.equal(made.image_paths.length, 4)
       assert.equal(made.youtube_id, 'ccccccccccc')
@@ -871,19 +994,23 @@ for (const theme of ['luma', 'y2k']) {
       assert.equal(await page.evaluate(() => window.__urls.size), 0, 'a closed composer left object URLs behind')
       step('composer: closed while processing, nothing left behind')
 
-      // The YouTube sheet, after its classes moved to account.css.
-      await scrollTo(page, '.you-settings .group:last-child')
+      // The YouTube sheet, over Edit Profile's settings.
+      editor = await openSettings(page)
       await page.waitForFunction(() => !!window.google)
-      await page.getByRole('button', { name: 'YouTube', exact: true }).click()
+      await editor.getByRole('button', { name: 'YouTube', exact: true }).click()
       await page.getByRole('dialog', { name: 'YouTube' }).getByText('Road Trip').waitFor()
       await shot(page, '10-youtube-sheet')
       await page.keyboard.press('Escape')
+      await page.getByRole('dialog', { name: 'YouTube' }).waitFor({ state: 'detached' })
+      assert.equal(await editor.count(), 1, 'Escape on the YouTube sheet closed the editor too')
+      await closeEditor(page)
 
       // A start whose own row fails to load (a server error): a profile asks for it again, then shows its sections.
       server.fail.push({ method: 'GET', path: new RegExp(`^/rest/v1/profiles\\?.*id=eq\\.${ADA}`), status: 504 })
       await page.goto(`${BASE}/u/moonboy`)
       await failed()
       await page.getByText('Listening To').waitFor()
+      await showTab(page, 'Posts')
       await page.locator('.post-grid .post-card').first().waitFor()
       assert.equal(await page.locator('.post-ghosts').count(), 0)
       step('profile: a row that failed at start is asked for again')
@@ -896,8 +1023,8 @@ for (const theme of ['luma', 'y2k']) {
       await seedLibrary(page)
       await page.reload()
       await go(page, '/you')
+      await openSettings(page)
       await page.getByRole('button', { name: 'Reports' }).waitFor()
-      await scrollTo(page, '.you-settings .group:last-child')
       await page.getByRole('button', { name: 'Invite' }).click()
       await page.getByText('K7Q2M9XW').waitFor()
       await shot(page, '07-you-admin')
@@ -930,6 +1057,8 @@ for (const theme of ['luma', 'y2k']) {
       await page.locator('.viewer').waitFor({ state: 'detached' })
       assert.equal(await reports.count(), 1, 'Escape in the Viewer closed the sheet under it')
       await page.keyboard.press('Escape')
+      await reports.waitFor({ state: 'detached' })
+      assert.equal(await page.getByRole('dialog', { name: 'Edit Profile' }).count(), 1, 'Escape on Reports closed the editor too')
       step('Reports: grouped rows, Dismiss, the Viewer over it')
 
       await go(page, '/u/alice')
@@ -947,6 +1076,7 @@ for (const theme of ['luma', 'y2k']) {
       // The account and the posts have loaded (a page that moves under it would close the menu).
       const settled = async () => {
         await page.locator('.pc-follow').waitFor()
+        await showTab(page, 'Posts')
         await page.locator('.post-grid .post-card').first().waitFor()
         await sleep(400)
       }
@@ -966,6 +1096,7 @@ for (const theme of ['luma', 'y2k']) {
       await shot(page, '03-u-banned-admin-more')
       await page.keyboard.press('Escape')
       await go(page, '/you')
+      await openSettings(page)
       await page.getByRole('button', { name: 'Reports' }).click()
       const pending = page.getByRole('dialog', { name: 'Reports' }).locator('.report', { hasText: 'Abuse · Other' })
       await pending.waitFor()

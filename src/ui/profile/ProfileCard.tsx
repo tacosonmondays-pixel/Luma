@@ -1,18 +1,11 @@
-// The profile card: banner, avatar with its frame, the styled name, badges, bio, then Pinned, Playlists and
-// On Repeat. The same card shows on You and in the editor's live preview. Its layout follows its own width
-// (a container query), so the preview at 440px matches the phone.
+// The profile card: banner, avatar with its frame, the styled name, badges and bio. What is pinned and played sits
+// beside it on the Board (Board.tsx). The same card shows on You, on someone's page and in the editor's live
+// preview. Its layout follows its own width (a container query).
 import { useEffect, useState, type CSSProperties, type MouseEvent, type ReactNode, type RefObject } from 'react'
-import { gradientFor } from '../../lib/format.ts'
-import { useLibrary } from '../../lib/library.ts'
-import { playTracks, usePlayer } from '../../lib/player.ts'
-import { useOnRepeat } from '../../lib/stats.ts'
-import { searchFor } from '../../lib/search-link.ts'
-import { thumbnails } from '../../lib/youtube.ts'
-import type { Badge, PinnedSong, Profile } from '../../types.ts'
-import { PlaylistArt, TrackArt } from '../Art.tsx'
+import { usePlayer } from '../../lib/player.ts'
+import type { Badge, Profile } from '../../types.ts'
 import { BadgeRow } from '../Badges.tsx'
 import { Icon, type IconName } from '../Icon.tsx'
-import { Link } from '../kit.tsx'
 import { profileColors } from './colors.ts'
 import { Effect } from './Effect.tsx'
 import { Frame } from './Frame.tsx'
@@ -58,108 +51,6 @@ function Initial({ name }: { name: string }) {
   return initial ? <span className="pc-initial">{initial}</span> : <Icon name="user" size={48} />
 }
 
-function Pinned({ ids }: { ids: string[] }) {
-  const tracks = useLibrary((s) => s.tracks)
-  const currentId = usePlayer((s) => s.queue.ids[s.queue.index])
-  const playing = usePlayer((s) => s.playing)
-  const shown = ids.filter((id) => tracks[id])
-  if (!shown.length) return null
-  return (
-    <section className="pc-section" data-section="pinned">
-      <h3>Pinned</h3>
-      <ul className="pc-pinned">
-        {shown.map((id, i) => {
-          const track = tracks[id]
-          const current = id === currentId
-          return (
-            <li key={id}>
-              <button type="button" className={`pc-song${current ? ' current' : ''}`} onClick={() => playTracks(shown, i)}>
-                <TrackArt track={track} size={40} playing={current ? playing : undefined} />
-                <span className="pc-song-text">
-                  <span className="pc-song-title ellipsis">{track.title}</span>
-                  {track.artist && <span className="pc-song-artist ellipsis">{track.artist}</span>}
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-    </section>
-  )
-}
-
-/** A public profile's pins: art and title only. Tapping one searches for it; nothing streams from the server. */
-function RemotePinned({ songs }: { songs: PinnedSong[] }) {
-  if (!songs.length) return null
-  return (
-    <section className="pc-section" data-section="pinned">
-      <h3>Pinned</h3>
-      <ul className="pc-pinned">
-        {songs.map((song) => (
-          <li key={song.id}>
-            <button type="button" className="pc-song" onClick={() => searchFor([song.title, song.artist].filter(Boolean).join(' '))}>
-              <RemoteArt song={song} />
-              <span className="pc-song-text">
-                <span className="pc-song-title ellipsis">{song.title}</span>
-                {song.artist && <span className="pc-song-artist ellipsis">{song.artist}</span>}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
-function RemoteArt({ song }: { song: PinnedSong }) {
-  const [failed, setFailed] = useState(false)
-  const src = song.source === 'youtube' && !failed ? thumbnails(song.id, true)[0] : undefined
-  return (
-    <div className="art" style={{ width: 40, height: 40, background: src ? undefined : gradientFor(song.title + song.artist) }}>
-      {src ? <img src={src} alt="" draggable={false} onError={() => setFailed(true)} /> : <Icon name="music" size={16} />}
-    </div>
-  )
-}
-
-function Playlists({ ids }: { ids: string[] }) {
-  const playlists = useLibrary((s) => s.playlists)
-  const shown = ids.map((id) => playlists.find((p) => p.id === id)).filter((p) => !!p)
-  if (!shown.length) return null
-  return (
-    <section className="pc-section" data-section="playlists">
-      <h3>Playlists</h3>
-      <div className="pc-playlists">
-        {shown.map((p) => (
-          <Link key={p.id} to={`/playlist/${p.id}`} className="pc-playlist">
-            <PlaylistArt playlist={p} />
-            <span className="ellipsis">{p.name}</span>
-          </Link>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function OnRepeat() {
-  const ids = useOnRepeat()
-  const tracks = useLibrary((s) => s.tracks)
-  const shown = ids.filter((id) => tracks[id])
-  if (shown.length < 3) return null
-  return (
-    <section className="pc-section" data-section="on-repeat">
-      <h3>On Repeat</h3>
-      <div className="pc-repeat">
-        {shown.map((id, i) => (
-          <button key={id} type="button" className="pc-repeat-item" onClick={() => playTracks(shown, i)}>
-            <TrackArt track={tracks[id]} />
-            <span className="ellipsis">{tracks[id].title}</span>
-          </button>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 interface CardProps {
   profile: Profile
   media: CardMedia
@@ -172,8 +63,8 @@ interface CardProps {
   effectRun?: number
   /** Tells the Wallpaper to pause while this card plays a Background video (the You page, the editor's preview). */
   claimsVideo?: boolean
-  /** Someone's public profile (/u/:handle): its pins and badges come from the server, not this library. */
-  remote?: { pinned: PinnedSong[]; badges: Badge[] }
+  /** Someone's public profile (/u/:handle): its badges come from the server, not this library. */
+  remote?: { badges: Badge[] }
 }
 
 /** A round button among the card's actions (Share, More). */
@@ -235,17 +126,6 @@ export function ProfileCard({ profile, media, live, effectFor, effectRun = 0, ac
               <BadgeRow size="card" badges={remote?.badges} />
             </div>
             {profile.bio?.trim() && <p className="pc-bio">{profile.bio.trim()}</p>}
-          </div>
-          <div className="pc-sections">
-            {remote ? (
-              <RemotePinned songs={remote.pinned} />
-            ) : (
-              <>
-                <Pinned ids={profile.pinnedSongs ?? []} />
-                <Playlists ids={profile.pinnedPlaylists ?? []} />
-                <OnRepeat />
-              </>
-            )}
           </div>
         </div>
         {profile.effect && (
