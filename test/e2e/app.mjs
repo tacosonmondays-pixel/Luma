@@ -1,6 +1,7 @@
 // End-to-end check of Save to Luma in the app: /save links, saved songs, Download Missing, linked playlists with
-// Refresh from YouTube, the iOS shell's luma://save routing, and Connect YouTube. Runs the dev server with the
-// fake yt-dlp (test/e2e/fake-yt-dlp.cjs); googleapis, Google's sign-in script and thumbnails are stubbed.
+// Refresh from YouTube, the iOS shell's luma://save routing, and Connect YouTube; and Rename from the song menu.
+// Runs the dev server with the fake yt-dlp (test/e2e/fake-yt-dlp.cjs); googleapis, Google's sign-in script and
+// thumbnails are stubbed.
 //
 //   node test/e2e/app.mjs [screenshot dir]
 //
@@ -176,6 +177,67 @@ try {
     const queue = await page.evaluate(async () => (await import('/src/lib/player.ts')).usePlayer.getState().queue.ids)
     assert.deepEqual(queue, ['dQw4w9WgXcQ'])
     step('phone: the queue skips saved songs')
+
+    // Rename, from the song menu: the title comes selected, Enter saves, and the new name shows in the list, the
+    // player, Home and the lock screen. Escape cancels, and so does a press on Close.
+    const rick = page.locator('.track', { hasText: 'Never Gonna Give You Up' })
+    const sheet = page.getByRole('dialog', { name: 'Rename' })
+    await rick.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Rename' }).click()
+    await sheet.waitFor()
+    assert.equal(await sheet.getByLabel('Title').inputValue(), 'Never Gonna Give You Up')
+    assert.equal(await sheet.getByLabel('Artist').inputValue(), 'Rick Astley')
+    assert.deepEqual(await page.evaluate(() => [document.activeElement.name, document.activeElement.selectionStart, document.activeElement.selectionEnd]), ['title', 0, 23])
+    await shoot(page, 'rename-sheet')
+    await page.keyboard.type('Never Gonna Give You Up (Live)')
+    await sheet.getByLabel('Artist').fill('  Rick Astley & Band ')
+    await sheet.getByLabel('Artist').press('Enter')
+    await sheet.waitFor({ state: 'detached' })
+    await rick.locator('.track-title', { hasText: '(Live)' }).waitFor()
+    assert.equal(await rick.locator('.track-artist').textContent(), 'Rick Astley & Band')
+    assert.equal(await page.locator('.bar-title').textContent(), 'Never Gonna Give You Up (Live)')
+    assert.deepEqual(await page.evaluate(() => [navigator.mediaSession.metadata?.title, navigator.mediaSession.metadata?.artist]), ['Never Gonna Give You Up (Live)', 'Rick Astley & Band'])
+    lib = await library(page)
+    assert.deepEqual([lib.tracks.dQw4w9WgXcQ.title, lib.tracks.dQw4w9WgXcQ.artist], ['Never Gonna Give You Up (Live)', 'Rick Astley & Band'])
+    await shoot(page, 'renamed')
+
+    for (const cancel of ['Escape', 'Close']) {
+      await rick.getByRole('button', { name: 'More' }).click()
+      await page.getByRole('menuitem', { name: 'Rename' }).click()
+      await sheet.waitFor()
+      await page.keyboard.type('Nope')
+      if (cancel === 'Escape') await page.keyboard.press('Escape')
+      else await sheet.getByRole('button', { name: 'Close' }).click()
+      await sheet.waitFor({ state: 'detached' })
+      assert.equal(await rick.locator('.track-title').textContent(), 'Never Gonna Give You Up (Live)')
+      assert.equal(await page.evaluate(() => document.activeElement?.closest('.track')?.textContent.includes('(Live)')), true) // focus back on More
+    }
+
+    // A saved song (no audio yet) renames the same way; it stays saved.
+    const saved = page.locator('.track', { hasText: 'Running Up That Hill' })
+    await saved.getByRole('button', { name: 'More' }).click()
+    await page.getByRole('menuitem', { name: 'Rename' }).click()
+    await sheet.getByLabel('Title').fill('Running Up That Hill (A Deal with God)')
+    await sheet.getByRole('button', { name: 'Save' }).click()
+    await sheet.waitFor({ state: 'detached' })
+    await page.locator('.track.missing .track-title', { hasText: 'A Deal with God' }).waitFor()
+
+    // From Now Playing: the sheet opens over it, and Escape closes the sheet, not Now Playing.
+    await page.getByRole('button', { name: 'Open Now Playing' }).first().click()
+    await page.locator('.np.open .np-title', { hasText: '(Live)' }).waitFor()
+    await page.locator('.np-more').click()
+    await page.getByRole('menuitem', { name: 'Rename' }).click()
+    await sheet.waitFor()
+    await page.keyboard.press('Escape')
+    await sheet.waitFor({ state: 'detached' })
+    assert.equal(await page.locator('.np.open').count(), 1)
+    await page.keyboard.press('Escape')
+    await page.locator('.np.open').waitFor({ state: 'detached' })
+
+    // Home shows the new names.
+    await page.getByRole('link', { name: 'Home' }).first().click()
+    await page.locator('.card-title', { hasText: 'Never Gonna Give You Up (Live)' }).first().waitFor()
+    step('phone: Rename from the song menu renames everywhere; Escape and Close cancel')
 
     // Without a key (and no helper), a link can't be listed: Search opens with it and says why.
     await page.evaluate(() => localStorage.removeItem('luma-youtube-key'))

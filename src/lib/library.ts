@@ -164,6 +164,22 @@ export function updateTrack(id: string, patch: Partial<Track>): void {
   if (track) setState((s) => ({ tracks: { ...s.tracks, [id]: { ...track, ...patch } } }))
 }
 
+/** The longest title or artist a rename keeps, in characters. */
+export const MAX_NAME = 200
+
+/** Rename a song. Each name is trimmed and cut to MAX_NAME; a field left as it was keeps its name, and an empty
+ *  title keeps the old one. Nothing is written when nothing changed. */
+export function renameTrack(id: string, title: string, artist: string): void {
+  const track = getState().tracks[id]
+  if (!track) return
+  const named = (value: string, old: string) => {
+    const v = value.trim()
+    return v === old ? old : Array.from(v).slice(0, MAX_NAME).join('')
+  }
+  const next = { title: named(title, track.title) || track.title, artist: named(artist, track.artist) }
+  if (next.title !== track.title || next.artist !== track.artist) updateTrack(id, next)
+}
+
 // ── Playlists ────────────────────────────────────────────────────────────
 
 let nameToFocus: string | undefined
