@@ -1,0 +1,231 @@
+/* Beside the profile card (under it on a phone): the text tabs and their section cards (src/ui/profile/Board.tsx). */
+
+.board {
+  min-width: 0;
+}
+
+/* ── Tabs: text, an underline under the shown one ──────────────────── */
+
+.board-tabs {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.board-tab {
+  position: relative;
+  height: 40px;
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 600;
+  transition:
+    color 160ms,
+    transform 140ms var(--ease);
+}
+
+.board-tab::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+  transform: scaleX(0);
+  transition: transform 220ms var(--ease);
+}
+
+.board-tab[aria-selected='true'] {
+  color: var(--text);
+}
+
+.board-tab[aria-selected='true']::after {
+  transform: scaleX(1);
+}
+
+@media (hover: hover) {
+  .board-tab:hover {
+    color: var(--text);
+  }
+}
+
+.board-tab:active {
+  transform: scale(0.96);
+}
+
+.board-panel {
+  display: grid;
+  gap: 16px;
+  animation: board-in 200ms var(--ease) both;
+}
+
+@keyframes board-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ── Section cards ─────────────────────────────────────────────────── */
+
+.board-section {
+  padding: 14px 16px 16px;
+  border-radius: var(--r-l);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+
+.board-head h3 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.board-more.icon-btn {
+  width: 32px;
+  height: 32px;
+  margin-right: -6px;
+  color: var(--text-2);
+}
+
+/* Covers, three across on a phone and four on desktop. */
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+}
+
+.board-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.board-tile:active {
+  transform: scale(0.97);
+}
+
+.board-tile .art {
+  width: 100%;
+  border-radius: var(--r);
+}
+
+.board-tile.current .board-name {
+  color: var(--accent);
+}
+
+@media (hover: hover) {
+  .board-tile .art img {
+    transition: transform 320ms var(--ease);
+  }
+
+  .board-tile:hover .art img {
+    transform: scale(1.04);
+  }
+}
+
+/* Someone's plays: YouTube tiles at 16:9, two across on a phone. */
+.board-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 10px;
+}
+
+.board-section .post-grid {
+  margin: 0;
+}
+
+.board-ghost {
+  aspect-ratio: 1;
+  border-radius: var(--r);
+  background: var(--fill);
+}
+
+@media (min-width: 900px) {
+  .board-section {
+    padding: 16px 20px 20px;
+  }
+
+  .board-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px 14px;
+  }
+
+  .board-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .board-section .post-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-panel {
+    animation: none;
+  }
+
+  .board-tab::after {
+    transition: none;
+  }
+}
+
+/* ── Y2K: white panels with a blue rim; the tabs sit on sky on a phone ── */
+
+:root[data-theme='y2k'] .board-section {
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(60, 110, 190, 0.3),
+    0 6px 18px rgba(0, 30, 90, 0.16);
+}
+
+:root[data-theme='y2k'] .board-head h3 {
+  font-family: var(--y2k-head);
+}
+
+:root[data-theme='y2k'] .board-tab {
+  font-family: var(--y2k-head);
+}
+
+:root[data-theme='y2k'] .board-tab::after {
+  background: var(--y2k-select);
+  height: 3px;
+}
+
+:root[data-theme='y2k'] .board-tile .art {
+  box-shadow: 0 0 0 1px rgba(36, 66, 116, 0.25);
+}
+
+@media (max-width: 899px) {
+  :root[data-theme='y2k'] .board-tabs {
+    border-bottom-color: rgba(255, 255, 255, 0.35);
+  }
+
+  :root[data-theme='y2k'] .board-tab {
+    color: rgba(255, 255, 255, 0.78);
+    text-shadow: 0 1px 2px rgba(0, 30, 110, 0.45);
+  }
+
+  :root[data-theme='y2k'] .board-tab[aria-selected='true'] {
+    color: #fff;
+  }
+
+  :root[data-theme='y2k'] .board-tab::after {
+    background: #fff;
+  }
+}

@@ -127,14 +127,6 @@
   }
 }
 
-/* A profile's sections under the card: Listening To, then Posts. */
-.user-sections {
-  display: grid;
-  gap: 32px;
-  margin-top: 28px;
-  animation: social-in 200ms var(--ease) both;
-}
-
 /* ── People ────────────────────────────────────────────────────────── */
 
 .person-card {
@@ -726,7 +718,6 @@
   .pc-follow.pill,
   .pc-follow.wrong,
   .luma-results,
-  .user-sections,
   .viewer-panel,
   .sheet-submit.failed,
   .report.wrong .sheet-row {
@@ -744,10 +735,6 @@
 }
 
 /* ── You ───────────────────────────────────────────────────────────── */
-
-.you-posts {
-  margin-top: 28px;
-}
 
 .invite-code {
   color: var(--text-2);
