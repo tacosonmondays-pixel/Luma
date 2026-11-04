@@ -6,7 +6,7 @@ import { ban, removeContent } from '../lib/moderation.ts'
 import { deletePost } from '../lib/posting.ts'
 import { href, navigate, usePath } from '../lib/router.ts'
 import { currentMe, keyOf, loadPeople, report, useSocial, type Person, type Post } from '../lib/social.ts'
-import { closePost, pauseForSound, playable, useViewer } from '../lib/viewer.ts'
+import { closePost, pauseForSound, playable, useViewer, viewerOpener } from '../lib/viewer.ts'
 import { PersonAvatar } from './Art.tsx'
 import { Icon } from './Icon.tsx'
 import { Boundary, IconButton, wrapTab } from './kit.tsx'
@@ -83,7 +83,7 @@ function Viewer({ post }: { post: Post }) {
 
   // Focus starts on Close and goes back to the opener afterwards.
   useEffect(() => {
-    const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null
+    const opener = viewerOpener()
     root.current?.querySelector<HTMLElement>('.viewer-close')?.focus({ preventScroll: true })
     return () => {
       if (opener?.isConnected) opener.focus({ preventScroll: true })

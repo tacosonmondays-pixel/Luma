@@ -592,6 +592,15 @@ for (const theme of ['luma', 'y2k']) {
       await page.keyboard.press('Escape')
       await page.locator('.viewer').waitFor({ state: 'detached' })
 
+      // From the keyboard: Enter on a card opens the Viewer, and Escape gives focus back to that card.
+      await page.locator('.post-grid .post-card').nth(1).focus()
+      await page.keyboard.press('Enter')
+      await page.locator('.viewer').waitFor()
+      await page.keyboard.press('Escape')
+      await page.locator('.viewer').waitFor({ state: 'detached' })
+      assert.ok(await page.locator('.post-grid .post-card').nth(1).evaluate((el) => el === document.activeElement))
+      step('Viewer: focus goes back to the card it opened from')
+
       // Offline: the existing glyph, and nothing social is asked for.
       await go(page, '/')
       await context.setOffline(true)

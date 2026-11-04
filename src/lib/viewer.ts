@@ -25,9 +25,23 @@ interface Viewer {
 
 export const useViewer = create<Viewer>()(() => ({}))
 
-/** Show a post. Opening another over it (from Reports) keeps what the music needs on close. */
+/** What had focus when the Viewer opened. It is read here, in the tap, because the page behind turns inert as soon as
+ * the Viewer shows, and that drops the focus before the Viewer mounts. */
+let opener: HTMLElement | null = null
+
+/** Show a post. Opening another over it (from Reports) keeps what the music needs on close, and the first opener. */
 export function openPost(post: Post): void {
+  if (!useViewer.getState().post) {
+    const active = typeof HTMLElement === 'undefined' ? null : document.activeElement
+    opener = active && active instanceof HTMLElement && active !== document.body ? active : null
+  }
   useViewer.setState({ post })
+}
+
+/** The element to focus again once the Viewer closes. It stays set until the Viewer closes, since a Viewer can mount
+ * more than once while it shows (React's development checks, or another post opened over it). */
+export function viewerOpener(): HTMLElement | null {
+  return opener
 }
 
 /** A video is about to play with sound: pause the music, if it plays, and resume it on close. */
@@ -40,6 +54,7 @@ export function pauseForSound(): void {
 /** Close the Viewer. Call it from the tap itself: resuming the music needs one on iOS. */
 export function closePost(): void {
   const { paused } = useViewer.getState()
+  opener = null
   useViewer.setState({ post: undefined, paused: false })
   if (paused) play()
 }
