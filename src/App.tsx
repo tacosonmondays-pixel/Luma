@@ -11,6 +11,7 @@ import { Sidebar, TabBar } from './ui/Nav.tsx'
 import { NowPlaying } from './ui/NowPlaying.tsx'
 import { useCardVideo } from './ui/profile/ProfileMedia.tsx'
 import { PlayerBar } from './ui/PlayerBar.tsx'
+import { RenameHost } from './ui/Rename.tsx'
 import { ViewerHost } from './ui/Viewer.tsx'
 import { Home } from './views/Home.tsx'
 import { Playlist } from './views/Playlist.tsx'
@@ -61,7 +62,8 @@ function Wallpaper({ covered }: { covered: boolean }) {
   )
 }
 
-/** Space plays and pauses, arrows seek, Escape closes Now Playing. An open menu takes the keys first (Menu.tsx). */
+/** Space plays and pauses, arrows seek, Escape closes Now Playing (a sheet over it closes first). An open menu takes
+ * the keys first (Menu.tsx). */
 function useShortcuts() {
   useEffect(() => {
     // Space presses a button or link only when it was focused from the keyboard. Chrome also focuses what
@@ -73,7 +75,10 @@ function useShortcuts() {
     const onFocus = () => (clickFocused = pointer)
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'Escape') return setOpen(false)
+      if (e.key === 'Escape') {
+        if (!document.querySelector('.sheet-scrim')) setOpen(false)
+        return
+      }
       const target = e.target as HTMLElement
       if (target.closest('textarea, [contenteditable], input:not([type="range"])')) return // typing
       if (e.key === ' ') {
@@ -145,6 +150,7 @@ export function App() {
       </div>
       <NowPlaying />
       <ViewerHost />
+      <RenameHost />
       <MenuHost />
     </>
   )

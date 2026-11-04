@@ -84,6 +84,12 @@
   font-size: 17px;
 }
 
+/* Rename (Rename.tsx): title and artist, one group. */
+.rename-fields {
+  display: grid;
+  gap: 8px;
+}
+
 .sheet-submit.pill {
   width: 100%;
   height: 50px;

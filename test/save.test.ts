@@ -134,6 +134,8 @@ describe('saving without a downloader (phone mode, YouTube key)', () => {
     reset()
     setYouTubeKey('KEY')
     stubFetch()
+    // Phone mode is for an iPhone or iPad, where the Shortcut runs.
+    vi.stubGlobal('navigator', { ...navigator, userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)' })
   })
   afterEach(() => vi.unstubAllGlobals())
 
@@ -267,5 +269,21 @@ describe('saved songs', () => {
     expect(useLibrary.getState().order).toEqual(['y', 'x'])
     expect(useLibrary.getState().tracks.x).toMatchObject({ title: 'Saved Name', duration: 2 })
     expect(useLibrary.getState().tracks.x.missing).toBeUndefined()
+  })
+})
+
+describe('a PC without the helper', () => {
+  beforeEach(() => {
+    reset()
+    setYouTubeKey('KEY')
+    stubFetch()
+    vi.stubGlobal('navigator', { ...navigator, userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/140.0' })
+  })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('is offline, not phone mode, so Download never goes to a Shortcut', async () => {
+    const { detect, useSource } = await import('../src/lib/source.ts')
+    expect(await detect()).toBe('offline')
+    expect(useSource.getState().mode).toBe(null)
   })
 })

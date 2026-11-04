@@ -19,6 +19,7 @@ import { navigate } from '../lib/router.ts'
 import { downloadable, downloadSaved } from '../lib/source.ts'
 import { Icon, type IconName } from './Icon.tsx'
 import { pickFiles } from './kit.tsx'
+import { openRename } from './Rename.tsx'
 import '../styles/library.css'
 
 export interface MenuItem {
@@ -77,8 +78,8 @@ const pickCanvas = (trackId: string) =>
     await setTrackCanvas(trackId, await processMedia(file, 'canvas')).catch(() => {})
   }).catch(() => {})
 
-/** The song menu used everywhere: Play Next (or Download, for a saved song), Add to Playlist, Pin, Change Cover,
- *  Canvas, Remove from Playlist, Delete. */
+/** The song menu used everywhere: Play Next (or Download, for a saved song), Add to Playlist, Pin, Rename,
+ *  Change Cover, Canvas, Remove from Playlist, Delete. */
 export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, playlistId?: string): void {
   const { playlists, profile, tracks } = useLibrary.getState()
   const pinned = !!profile.pinnedSongs?.includes(trackId)
@@ -111,6 +112,7 @@ export function openTrackMenu(anchor: HTMLElement | MenuPoint, trackId: string, 
     pinned
       ? { label: 'Unpin from Profile', icon: 'unpin', onSelect: () => unpinSong(trackId) }
       : { label: 'Pin to Profile', icon: 'pin', onSelect: () => pinSong(trackId) },
+    { label: 'Rename', icon: 'pencil', onSelect: () => openRename(trackId) },
     {
       label: 'Change Cover',
       icon: 'image',

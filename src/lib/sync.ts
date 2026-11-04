@@ -188,6 +188,13 @@ export function markEdit(state: SyncState, prev: Lib, next: Lib, now: number): v
     const h = hash(profileFields(next.profile))
     if (h !== state.profile.h) state.profile = { h, at: now, dirty: true }
   }
+  // The profile shows its pinned songs by name: renaming one edits the profile too.
+  const renamed = (id: string) => {
+    const [a, b] = [prev.tracks[id], next.tracks[id]]
+    return !!a && !!b && (a.title !== b.title || a.artist !== b.artist)
+  }
+  if (next.tracks !== prev.tracks && state.profile && (next.profile.pinnedSongs ?? []).some(renamed))
+    state.profile = { ...state.profile, at: now, dirty: true }
 }
 
 /**
