@@ -1,0 +1,493 @@
+@import './themes.css';
+
+/* Design tokens, reset and the app shell. Feature styles live next to it: player.css, library.css, search.css.
+   Themes (themes.css) replace the color tokens. `--accent` follows the current song's cover (appearance.ts sets it
+   inline on <html>); without one it is the theme's own accent. */
+
+:root {
+  color-scheme: dark;
+  --bg: #0a0a0c;
+  --surface: #151518;
+  --surface-2: #1e1e22;
+  --fill: rgba(118, 118, 128, 0.2);
+  --fill-2: rgba(118, 118, 128, 0.32);
+  --hover: rgba(255, 255, 255, 0.055);
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f5f5f7;
+  --text-2: rgba(235, 235, 245, 0.62);
+  --text-3: rgba(235, 235, 245, 0.32);
+  --theme-accent: #a596ff;
+  --accent: var(--theme-accent);
+  --danger: #ff6b63;
+  --glass: rgba(22, 22, 26, 0.74);
+  --blur: blur(28px) saturate(1.8);
+
+  --r-s: 6px;
+  --r: 10px;
+  --r-l: 16px;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --spring: cubic-bezier(0.34, 1.36, 0.64, 1);
+
+  --side: 248px; /* desktop sidebar */
+  --bar: 84px; /* desktop player bar */
+  --tab: 54px; /* mobile tab bar, before the safe area */
+  --mini: 64px; /* mobile mini player, including its margin */
+  --gutter: 16px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px); /* a rotated iPhone: the notch or Dynamic Island side */
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  color: var(--text);
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+img,
+video {
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────── */
+
+.app {
+  display: grid;
+  grid-template-columns: var(--side) minmax(0, 1fr);
+  min-height: 100dvh;
+  --bar-space: 0px;
+}
+
+.app.has-track {
+  --bar-space: var(--bar);
+}
+
+.main {
+  width: 100%;
+  max-width: 1120px;
+  padding: 36px 40px calc(var(--bar-space) + 48px);
+  animation: enter 240ms var(--ease);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: calc(100dvh - var(--bar-space));
+  overflow-y: auto;
+  padding: 20px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-right: 1px solid var(--line);
+  background: var(--glass);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 38px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--text-2);
+  font-weight: 500;
+  transition:
+    background 140ms,
+    color 140ms;
+}
+
+.side-link:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.side-link.active {
+  color: var(--text);
+  background-color: color-mix(in oklab, var(--accent) 18%, var(--fill));
+  transition:
+    background-color 600ms var(--ease),
+    color 140ms;
+}
+
+.side-profile {
+  margin-bottom: 14px;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.side-playlists {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.side-playlists:empty {
+  display: none;
+}
+
+.side-playlists .art {
+  border-radius: 4px;
+}
+
+.tabbar {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app.has-track {
+    --bar-space: var(--mini);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .main {
+    padding: calc(var(--safe-top) + 24px) calc(var(--gutter) + var(--safe-right)) calc(var(--tab) + var(--safe-bottom) + var(--bar-space) + 32px)
+      calc(var(--gutter) + var(--safe-left));
+  }
+
+  /* Installed on an iPhone, the status bar floats over the page: frost the strip under it, like the tab bar below. */
+  .app::before {
+    content: '';
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 29;
+    height: var(--safe-top);
+    background: var(--glass);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+  }
+
+  .tabbar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 30;
+    display: flex;
+    height: calc(var(--tab) + var(--safe-bottom));
+    padding: 0 var(--safe-right) var(--safe-bottom) var(--safe-left);
+    background: var(--glass);
+    -webkit-backdrop-filter: var(--blur);
+    backdrop-filter: var(--blur);
+    border-top: 0.5px solid var(--line);
+  }
+
+  .tabbar a {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    color: var(--text-2);
+    transition:
+      color 160ms,
+      transform 160ms var(--ease);
+  }
+
+  .tabbar a:active {
+    transform: scale(0.88);
+  }
+
+  .tabbar a.active {
+    color: var(--text);
+  }
+}
+
+/* ── Wallpaper ─────────────────────────────────────────────────────── */
+
+.wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.wallpaper img,
+.wallpaper video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wallpaper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(color-mix(in srgb, var(--bg) 74%, transparent), color-mix(in srgb, var(--bg) 90%, transparent)); /* text stays readable on bright images */
+}
+
+/* ── Shared pieces ─────────────────────────────────────────────────── */
+
+.view-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 40px;
+  margin-bottom: 20px;
+}
+
+.view-head h1 {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.icon-btn {
+  position: relative;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--text-2);
+  transition:
+    color 140ms,
+    background 140ms,
+    transform 140ms var(--ease);
+}
+
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.icon-btn:active {
+  transform: scale(0.88);
+}
+
+.icon-btn.active {
+  color: var(--accent);
+}
+
+.icon-btn.error {
+  color: var(--danger);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* Touch: at least 44 px to hit (Apple's minimum) without changing the layout. */
+@media (pointer: coarse) {
+  .icon-btn::before {
+    content: '';
+    position: absolute;
+    inset: min(0px, calc((100% - 44px) / 2));
+  }
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 22px;
+  border-radius: 999px;
+  background: var(--fill);
+  color: var(--text);
+  font-weight: 600;
+  transition:
+    transform 140ms var(--ease),
+    background 140ms,
+    filter 140ms;
+}
+
+.pill:hover {
+  filter: brightness(1.12);
+}
+
+.pill:active {
+  transform: scale(0.96);
+}
+
+.pill.primary {
+  background: var(--text);
+  color: var(--bg);
+}
+
+@media (pointer: coarse) {
+  .pill {
+    height: 44px;
+  }
+}
+
+.art {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  background: var(--surface-2);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.art.round {
+  border-radius: 50%;
+}
+
+/* A cropped profile image or video (lib/crop.ts): sized to cover its .crop-box times the zoom, with the focus point
+   at the box's center, clamped so no edge shows. The crop sheet draws the same numbers in pixels. The box must be
+   positioned and clip its overflow. */
+.crop-box {
+  container-type: size;
+}
+
+.crop-box > .crop {
+  --cw: calc(max(100cqw, 100cqh * var(--ca)) * var(--cz));
+  --ch: calc(max(100cqh, 100cqw / var(--ca)) * var(--cz));
+  position: absolute;
+  top: clamp(calc(100cqh - var(--ch)), calc(50cqh - var(--cy) * var(--ch)), 0px);
+  left: clamp(calc(100cqw - var(--cw)), calc(50cqw - var(--cx) * var(--cw)), 0px);
+  width: var(--cw);
+  height: var(--ch);
+  max-width: none;
+  object-fit: fill;
+}
+
+.avatar-initial {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.bars {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.42);
+}
+
+.bars i {
+  width: 3px;
+  height: 32%;
+  border-radius: 2px;
+  background: #fff;
+  animation: bar 0.9s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+
+.bars.on i {
+  animation-play-state: running;
+}
+
+.bars i:nth-child(2) {
+  animation-delay: -0.3s;
+}
+
+.bars i:nth-child(3) {
+  animation-delay: -0.6s;
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 14vh 0;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.empty h2 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+@keyframes bar {
+  from {
+    transform: scaleY(0.35);
+  }
+  to {
+    transform: scaleY(1.25);
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

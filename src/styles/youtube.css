@@ -1,0 +1,35 @@
+/* Connect YouTube (ui/YouTube.tsx): the playlist sheet. The sheet and its list are account.css's. */
+
+.yt-sheet {
+  gap: 6px;
+  max-height: min(640px, 86dvh);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.yt-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+}
+
+.sheet-row .yt-linked {
+  color: var(--accent);
+}
+
+.sheet-row .error {
+  color: var(--danger);
+}
+
+.yt-busy {
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+}
+
+.yt-disconnect {
+  justify-self: center;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--danger);
+  font-size: 15px;
+}

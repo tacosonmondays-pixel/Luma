@@ -1,0 +1,83 @@
+# Builds Luma.exe and zips the YouTube extension (extension/ → Luma-for-YouTube.zip), and attaches both to the
+# GitHub Release for the tag.
+# Download link: https://github.com/tacosonmondays-pixel/Luma/releases/latest/download/Luma.exe
+# Pushes to the main branches refresh the "test-build" prerelease instead (a fixed download link):
+# https://github.com/tacosonmondays-pixel/Luma/releases/download/test-build/Luma.exe
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+    branches: [main, claude/elegant-sagan-6gjqzc]
+    paths: ['src/**', 'server/**', 'public/**', 'scripts/**', 'extension/**', 'package*.json', 'index.html', 'vite.config.ts', '.github/workflows/release.yml']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release, such as v1.0.0 (created at this commit if new). Defaults to the selected tag.
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      TAG: ${{ inputs.tag || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'test-build' }}
+    steps:
+      - name: Check the tag
+        run: '[[ $TAG == v* || $TAG == test-build ]] || { echo "::error::Run this on a v* tag, or give a tag such as v1.0.0"; exit 1; }'
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The exe ships this Node. scripts/build-exe.mjs follows the SEA docs for this version.
+          node-version: 22.23.4
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npx vite build
+      - run: npm run exe
+
+      # Run it as a user would: first run downloads yt-dlp and Deno, then the app and /api/health answer.
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          $luma = Start-Process build\Luma.exe -PassThru -RedirectStandardOutput luma.log -RedirectStandardError luma.err
+          $health = $null
+          foreach ($i in 1..60) {
+            Start-Sleep 5
+            try { $health = Invoke-RestMethod http://localhost:4848/api/health } catch {}
+            if ($health.ytdlp) { break }
+          }
+          try {
+            if (-not $health.ytdlp) { throw 'yt-dlp did not come up' }
+            if (-not (Test-Path "$env:LOCALAPPDATA\Luma\bin\deno.exe")) { throw 'deno.exe is missing' }
+            $page = Invoke-WebRequest http://localhost:4848/ -UseBasicParsing
+            if ($page.Content -notmatch '<div id="root">') { throw 'the app is not served' }
+          } finally {
+            Stop-Process $luma
+            Get-Content luma.log, luma.err
+          }
+
+      # The unpacked extension, zipped with its files at the top (Load unpacked takes the unzipped folder).
+      - name: Zip the YouTube extension
+        shell: pwsh
+        run: Compress-Archive -Path extension\* -DestinationPath build\Luma-for-YouTube.zip -Force
+
+      - name: Upload to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [[ $TAG == test-build ]]; then
+            # The iOS workflow publishes to the same prerelease; whichever job gets there first creates it.
+            gh release view test-build > /dev/null 2>&1 ||
+              gh release create test-build --prerelease --title "Test build" --notes "Newest builds." --target "$GITHUB_SHA" ||
+              gh release view test-build > /dev/null
+          else
+            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
+          fi
+          gh release upload "$TAG" build/Luma.exe build/Luma-for-YouTube.zip --clobber

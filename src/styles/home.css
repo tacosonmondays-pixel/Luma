@@ -1,0 +1,564 @@
+/* Home (views/Home.tsx, ui/Shelf.tsx, ui/EditHome.tsx): shelves of music under section titles. Rows scroll
+   sideways with snap on phones and fill one grid row on desktop. */
+
+.shelves {
+  display: grid;
+  gap: 36px;
+}
+
+.shelf {
+  min-width: 0;
+  animation: home-in 260ms var(--ease) both;
+}
+
+.shelf-title {
+  display: flex;
+  min-width: 0;
+  margin-bottom: 12px;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+
+.shelf-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  max-width: 100%;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  border-radius: var(--r-s);
+  transition: opacity 140ms;
+}
+
+.shelf-more .icon {
+  flex: none;
+  color: var(--text-3);
+  transition:
+    transform 160ms var(--ease),
+    color 140ms;
+}
+
+@media (hover: hover) {
+  .shelf-more:hover .icon {
+    color: var(--text-2);
+    transform: translateX(2px);
+  }
+}
+
+.shelf-more:active {
+  opacity: 0.6;
+}
+
+.home-fresh {
+  display: grid;
+  place-items: center;
+  min-height: 52vh;
+}
+
+/* ── Row ───────────────────────────────────────────────────────────── */
+
+.row {
+  display: grid;
+  gap: 20px;
+}
+
+/* A network shelf's outline while it loads. */
+.shelf.loading .shelf-title {
+  color: var(--text-3);
+}
+
+.tile-ghost {
+  aspect-ratio: 16 / 9;
+  border-radius: var(--r);
+  background: var(--fill);
+}
+
+.card-ghost {
+  aspect-ratio: 1;
+  border-radius: var(--r);
+  background: var(--fill);
+}
+
+@media (max-width: 899px) {
+  .row {
+    grid-auto-flow: column;
+    grid-auto-columns: calc((100% - 14px) / 2.3);
+    gap: 14px;
+    margin: 0 calc(-1 * (var(--gutter) + var(--safe-right))) 0 calc(-1 * (var(--gutter) + var(--safe-left)));
+    padding: 0 calc(var(--gutter) + var(--safe-right)) 2px calc(var(--gutter) + var(--safe-left));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: calc(var(--gutter) + var(--safe-left)) calc(var(--gutter) + var(--safe-right));
+    scrollbar-width: none;
+  }
+
+  .row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .row > * {
+    scroll-snap-align: start;
+  }
+
+  .row.wide {
+    grid-auto-columns: 72%;
+  }
+
+  /* Every card (Row all): rows of the same columns instead of a sideways scroll. */
+  .row.all {
+    grid-auto-flow: row;
+    overflow: visible;
+  }
+
+  .shelves {
+    gap: 30px;
+  }
+
+  .shelf-title {
+    font-size: 21px;
+  }
+}
+
+/* ── Cards ─────────────────────────────────────────────────────────── */
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.card:active {
+  transform: scale(0.97);
+}
+
+.card .art {
+  width: 100%;
+  margin-bottom: 8px;
+  border-radius: var(--r);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.card.current .card-title {
+  color: var(--accent);
+}
+
+.card-sub {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+@media (hover: hover) {
+  .card .art img {
+    transition: transform 320ms var(--ease);
+  }
+
+  .card:hover .art img {
+    transform: scale(1.04);
+  }
+}
+
+/* Result tiles (ResultTile.tsx, search.css) in a row. */
+.row .tile {
+  min-width: 0;
+}
+
+/* ── Continue ──────────────────────────────────────────────────────── */
+
+/* The card stays dark in every theme: it sits on its cover's wash, like Now Playing. */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: var(--r-l);
+  background: #1a1a1e;
+  color: #fff;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.08) inset,
+    0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+.hero-wash {
+  z-index: -1;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(100deg, rgba(0, 0, 0, 0.42), rgba(0, 0, 0, 0.12) 60%, rgba(0, 0, 0, 0.3));
+}
+
+.hero-main {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  padding: 16px 84px 16px 16px;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.hero-main:active {
+  transform: scale(0.985);
+}
+
+.hero-art {
+  width: 120px;
+  border-radius: var(--r);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+
+.hero-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hero-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.hero-sub {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 15px;
+}
+
+.hero-play {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  transition: transform 160ms var(--ease);
+}
+
+.hero-play:hover {
+  transform: scale(1.05);
+}
+
+.hero-play:active {
+  transform: scale(0.92);
+}
+
+.hero-play .icon {
+  margin-left: 1px;
+}
+
+@media (min-width: 900px) {
+  .hero-main {
+    gap: 24px;
+    padding: 20px 104px 20px 20px;
+  }
+
+  .hero-art {
+    width: 168px;
+  }
+
+  .hero-title {
+    font-size: 30px;
+    letter-spacing: -0.022em;
+  }
+
+  .hero-sub {
+    font-size: 16px;
+  }
+
+  .hero-play {
+    right: 24px;
+    bottom: 24px;
+    width: 58px;
+    height: 58px;
+  }
+}
+
+/* ── Quick Picks ───────────────────────────────────────────────────── */
+
+.quick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.qp {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 56px;
+  padding-right: 10px;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  background: var(--fill);
+  text-align: left;
+  transition:
+    background 140ms,
+    transform 160ms var(--ease);
+}
+
+.qp .art {
+  height: 100%;
+  width: auto;
+  border-radius: 0;
+}
+
+.qp-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.qp.current .qp-name {
+  color: var(--accent);
+}
+
+.qp:active {
+  transform: scale(0.97);
+}
+
+@media (hover: hover) {
+  .qp:hover {
+    background: var(--fill-2);
+  }
+}
+
+@media (min-width: 900px) {
+  .quick {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .qp {
+    height: 64px;
+    gap: 14px;
+  }
+
+  .qp-name {
+    font-size: 14px;
+  }
+}
+
+/* ── Edit Home ─────────────────────────────────────────────────────── */
+
+.sheet.home-edit {
+  max-height: min(86dvh, 760px);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.edit-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 -4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.edit-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 4px;
+  border-radius: var(--r);
+  background: var(--surface);
+  transition: transform 220ms var(--ease);
+}
+
+.edit-row + .edit-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 46px;
+  right: 4px;
+  border-top: 0.5px solid var(--line);
+}
+
+.edit-row.lifted {
+  z-index: 1;
+  transition: none;
+  background: var(--surface-2);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.edit-row.lifted::before,
+.edit-row.lifted + .edit-row::before {
+  opacity: 0;
+}
+
+.edit-grip {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 44px;
+  color: var(--text-3);
+  cursor: grab;
+  touch-action: none;
+  border-radius: var(--r-s);
+}
+
+.edit-list.dragging,
+.edit-list.dragging .edit-grip {
+  cursor: grabbing;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.edit-name {
+  flex: 1;
+  font-size: 16px;
+}
+
+.edit-delete {
+  color: var(--text-3);
+}
+
+.edit-add.pill {
+  justify-self: start;
+}
+
+.edit-new {
+  display: grid;
+  gap: 10px;
+}
+
+.edit-new .sheet-field {
+  gap: 10px;
+  color: var(--text-3);
+}
+
+.edit-new .sheet-field input {
+  color: var(--text);
+}
+
+.edit-sort.segmented {
+  width: 100%;
+}
+
+@media (min-width: 900px) {
+  .sheet.home-edit {
+    width: 440px;
+  }
+}
+
+/* ── Y2K ───────────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .shelf-title {
+  font-family: var(--y2k-head);
+}
+
+:root[data-theme='y2k'] .hero {
+  border: 1px solid rgba(36, 66, 116, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 22px rgba(0, 30, 90, 0.3);
+}
+
+:root[data-theme='y2k'] .hero-play {
+  border: 3px solid transparent;
+  background: var(--y2k-gel-ball);
+  box-shadow: var(--y2k-gel-shadow);
+  color: #fff;
+}
+
+:root[data-theme='y2k'] .hero-play .icon {
+  filter: drop-shadow(0 1px 1px rgba(0, 30, 100, 0.6));
+}
+
+:root[data-theme='y2k'] .qp {
+  background: var(--y2k-chrome);
+  border: 1px solid rgba(36, 66, 116, 0.3);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 5px rgba(0, 30, 90, 0.14);
+}
+
+:root[data-theme='y2k'] .qp-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+:root[data-theme='y2k'] .qp.current .qp-name,
+:root[data-theme='y2k'] .card.current .card-title {
+  color: var(--accent);
+}
+
+:root[data-theme='y2k'] .card .art {
+  box-shadow: 0 2px 6px rgba(0, 30, 80, 0.3);
+}
+
+:root[data-theme='y2k'] .card-title {
+  font-weight: 700;
+}
+
+:root[data-theme='y2k'] .edit-row.lifted {
+  box-shadow: 0 8px 20px rgba(0, 30, 90, 0.28);
+}
+
+@media (max-width: 899px) {
+  /* On the sky: each shelf is a white glass card, like the song lists. */
+  :root[data-theme='y2k'] .shelf:not(.hero-shelf) {
+    margin: 0 -6px;
+    padding: 12px 12px 14px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(60, 110, 190, 0.28),
+      0 8px 24px rgba(0, 30, 90, 0.2);
+  }
+
+  :root[data-theme='y2k'] .shelf:not(.hero-shelf) .row {
+    margin: 0 -12px;
+    padding: 0 12px 2px;
+    scroll-padding-inline: 12px;
+  }
+
+  :root[data-theme='y2k'] .hero-shelf .shelf-title {
+    color: #fff;
+    text-shadow:
+      0 2px 0 rgba(8, 50, 140, 0.55),
+      0 3px 10px rgba(0, 30, 110, 0.45);
+  }
+
+  :root[data-theme='y2k'] .shelf-more .icon {
+    color: #6a80a6;
+  }
+}
+
+@keyframes home-in {
+  from {
+    opacity: 0;
+  }
+}

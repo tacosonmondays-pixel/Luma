@@ -1,0 +1,489 @@
+/* Library screens: song rows, playlists, the profile, and the popover menu. */
+
+/* ── Play / Shuffle ────────────────────────────────────────────────── */
+
+.play-pills {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.play-pills .pill {
+  min-width: 132px;
+  color: var(--accent);
+  background: var(--fill);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+
+.play-pills .pill:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+@media (max-width: 899px) {
+  .play-pills .pill {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ── Song rows ─────────────────────────────────────────────────────── */
+
+.tracks {
+  list-style: none;
+  padding: 0;
+  margin: 0 -8px;
+}
+
+.track {
+  display: flex;
+  align-items: center;
+  border-radius: var(--r);
+  transition: background 140ms;
+}
+
+@media (hover: hover) {
+  .track:hover {
+    background: var(--hover);
+  }
+}
+
+.track-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 6px 8px;
+  text-align: left;
+  border-radius: var(--r);
+  transition: transform 140ms var(--ease);
+}
+
+.track-main:active {
+  transform: scale(0.985);
+}
+
+.track-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.track-title {
+  font-weight: 500;
+}
+
+.track.current .track-title {
+  color: var(--accent);
+}
+
+.track-artist {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.track .icon-btn {
+  margin-right: 2px;
+}
+
+@media (hover: hover) {
+  .track .icon-btn {
+    opacity: 0;
+  }
+
+  .track:hover .icon-btn,
+  .track .icon-btn:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* ── Playlist tiles ────────────────────────────────────────────────── */
+/* Feature CSS is global: the names carry the feature (Search has its own .tiles). */
+
+.playlist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 24px 20px;
+}
+
+@media (max-width: 899px) {
+  .playlist-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px 14px;
+  }
+}
+
+.playlist-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.playlist-tile:active {
+  transform: scale(0.97);
+}
+
+.playlist-tile .art {
+  width: 100%;
+  border-radius: var(--r);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.playlist-tile .playlist-tile-new {
+  background: var(--fill);
+  color: var(--text-2);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  transition: background 140ms;
+}
+
+@media (hover: hover) {
+  .playlist-tile:hover .playlist-tile-new {
+    background: var(--fill-2);
+  }
+}
+
+.playlist-tile-name {
+  font-weight: 500;
+}
+
+/* ── Playlist header ───────────────────────────────────────────────── */
+
+.playlist-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+
+.playlist-head .playlist-cover {
+  width: min(240px, 64vw);
+  border-radius: var(--r);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.42);
+}
+
+.playlist-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+}
+
+.playlist-name {
+  width: 100%;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: var(--r-s);
+  background: none;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-overflow: ellipsis;
+  transition: background 140ms;
+}
+
+.playlist-name:hover,
+.playlist-name:focus {
+  background: var(--hover);
+}
+
+.playlist-name:focus {
+  outline: none;
+}
+
+.playlist-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.playlist-actions .play-pills {
+  flex: 1;
+  margin: 0;
+}
+
+@media (max-width: 899px) {
+  /* Keep the pills centered under the cover: the more button sits in the header's top-right corner. */
+  .playlist-head {
+    position: relative;
+  }
+
+  .playlist-actions > .icon-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+  }
+}
+
+@media (min-width: 900px) {
+  .playlist-head {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 28px;
+    margin-bottom: 28px;
+  }
+
+  .playlist-head .playlist-cover {
+    width: 220px;
+  }
+
+  .playlist-info {
+    align-items: flex-start;
+    gap: 20px;
+  }
+
+  .playlist-name {
+    margin-left: -8px;
+    padding: 2px 8px;
+    font-size: 44px;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    text-align: left;
+  }
+
+  .playlist-actions .play-pills {
+    flex: none;
+  }
+}
+
+.playlist-empty {
+  padding: 6vh 0;
+}
+
+/* ── Settings ──────────────────────────────────────────────────────── */
+
+/* Inset grouped list, iOS Settings style */
+.group {
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--r);
+  /* The surface as glass: most themes' --glass is their own background, so the group would vanish on it. */
+  background: color-mix(in oklab, var(--surface) 74%, transparent);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+}
+
+.group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px 0 16px;
+  text-align: left;
+  transition: background 140ms;
+}
+
+.group-row + .group-row {
+  box-shadow: inset 0 0.5px 0 var(--line);
+}
+
+@media (hover: hover) {
+  .group-row:hover {
+    background: var(--hover);
+  }
+}
+
+.group-row:active {
+  background: var(--fill);
+}
+
+.group-row.danger {
+  color: var(--danger);
+}
+
+.group-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-3);
+}
+
+.bg-thumb {
+  width: 30px;
+  height: 30px;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  background: var(--fill);
+}
+
+.bg-thumb img,
+.bg-thumb video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Menu ──────────────────────────────────────────────────────────── */
+
+.menu {
+  position: fixed;
+  z-index: 100;
+  max-height: calc(100dvh - var(--safe-top) - var(--safe-bottom) - 16px);
+  overflow-y: auto;
+  padding: 5px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
+  -webkit-backdrop-filter: var(--blur);
+  backdrop-filter: var(--blur);
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.1),
+    0 18px 48px rgba(0, 0, 0, 0.5);
+  visibility: hidden;
+  transform-origin: top right;
+}
+
+.menu.above {
+  transform-origin: bottom right;
+}
+
+.menu.shown {
+  visibility: visible;
+  animation: menu-in 180ms var(--ease);
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 9px;
+  text-align: left;
+  transition: background 100ms;
+}
+
+.menu-item .icon {
+  flex: none;
+  color: var(--text-2);
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--hover);
+  outline: none;
+}
+
+.menu-item:active {
+  background: var(--fill);
+}
+
+.menu-item.danger,
+.menu-item.danger .icon {
+  color: var(--danger);
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+.group-input {
+  flex: 1;
+  min-width: 0;
+  height: 50px;
+  border: 0;
+  background: none;
+  color: var(--text-2);
+  font-size: 16px; /* below 16px, iOS zooms in on focus */
+  text-align: right;
+  text-overflow: ellipsis;
+}
+
+.group-input:focus {
+  color: var(--text);
+  outline: none;
+}
+
+.group-row:focus-within {
+  background: var(--hover);
+}
+
+/* A song synced from another device, without its audio until it is downloaded again. */
+.track.missing .track-main > .art,
+.track.missing .track-text {
+  opacity: 0.45;
+}
+
+.track-missing {
+  display: flex;
+  margin-left: auto;
+  padding-left: 8px;
+  color: var(--text-3);
+}
+
+.track-missing .ring,
+.track-missing .icon {
+  display: block;
+}
+
+.track-missing.error {
+  color: var(--danger);
+}
+
+/* Download progress (Ring.tsx): Search's buttons and saved songs. */
+.ring circle {
+  fill: none;
+  stroke-width: 2;
+}
+
+.ring-track {
+  stroke: var(--fill-2);
+}
+
+.ring-fill {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: center;
+  transition: stroke-dashoffset 200ms linear;
+}
+
+.ring.spin {
+  animation: ring-spin 900ms linear infinite;
+}
+
+@keyframes ring-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring.spin {
+    animation-duration: 1.4s;
+  }
+}
+
+/* A playlist with saved songs: Download Missing joins Play and Shuffle (on its own row on phones). */
+.play-pills {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 899px) {
+  .play-pills .pill.download-missing {
+    flex-basis: 100%;
+  }
+}
+
+.playlist-refreshing {
+  display: grid;
+  place-items: center;
+}

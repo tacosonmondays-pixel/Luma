@@ -1,0 +1,501 @@
+/* Search: the field, the sort control and the result rows. */
+
+.search .search-title {
+  display: none;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.search-field {
+  flex: 1;
+  max-width: 560px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 8px 0 10px;
+  border-radius: var(--r);
+  background: var(--fill);
+  color: var(--text-2);
+  cursor: text;
+  transition: background 140ms;
+}
+
+.search-field:focus-within {
+  background: var(--fill-2);
+}
+
+.search-field > .icon,
+.search-field > .spinner {
+  flex: none;
+}
+
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font-size: 17px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-field input::placeholder {
+  color: var(--text-2);
+}
+
+.search-field input::-webkit-search-cancel-button,
+.search-field input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-clear {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-3);
+  color: var(--bg);
+  animation: fade 140ms var(--ease);
+}
+
+.search-clear .icon {
+  stroke-width: 3;
+}
+
+.spinner {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid var(--fill-2);
+  border-top-color: var(--text-2);
+  animation: spin 700ms linear infinite;
+}
+
+/* ── Segmented controls ────────────────────────────────────────────── */
+
+.search-controls {
+  flex: none;
+  display: flex;
+  gap: 8px;
+}
+
+.segmented.sort {
+  width: 264px;
+}
+
+.segmented.layouts {
+  grid-auto-columns: 38px;
+}
+
+/* ── Results ───────────────────────────────────────────────────────── */
+
+.search-results {
+  transition: opacity 160ms;
+}
+
+.search-results.stale {
+  opacity: 0.5;
+}
+
+.search-playlist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 12px;
+}
+
+.search-playlist h2 {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.search-playlist .pill {
+  flex: none;
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.search-playlist .pill:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.results {
+  list-style: none;
+  padding: 0;
+}
+
+.result {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: var(--r);
+  animation: fade 200ms var(--ease) both;
+  transition: background 140ms;
+}
+
+.result:hover {
+  background: var(--hover);
+}
+
+.result-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 4px 8px 8px;
+  text-align: left;
+  border-radius: var(--r);
+  transition: transform 140ms var(--ease);
+}
+
+.result-main:active {
+  transform: scale(0.985);
+}
+
+.result-art {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  overflow: hidden;
+  border-radius: var(--r-s);
+  background: var(--surface-2);
+}
+
+.result-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 200ms;
+}
+
+.result-text {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.result-title {
+  font-weight: 500;
+}
+
+.result.current .result-title {
+  color: var(--accent);
+}
+
+.result-artist {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.result-time {
+  flex: none;
+  color: var(--text-3);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.result-state {
+  margin-right: 4px;
+}
+
+.result .result-state.saved {
+  color: var(--accent);
+}
+
+.result .result-state.error {
+  color: var(--danger);
+}
+
+.state-btn > * {
+  animation: pop 220ms var(--spring);
+}
+
+
+/* ── Tiles ─────────────────────────────────────────────────────────── */
+
+.tiles {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  gap: 28px 16px;
+  padding-top: 4px;
+}
+
+.tiles-1 {
+  --cols: 1;
+  max-width: 720px;
+}
+
+.tiles-2 {
+  --cols: 2;
+  gap: 20px 12px;
+}
+
+.tiles-3 {
+  --cols: 3;
+  gap: 32px 20px;
+}
+
+.tiles-5 {
+  --cols: 5;
+  gap: 24px 14px;
+}
+
+.tile {
+  position: relative;
+  min-width: 0;
+  animation: fade 220ms var(--ease) both;
+}
+
+.tile-main {
+  display: grid;
+  width: 100%;
+  gap: 2px;
+  text-align: left;
+  transition: transform 160ms var(--ease);
+}
+
+.tile-main:active {
+  transform: scale(0.98);
+}
+
+.tile-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  margin-bottom: 8px;
+  overflow: hidden;
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.tile-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition:
+    opacity 200ms,
+    transform 320ms var(--ease);
+}
+
+.tile-time {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tile-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font-weight: 500;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.tile.current .tile-title {
+  color: var(--accent);
+}
+
+.tile-artist {
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+.tiles-1 .tile-title {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.tiles-1 .tile-artist {
+  font-size: 15px;
+}
+
+.tiles-5 .tile-title {
+  font-size: 14px;
+}
+
+.tiles-5 .tile-artist {
+  font-size: 12px;
+}
+
+.tile .tile-state {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 34px;
+  height: 34px;
+  background: rgba(0, 0, 0, 0.66);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--text);
+  opacity: 0;
+  transform: scale(0.85);
+  transition:
+    opacity 160ms,
+    transform 160ms var(--ease),
+    color 140ms;
+}
+
+.tiles-5 .tile-state {
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  height: 30px;
+}
+
+.tile:hover .tile-state,
+.tile .tile-state:focus-visible,
+.tile .tile-state.busy,
+.tile .tile-state.saved,
+.tile .tile-state.error {
+  opacity: 1;
+  transform: none;
+}
+
+.tile .tile-state:hover {
+  background: rgba(0, 0, 0, 0.8);
+}
+
+.tile .tile-state.saved {
+  color: var(--accent);
+}
+
+.tile .tile-state.error {
+  color: var(--danger);
+}
+
+@media (hover: hover) {
+  .tile:hover .tile-thumb img {
+    transform: scale(1.04);
+  }
+}
+
+/* A song with no YouTube id (QueryTile, QueryRow in ResultTile.tsx): its gradient and a note. */
+.query-thumb {
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+@media (hover: none) {
+  .tile .tile-state {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.search-empty .icon {
+  color: var(--text-3);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (max-width: 899px) {
+  .search .search-title {
+    display: flex;
+  }
+
+  .search-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .search-field {
+    flex: none; /* in the stacked bar, flex: 1 would override the 38px height */
+    max-width: none;
+  }
+
+  .search-controls {
+    width: 100%;
+  }
+
+  .segmented.sort {
+    flex: 1;
+    width: auto;
+  }
+
+  .segmented.layouts {
+    grid-auto-columns: 40px;
+  }
+
+  .result {
+    margin: 0 -8px;
+  }
+
+  .result:hover {
+    background: none;
+  }
+}
+
+@media (hover: none) {
+  .result .result-state:hover {
+    background: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* Import: back from the "Save to Luma" Shortcut. */
+.search .search-title.has-import {
+  display: flex;
+}
+
+.search-title .search-import {
+  height: 34px;
+  padding: 0 16px;
+  font-size: 14px;
+}

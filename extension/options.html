@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Luma for YouTube</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <img src="icons/icon-48.png" alt="" width="36" height="36" />
+        <h1>Luma for YouTube</h1>
+      </header>
+
+      <section class="group">
+        <label class="row field">
+          <span>Luma URL</span>
+          <input id="url" type="url" spellcheck="false" autocomplete="off" aria-label="Luma URL" />
+        </label>
+        <div class="presets" role="group" aria-label="Presets">
+          <button type="button" class="preset" data-preset="computer">
+            <span class="dot" id="helper" aria-hidden="true"></span>
+            This computer
+          </button>
+          <button type="button" class="preset" data-preset="website">Website</button>
+        </div>
+      </section>
+
+      <section class="group">
+        <label class="row">
+          <span>Auto-save liked videos</span>
+          <input id="likes" type="checkbox" role="switch" class="switch" />
+        </label>
+      </section>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

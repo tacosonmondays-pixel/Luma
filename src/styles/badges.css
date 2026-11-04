@@ -1,0 +1,150 @@
+/* Badge medallions (BadgeRow). Metal tiers are static gradients; only a fresh tier animates, once. */
+
+.badges {
+  --badge: 30px;
+  --glyph: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.badges-small {
+  --badge: 22px;
+  --glyph: 12px;
+  gap: 4px;
+}
+@media (min-width: 900px) {
+  .badges-card {
+    --badge: 34px;
+    --glyph: 18px;
+  }
+}
+
+.badge-slot {
+  position: relative;
+  display: block;
+}
+
+.badge {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--badge);
+  height: var(--badge);
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 1px 2px rgba(0, 0, 0, 0.4);
+  transition: transform 140ms var(--ease);
+}
+.badge:active {
+  transform: scale(0.9);
+}
+.badge:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+.badge svg {
+  width: var(--glyph);
+  height: var(--glyph);
+  display: block;
+}
+
+.badge.bronze {
+  background: radial-gradient(circle at 30% 25%, #ffd9b0, #c47a3a 48%, #6b3a17);
+  color: #4a2509;
+}
+.badge.silver {
+  background: radial-gradient(circle at 30% 25%, #ffffff, #b9c0c9 48%, #59616c);
+  color: #2b3038;
+}
+.badge.gold {
+  background: radial-gradient(circle at 30% 25%, #fff7cf, #e3b341 48%, #8a5a00);
+  color: #5a3a00;
+}
+.badge.holo {
+  background:
+    radial-gradient(circle at 30% 25%, #fffc, #fff0 45%),
+    conic-gradient(from 210deg, #ff9ad5, #ffd36e, #7affc9, #7cc4ff, #b388ff, #ff9ad5);
+  color: #fff;
+}
+.badge.holo svg {
+  filter: drop-shadow(0 1px 1px #0008);
+}
+
+/* A new tier: grows in with a spring, and a sheen sweeps across once. */
+.badge.fresh {
+  animation: badge-in 900ms var(--spring) both;
+}
+.badge.fresh::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.85) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: badge-sheen 700ms ease-in-out 300ms both;
+  pointer-events: none;
+}
+@keyframes badge-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes badge-sheen {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(120%);
+  }
+}
+
+/* The name, 6px above the badge. */
+.badge-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  translate: calc(-50% + var(--shift, 0px)) 0;
+  z-index: 5;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  animation: badge-tip-in 140ms var(--ease) both;
+}
+@keyframes badge-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge.fresh,
+  .badge.fresh::after,
+  .badge-tip {
+    animation: none;
+  }
+  .badge.fresh::after {
+    display: none;
+  }
+}

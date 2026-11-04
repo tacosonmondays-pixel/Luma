@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  A plain-language template, not legal advice. The owner should review it (and have it checked if needed) before
+  relying on it.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0c">
+<meta name="color-scheme" content="dark">
+<title>Privacy · Luma</title>
+<link rel="icon" href="../icon.svg" type="image/svg+xml">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0a0c;
+    --surface: #151518;
+    --line: rgba(255, 255, 255, 0.08);
+    --text: #f5f5f7;
+    --text-2: rgba(235, 235, 245, 0.62);
+    --text-3: rgba(235, 235, 245, 0.32);
+    --accent: #a596ff;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, Roboto, sans-serif;
+    font-size: 15px;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; }
+  html { background: var(--bg); }
+  body {
+    color: var(--text);
+    min-height: 100dvh;
+    padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 56px);
+  }
+  main, nav { max-width: 640px; margin: 0 auto; }
+  nav { margin-bottom: 40px; }
+  nav a { display: inline-flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600; font-size: 17px; border-radius: 8px; }
+  nav img { width: 32px; height: 32px; border-radius: 8px; }
+  h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+  time { display: block; margin-top: 6px; color: var(--text-3); font-size: 13px; }
+  time + p { margin-top: 28px; }
+  h2 { margin-top: 36px; font-size: 17px; font-weight: 600; }
+  p, ul { margin-top: 10px; color: var(--text-2); font-size: 16px; line-height: 1.6; }
+  ul { padding-left: 20px; }
+  li + li { margin-top: 4px; }
+  strong { color: var(--text); font-weight: 600; }
+  a { color: var(--text); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (min-width: 700px) { body { padding-top: 48px; } nav { margin-bottom: 56px; } }
+</style>
+</head>
+<body>
+<nav><a href="../get/"><img src="../icon.svg" alt="">Luma</a></nav>
+<main>
+  <h1>Privacy</h1>
+  <time datetime="2026-11-03">November 3, 2026</time>
+
+  <h2>On your device</h2>
+  <p>Your songs, your library (songs, playlists, play history, settings) and your profile pictures and videos are stored on your device. They stay there unless you sign in and choose to share them, as described below.</p>
+
+  <h2>On the server</h2>
+  <p>Once you sign in, Luma stores this on its server, hosted by Supabase:</p>
+  <ul>
+    <li>Your email address, to sign you in.</li>
+    <li>Your handle and profile.</li>
+    <li>Your library's details, such as song titles and playlists, so it syncs between your devices. Never the song audio itself.</li>
+    <li>Who you follow and who follows you.</li>
+    <li>What you're listening to, only if you turn on sharing.</li>
+    <li>Videos, posts and other things you upload.</li>
+    <li>Reports you send, and reports about your content.</li>
+  </ul>
+
+  <h2>Who can see what</h2>
+  <ul>
+    <li><strong>Public:</strong> your profile, videos and posts.</li>
+    <li><strong>Your followers:</strong> your listening activity, only if you share it.</li>
+    <li><strong>Only you:</strong> your library.</li>
+  </ul>
+  <p>The owner can see what's stored on the server, to run the service and handle reports.</p>
+
+  <h2>Deleting your data</h2>
+  <p>To have your account and everything stored about you deleted, ask through <a href="https://github.com/tacosonmondays-pixel/Luma/issues">GitHub Issues</a>. Don't post private details there; just say which account to delete. What's on your device is removed when you delete Luma or its website data.</p>
+
+  <h2>Other services</h2>
+  <ul>
+    <li><strong>Supabase</strong> hosts the server and its database.</li>
+    <li><strong>YouTube Data API</strong> answers searches. Your search terms go to Google, under <a href="https://www.youtube.com/t/terms">YouTube's terms</a> and <a href="https://policies.google.com/privacy">Google's privacy policy</a>.</li>
+    <li><strong>GitHub</strong> hosts the website, on GitHub Pages, and the app downloads.</li>
+  </ul>
+  <p>Luma has no ads, no analytics and no trackers, and it doesn't sell your data.</p>
+
+  <h2>Children</h2>
+  <p>Luma isn't for anyone under 13. If we learn an account belongs to someone under 13, it's deleted.</p>
+
+  <h2>Changes</h2>
+  <p>This page may change. The date above shows the latest version.</p>
+</main>
+</body>
+</html>

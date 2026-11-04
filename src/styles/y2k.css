@@ -1,0 +1,1744 @@
+/* Y2K: a light, glossy early-2000s theme with its own player skin (docs/mockups/y2k/).
+   Every rule is scoped to :root[data-theme='y2k']. Art is our own: the sky, clouds and hill are inline SVG,
+   the type is the system's Tahoma/Verdana/Trebuchet, and the LCD face is VT323 (OFL, licenses/vt323.txt).
+   iPhone budget: no backdrop blur anywhere in this theme, and the only motion (equalizer, marquee, LED blink)
+   animates transform or opacity and runs only while a song plays on a display that is on screen. */
+
+@font-face {
+  font-family: 'VT323';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/vt323-latin-400-normal.woff2') format('woff2');
+}
+
+/* ── Tokens ────────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] {
+  color-scheme: light;
+  --bg: #e8f2ff;
+  --surface: #ffffff;
+  --surface-2: #dce7f6;
+  --fill: rgba(28, 84, 170, 0.08);
+  --fill-2: rgba(28, 84, 170, 0.16);
+  --hover: rgba(40, 116, 230, 0.09);
+  --line: #d5e2f3;
+  --text: #11305f;
+  --text-2: #3f5985;
+  --text-3: #57709a;
+  --theme-accent: #0b5fd0;
+  /* Cover accents are tuned for dark themes and are too light on white; Y2K keeps its own blue. */
+  --accent: #0b5fd0 !important;
+  --danger: #c8241a;
+  --glass: #ffffff;
+  --blur: none; /* nothing in this theme blurs what's behind it */
+
+  --y2k-ui: Tahoma, Verdana, 'Trebuchet MS', 'DejaVu Sans', system-ui, sans-serif;
+  --y2k-head: 'Trebuchet MS', Verdana, Tahoma, 'DejaVu Sans', system-ui, sans-serif;
+  --y2k-lcd-font: VT323, 'Lucida Console', 'Courier New', monospace;
+  --y2k-icon: #1d3d70;
+  --y2k-stripe: #f3f7fd;
+  --y2k-lcd-text: #93ffd2;
+  --y2k-lcd-dim: rgba(147, 255, 210, 0.7);
+  --y2k-lcd-glow: rgba(60, 255, 170, 0.5);
+  --y2k-chrome: linear-gradient(180deg, #ffffff 0%, #eef2f7 44%, #d6dee9 52%, #e8edf4 100%);
+  --y2k-chrome-press: linear-gradient(180deg, #c9d3e0 0%, #dde4ed 60%, #e9eef4 100%);
+  --y2k-chrome-edge: rgba(36, 66, 116, 0.42);
+  --y2k-brushed: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0) 0 2px, rgba(30, 50, 90, 0.025) 2px 3px),
+    linear-gradient(180deg, #ffffff 0%, #eef2f7 44%, #d3dce8 52%, #e9eef5 100%);
+  --y2k-select: linear-gradient(180deg, #3f8eee 0%, #1d6ad8 46%, #1260cf 54%, #1a68d6 100%);
+  --y2k-gel: linear-gradient(180deg, #5aa8f6 0%, #1a72dc 46%, #0b5bc4 54%, #166bd6 100%);
+  /* The round play button: aqua glass in a chrome ring (needs a 3px or wider transparent border). */
+  --y2k-gel-ball: radial-gradient(120% 115% at 50% 108%, #9af3ff 0%, #3bb8f8 28%, #1676de 60%, #0b46aa 100%) padding-box,
+    linear-gradient(180deg, #ffffff 0%, #dfe6ef 48%, #a9b8cb 52%, #eef2f7 100%) border-box;
+  --y2k-gel-shadow: 0 0 0 1px rgba(30, 60, 110, 0.45), 0 6px 14px rgba(0, 40, 130, 0.4), inset 0 0 0 1px rgba(0, 30, 100, 0.5),
+    inset 0 -8px 12px rgba(140, 240, 255, 0.45);
+  --y2k-sky: linear-gradient(180deg, #1650c4 0%, #2a74e0 26%, #5aa2f0 50%, #a9d6fb 70%, #e4f4ff 86%);
+  --y2k-hill: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 400' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='b' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%237ec86c'/%3E%3Cstop offset='1' stop-color='%233f9a49'/%3E%3C/linearGradient%3E%3ClinearGradient id='f' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%239bdd55'/%3E%3Cstop offset='.28' stop-color='%235cb437'/%3E%3Cstop offset='.75' stop-color='%233a8f2c'/%3E%3Cstop offset='1' stop-color='%232c7526'/%3E%3C/linearGradient%3E%3CradialGradient id='s' cx='.3' cy='.25' r='.5'%3E%3Cstop offset='0' stop-color='%23e9ffb0' stop-opacity='.55'/%3E%3Cstop offset='1' stop-color='%23e9ffb0' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M0 150C160 92 330 98 520 140C700 178 860 120 1000 96L1000 400L0 400Z' fill='url(%23b)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196L1000 400L0 400Z' fill='url(%23f)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196L1000 400L0 400Z' fill='url(%23s)'/%3E%3Cpath d='M0 228C150 150 360 96 600 150C760 186 880 214 1000 196' fill='none' stroke='%23eaffc0' stroke-opacity='.55' stroke-width='3' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E");
+  --y2k-cloud: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 52'%3E%3Cdefs%3E%3ClinearGradient id='g' gradientUnits='userSpaceOnUse' x1='0' y1='2' x2='0' y2='50'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.62' stop-color='%23fbfdff'/%3E%3Cstop offset='1' stop-color='%23cfe3fb'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg fill='url(%23g)'%3E%3Ccircle cx='34' cy='32' r='16'/%3E%3Ccircle cx='58' cy='22' r='20'/%3E%3Ccircle cx='84' cy='30' r='15'/%3E%3Ccircle cx='100' cy='38' r='10'/%3E%3Ccircle cx='18' cy='40' r='10'/%3E%3Crect x='18' y='34' width='84' height='16' rx='8'/%3E%3C/g%3E%3C/svg%3E");
+  --y2k-hill-h: 34%;
+  /* The profile card's ground with Auto colors (colors.ts): its text is always white, so it stays dark here too. */
+  --pc-ground: #0f2447;
+  --pc-ground-2: #1d4f9c;
+
+  font-family: var(--y2k-ui);
+}
+
+/* Overscroll above and below the page shows sky. */
+:root[data-theme='y2k'] {
+  background: #1d5fd3;
+}
+
+/* ── Backdrop: sky, two clouds and a rolling hill, one still layer ── */
+
+:root[data-theme='y2k'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -2; /* under a user's Wallpaper, which replaces it */
+  pointer-events: none;
+  background:
+    var(--y2k-cloud) right 64px top calc(var(--safe-top) + 16px) / 104px auto no-repeat,
+    var(--y2k-hill) left bottom / 100% var(--y2k-hill-h) no-repeat,
+    var(--y2k-sky);
+}
+
+:root[data-theme='y2k'] ::selection {
+  background: #9cc6ff;
+  color: #0b2550;
+}
+
+:root[data-theme='y2k'] :focus-visible {
+  outline-color: #ff9d1c;
+}
+
+/* ── Shared pieces ─────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .view-head h1 {
+  font-family: var(--y2k-head);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Chrome round buttons: header actions, Now Playing's close and more, the bar's expand. */
+:root[data-theme='y2k'] :is(.view-head, .np-top, .np-meta, .playlist-actions, .bar-right) > .icon-btn {
+  width: 38px;
+  height: 38px;
+  color: var(--y2k-icon);
+  background: var(--y2k-chrome);
+  border: 1px solid var(--y2k-chrome-edge);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -2px 4px rgba(0, 30, 80, 0.1),
+    0 2px 6px rgba(0, 30, 90, 0.22);
+}
+
+:root[data-theme='y2k'] :is(.view-head, .np-top, .np-meta, .playlist-actions, .bar-right) > .icon-btn:active {
+  background: var(--y2k-chrome-press);
+  box-shadow: inset 0 2px 5px rgba(0, 30, 80, 0.28);
+}
+
+:root[data-theme='y2k'] :is(.view-head, .np-top, .np-meta, .playlist-actions, .bar-right) > .icon-btn.error {
+  color: var(--danger);
+}
+
+:root[data-theme='y2k'] .icon-btn {
+  color: #6a80a6;
+}
+
+:root[data-theme='y2k'] .icon-btn:hover {
+  color: var(--text);
+}
+
+:root[data-theme='y2k'] .icon-btn.active {
+  color: var(--accent);
+}
+
+/* Pills: Play is a blue gel, the rest are chrome. The profile card's Edit Profile keeps its own place and glass:
+   the card stays dark in every theme. */
+:root[data-theme='y2k'] .pill:not(.pc-edit) {
+  position: relative;
+  border-radius: 22px;
+  color: var(--y2k-icon);
+  background: var(--y2k-chrome);
+  border: 1px solid var(--y2k-chrome-edge);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 3px 8px rgba(0, 30, 90, 0.2);
+  text-shadow: 0 1px 0 #fff;
+  font-weight: 700;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+:root[data-theme='y2k'] .pill:hover {
+  filter: brightness(1.03);
+}
+
+:root[data-theme='y2k'] :is(.play-pills .pill:first-child, .pill.primary) {
+  color: #fff;
+  background: var(--y2k-gel);
+  border-color: #0a4aa8;
+  text-shadow: 0 1px 1px rgba(0, 30, 100, 0.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    inset 0 -4px 8px rgba(120, 230, 255, 0.4),
+    0 4px 10px rgba(0, 40, 130, 0.32);
+}
+
+:root[data-theme='y2k'] :is(.play-pills .pill:first-child, .pill.primary) .icon {
+  filter: drop-shadow(0 1px 1px rgba(0, 30, 100, 0.55));
+}
+
+/* Artwork gets a pane of glass. */
+:root[data-theme='y2k'] .art {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+:root[data-theme='y2k'] .art::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0.08) 42%, rgba(255, 255, 255, 0) 42.5%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.3),
+    inset 0 0 0 0.5px rgba(0, 20, 60, 0.4);
+}
+
+:root[data-theme='y2k'] .art.round::after {
+  background: radial-gradient(90% 60% at 40% 18%, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0) 70%);
+}
+
+/* The playing bars in a song row: green LEDs. */
+:root[data-theme='y2k'] .bars {
+  align-items: flex-end;
+  padding-bottom: 26%;
+  background: rgba(6, 34, 80, 0.5);
+}
+
+:root[data-theme='y2k'] .bars i {
+  height: 40%;
+  border-radius: 1px;
+  background: #a6ffd9;
+  box-shadow: 0 0 5px rgba(80, 255, 180, 0.9);
+  transform-origin: bottom;
+}
+
+:root[data-theme='y2k'] .empty {
+  color: var(--text-2);
+}
+
+/* ── Song rows ─────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .track:nth-child(even) {
+  background: var(--y2k-stripe);
+}
+
+@media (hover: hover) {
+  :root[data-theme='y2k'] .track:not(.current):hover {
+    background: #e2eefd;
+  }
+}
+
+:root[data-theme='y2k'] .track-title {
+  font-weight: 700;
+  font-size: 14.5px;
+}
+
+:root[data-theme='y2k'] .track-artist {
+  font-size: 12.5px;
+}
+
+:root[data-theme='y2k'] .track .art {
+  border-radius: 7px;
+  box-shadow: 0 1px 3px rgba(0, 30, 80, 0.3);
+}
+
+:root[data-theme='y2k'] .track.current,
+:root[data-theme='y2k'] .result.current {
+  background: var(--y2k-select);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 0 0 1px #1257c4,
+    0 3px 8px rgba(20, 90, 200, 0.28);
+}
+
+:root[data-theme='y2k'] :is(.track, .result).current :is(.track-title, .track-artist, .result-title, .result-artist, .result-time, .icon-btn) {
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 30, 100, 0.45);
+}
+
+/* ── Playlists ─────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .playlist-tile .art,
+:root[data-theme='y2k'] .playlist-head .playlist-cover {
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 1px rgba(36, 66, 116, 0.3),
+    0 6px 16px rgba(0, 30, 90, 0.25);
+}
+
+:root[data-theme='y2k'] .playlist-tile .playlist-tile-new {
+  color: var(--y2k-icon);
+  background: var(--y2k-brushed);
+}
+
+:root[data-theme='y2k'] .playlist-tile-name {
+  font-weight: 700;
+}
+
+:root[data-theme='y2k'] .playlist-head .playlist-cover {
+  border: 6px solid;
+  border-color: #fff #b9c7d9 #a9b8cb #eef2f7;
+  box-shadow:
+    0 0 0 1px rgba(36, 66, 116, 0.4),
+    0 16px 34px rgba(0, 30, 110, 0.35);
+}
+
+:root[data-theme='y2k'] .playlist-name {
+  font-family: var(--y2k-head);
+}
+
+/* ── Profile and settings ──────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .banner {
+  background: linear-gradient(160deg, #8fe0ff 0%, #2f7be8 50%, #16308f 100%);
+  border: 1px solid rgba(36, 66, 116, 0.35);
+}
+
+:root[data-theme='y2k'] .profile-avatar {
+  border: 4px solid #fff;
+  box-shadow:
+    0 0 0 1px rgba(36, 66, 116, 0.4),
+    0 8px 22px rgba(0, 30, 90, 0.35);
+}
+
+:root[data-theme='y2k'] .avatar-initial {
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 30, 100, 0.5);
+}
+
+:root[data-theme='y2k'] .profile-name {
+  font-family: var(--y2k-head);
+}
+
+:root[data-theme='y2k'] .group {
+  background: #fff;
+  border: 1px solid rgba(60, 110, 190, 0.3);
+  box-shadow: 0 6px 18px rgba(0, 30, 90, 0.16);
+}
+
+:root[data-theme='y2k'] .group-row + .group-row {
+  box-shadow: inset 0 1px 0 var(--line);
+}
+
+:root[data-theme='y2k'] .group-row:active {
+  background: #dbe9fc;
+}
+
+:root[data-theme='y2k'] .group-value {
+  color: var(--text-2);
+}
+
+:root[data-theme='y2k'] .group-input {
+  color: var(--text-2);
+}
+
+/* ── Menu: a white panel with a blue selection ─────────────────────── */
+
+:root[data-theme='y2k'] .menu {
+  padding: 4px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #6f93c8;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 12px 30px rgba(0, 30, 90, 0.35);
+}
+
+:root[data-theme='y2k'] .menu-item {
+  min-height: 40px;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+:root[data-theme='y2k'] .menu-item .icon {
+  color: #2a64c8;
+}
+
+:root[data-theme='y2k'] .menu-item:is(:hover, :focus-visible, :active) {
+  color: #fff;
+  background: var(--y2k-select);
+  text-shadow: 0 1px 1px rgba(0, 30, 100, 0.45);
+}
+
+:root[data-theme='y2k'] .menu-item:is(:hover, :focus-visible, :active) .icon {
+  color: #fff;
+}
+
+:root[data-theme='y2k'] .menu-item.danger:not(:hover, :focus-visible, :active) .icon {
+  color: var(--danger);
+}
+
+/* ── Search ────────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .search-field {
+  height: 40px;
+  border-radius: 20px;
+  background: #fff;
+  color: #5a72a0;
+  border: 1px solid #7f9cc8;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 30, 80, 0.16),
+    0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+:root[data-theme='y2k'] .search-field:focus-within {
+  background: #fff;
+  border-color: #2a78e4;
+  box-shadow:
+    inset 0 2px 3px rgba(0, 30, 80, 0.16),
+    0 0 0 3px rgba(80, 160, 255, 0.4);
+}
+
+:root[data-theme='y2k'] .search-field input::placeholder {
+  color: #5a72a0;
+}
+
+:root[data-theme='y2k'] .search-clear {
+  background: #8aa0c4;
+  color: #fff;
+}
+
+:root[data-theme='y2k'] .segmented {
+  height: 34px;
+  border-radius: 17px;
+  background: var(--y2k-chrome);
+  border: 1px solid var(--y2k-chrome-edge);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 6px rgba(0, 30, 90, 0.18);
+}
+
+:root[data-theme='y2k'] .segmented button {
+  border-radius: 14px;
+  color: var(--text-2);
+}
+
+:root[data-theme='y2k'] .segmented button[aria-checked='true'] {
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0, 30, 100, 0.5);
+}
+
+:root[data-theme='y2k'] .segmented-thumb {
+  border-radius: 14px;
+  background: var(--y2k-select);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 0 0 1px #1257c4;
+}
+
+:root[data-theme='y2k'] .result-title {
+  font-weight: 700;
+}
+
+:root[data-theme='y2k'] .result-time {
+  color: var(--text-2);
+}
+
+:root[data-theme='y2k'] .result-art,
+:root[data-theme='y2k'] .tile-thumb {
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 30, 80, 0.3);
+}
+
+:root[data-theme='y2k'] .tile-thumb {
+  border: 1px solid rgba(36, 66, 116, 0.3);
+}
+
+:root[data-theme='y2k'] .tile-title {
+  font-weight: 700;
+}
+
+:root[data-theme='y2k'] .tile.current .tile-title {
+  color: var(--accent);
+}
+
+:root[data-theme='y2k'] .state-btn {
+  color: var(--accent);
+}
+
+/* ── Social (social.css) ───────────────────────────────────────────── */
+
+/* A nameplate in the Following and Followers sheet: name styles are drawn for a dark ground, so the plate is the
+   sidebar's dark glass under its own pattern. */
+:root[data-theme='y2k'] .sheet-row.plate {
+  color: #fff;
+  background-color: #0f2447;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 0 0 1px rgba(36, 66, 116, 0.55),
+    0 2px 5px rgba(0, 30, 90, 0.22);
+}
+
+@media (hover: hover) {
+  :root[data-theme='y2k'] .sheet-row.plate:hover {
+    background-color: #0f2447;
+    filter: brightness(1.2);
+  }
+}
+
+/* The Post button's error word: a red gel instead of the blue. */
+:root[data-theme='y2k'] .pill.primary.sheet-submit.failed {
+  background: linear-gradient(180deg, #f2766c 0%, #d8392b 46%, #c4271b 54%, #d23426 100%);
+  border-color: #9c1d14;
+  color: #fff;
+}
+
+/* ── Phone shell: sky header, white cards, glossy tab bar ──────────── */
+
+@media (max-width: 899px) {
+  /* The status bar sits on sky. Opaque, so content scrolling under it never shows through. */
+  :root[data-theme='y2k'] .app::before {
+    background: linear-gradient(180deg, #1650c4, #1a58c8);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  /* Titles and anything else that sits straight on the sky. */
+  :root[data-theme='y2k'] :is(.view-head h1, .search-playlist h2, .playlist-name, .profile-name) {
+    color: #fff;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.2),
+      0 2px 0 rgba(8, 50, 140, 0.55),
+      0 3px 10px rgba(0, 30, 110, 0.45);
+  }
+
+  :root[data-theme='y2k'] .view-head h1 {
+    font-size: 34px;
+  }
+
+  :root[data-theme='y2k'] .profile-name::placeholder {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  :root[data-theme='y2k'] :is(.playlist-name, .profile-name):is(:hover, :focus) {
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  /* Content panes: white glass cards over the sky. */
+  :root[data-theme='y2k'] :is(.tracks, .results, .empty) {
+    padding: 6px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(60, 110, 190, 0.28),
+      0 8px 24px rgba(0, 30, 90, 0.2);
+  }
+
+  :root[data-theme='y2k'] .tracks {
+    margin: 0 -6px;
+  }
+
+  :root[data-theme='y2k'] .empty {
+    padding: 36px 16px;
+    margin-top: 8vh;
+  }
+
+  :root[data-theme='y2k'] :is(.playlist-grid, .tiles) {
+    margin: 0 -6px;
+    padding: 12px;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow:
+      0 0 0 1px rgba(60, 110, 190, 0.28),
+      0 8px 24px rgba(0, 30, 90, 0.2);
+  }
+
+  /* Glossy blue tab bar. */
+  :root[data-theme='y2k'] .tabbar {
+    padding-left: calc(12px + var(--safe-left));
+    padding-right: calc(12px + var(--safe-right));
+    border-top: 0;
+    background: linear-gradient(180deg, #5d9ff6 0%, #2e74e6 10%, #2463d8 48%, #1b54c6 54%, #2462d6 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(170, 210, 255, 0.9),
+      0 -1px 0 #0c3a9c,
+      0 -6px 18px rgba(0, 30, 90, 0.18);
+  }
+
+  :root[data-theme='y2k'] .tabbar a {
+    flex: 0 1 64px;
+    height: 40px;
+    margin: 7px auto 0;
+    border-radius: 12px;
+    color: rgba(255, 255, 255, 0.86);
+  }
+
+  :root[data-theme='y2k'] .tabbar a .icon {
+    filter: drop-shadow(0 1px 1px rgba(0, 20, 80, 0.6));
+  }
+
+  :root[data-theme='y2k'] .tabbar a.active {
+    color: #d8f6ff;
+    background: linear-gradient(180deg, #1546ad 0%, #1a56c6 100%);
+    box-shadow:
+      inset 0 2px 4px rgba(0, 10, 60, 0.55),
+      0 1px 0 rgba(170, 210, 255, 0.55);
+  }
+
+  :root[data-theme='y2k'] .tabbar a.active .icon {
+    filter: drop-shadow(0 0 5px rgba(140, 230, 255, 0.9));
+  }
+
+  /* Mini player: a brushed chrome capsule with an LCD. */
+  :root[data-theme='y2k'] .mini {
+    gap: 6px;
+    padding: 0 6px 0 8px;
+    border-radius: 18px;
+    overflow: visible;
+    background: var(--y2k-brushed);
+    border: 1px solid rgba(36, 66, 116, 0.45);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 8px 20px rgba(0, 30, 90, 0.32);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root[data-theme='y2k'] .mini-info {
+    gap: 8px;
+  }
+
+  :root[data-theme='y2k'] .mini-info .art {
+    width: 42px !important;
+    height: 42px !important;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(36, 66, 116, 0.35);
+  }
+
+  :root[data-theme='y2k'] .mini-btn {
+    color: var(--y2k-icon);
+  }
+
+  :root[data-theme='y2k'] .mini-btn .icon {
+    filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.95));
+  }
+
+  :root[data-theme='y2k'] .mini-btn.play-swap {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+/* ── Desktop shell: a glossy blue window over the hill ─────────────── */
+
+@media (min-width: 900px) {
+  :root[data-theme='y2k'] {
+    --y2k-hill-h: 46%;
+  }
+
+  :root[data-theme='y2k'] body::before {
+    background:
+      var(--y2k-cloud) left 6% top 12% / 200px auto no-repeat,
+      var(--y2k-cloud) right 12% top 6% / 130px auto no-repeat,
+      var(--y2k-hill) left bottom / 100% var(--y2k-hill-h) no-repeat,
+      var(--y2k-sky);
+  }
+
+  :root[data-theme='y2k'] .app {
+    position: fixed;
+    inset: 20px 24px 20px;
+    min-height: 0;
+    grid-template-rows: 38px minmax(0, 1fr);
+    padding: 0 4px 4px;
+    border-radius: 12px 12px 9px 9px;
+    background: linear-gradient(180deg, #2b6be0, #1d55c8);
+    box-shadow:
+      0 0 0 1px #0b3a9c,
+      inset 0 0 0 1px rgba(150, 200, 255, 0.35),
+      0 24px 60px rgba(0, 20, 80, 0.45);
+  }
+
+  :root[data-theme='y2k'] .app.has-track {
+    bottom: calc(var(--bar) + 34px);
+  }
+
+  /* The title bar. */
+  :root[data-theme='y2k'] .app::before {
+    content: 'Luma';
+    content: 'Luma' / '';
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    margin: 0 -4px;
+    padding-left: 40px;
+    border-radius: 12px 12px 0 0;
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.38' cy='.3' r='.8'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.25' stop-color='%23bff3ff'/%3E%3Cstop offset='.65' stop-color='%232fb6ff'/%3E%3Cstop offset='1' stop-color='%230a3aa8'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='10' cy='10' r='8.5' fill='url(%23g)' stroke='%230a2a7a' stroke-opacity='.5' stroke-width='.8'/%3E%3Cellipse cx='9' cy='6.4' rx='5' ry='2.6' fill='%23fff' opacity='.75'/%3E%3C/svg%3E") 13px 50% / 20px 20px no-repeat,
+      linear-gradient(180deg, #6ba8f8 0%, #3a82ee 7%, #2a6be0 46%, #1f5bd0 54%, #2c6ee2 100%);
+    box-shadow: inset 0 1px 0 rgba(200, 228, 255, 0.85);
+    color: #fff;
+    font: 700 15px var(--y2k-head);
+    text-shadow: 1px 1px 0 rgba(0, 20, 90, 0.55);
+  }
+
+  :root[data-theme='y2k'] .sidebar {
+    position: static;
+    height: auto;
+    padding: 14px 10px;
+    border-right: 1px solid #b4cbec;
+    border-radius: 0 0 0 6px;
+    background: linear-gradient(180deg, #e9f2fe 0%, #d2e3fa 100%);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root[data-theme='y2k'] .side-link {
+    min-height: 38px;
+    border-radius: 9px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  :root[data-theme='y2k'] .side-link .icon {
+    color: #2a64c8;
+  }
+
+  :root[data-theme='y2k'] .side-link:not(.plate):hover {
+    background: rgba(255, 255, 255, 0.65);
+  }
+
+  :root[data-theme='y2k'] .side-link.active:not(.plate) {
+    color: #fff;
+    background: var(--y2k-select);
+    text-shadow: 0 1px 1px rgba(0, 30, 100, 0.45);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.45),
+      0 0 0 1px #1257c4,
+      0 2px 6px rgba(20, 90, 200, 0.28);
+  }
+
+  :root[data-theme='y2k'] .side-link.active .icon {
+    color: #fff;
+  }
+
+  /* The nameplate: name styles are drawn for a dark ground, so the plate is a dark glass in every state, under
+     its own pattern; the chosen page shows as a blue ring. */
+  :root[data-theme='y2k'] .side-link.side-profile.plate {
+    color: #fff;
+    background-color: #0f2447;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 0 1px rgba(36, 66, 116, 0.55),
+      0 2px 5px rgba(0, 30, 90, 0.22);
+  }
+
+  :root[data-theme='y2k'] .side-link.side-profile.plate:hover {
+    filter: brightness(1.2);
+  }
+
+  :root[data-theme='y2k'] .side-link.side-profile.plate.active {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 0 0 2px #2a78e4,
+      0 2px 8px rgba(20, 90, 200, 0.4);
+  }
+
+  :root[data-theme='y2k'] .side-playlists {
+    border-top: 0;
+    background: linear-gradient(90deg, transparent, #a9c2e6, transparent) top / 100% 1px no-repeat;
+  }
+
+  :root[data-theme='y2k'] .side-playlists .side-link {
+    font-weight: 400;
+  }
+
+  :root[data-theme='y2k'] .main {
+    max-width: none;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 28px max(36px, (100% - 1120px) / 2) 40px;
+    border-radius: 0 0 6px 0;
+    background: #fff;
+  }
+
+  :root[data-theme='y2k'] .view-head h1 {
+    color: var(--text);
+  }
+
+  /* The deck: the player bar floats under the window. */
+  :root[data-theme='y2k'] .bar {
+    left: 24px;
+    right: 24px;
+    bottom: 16px;
+    padding: 0 16px 0 12px;
+    border: 1px solid rgba(36, 66, 116, 0.5);
+    border-radius: 20px;
+    background: var(--y2k-brushed);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      inset 0 -3px 6px rgba(0, 30, 80, 0.08),
+      0 14px 34px rgba(0, 30, 40, 0.38);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 560px) minmax(0, 1fr);
+  }
+
+  :root[data-theme='y2k'] .bar-info {
+    width: 100%;
+    max-width: 420px;
+    gap: 12px;
+  }
+
+  :root[data-theme='y2k'] .bar-info .art {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 9px;
+    box-shadow:
+      0 0 0 1px rgba(36, 66, 116, 0.4),
+      0 2px 6px rgba(0, 30, 80, 0.3);
+  }
+
+  :root[data-theme='y2k'] .bar-scrub .time {
+    color: var(--text-2);
+    font-size: 12px;
+  }
+
+  :root[data-theme='y2k'] .bar-right {
+    gap: 10px;
+  }
+
+  :root[data-theme='y2k'] .bar-right > .icon-btn {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+/* ── The LCD ───────────────────────────────────────────────────────── */
+
+:root[data-theme='y2k'] .y2k-bezel {
+  display: block;
+  padding: 5px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #d9e1eb 46%, #b3c1d2 52%, #e9eef4 100%);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgba(36, 66, 116, 0.38),
+    0 10px 26px rgba(0, 30, 100, 0.3);
+}
+
+:root[data-theme='y2k'] .y2k-lcd {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 13px;
+  color: var(--y2k-lcd-text);
+  font-family: var(--y2k-lcd-font);
+  font-weight: 400;
+  text-align: left;
+  background: radial-gradient(130% 150% at 25% -10%, #134640 0%, #082826 50%, #041615 100%);
+  box-shadow:
+    inset 0 2px 9px rgba(0, 0, 0, 0.85),
+    inset 0 0 0 1px rgba(0, 0, 0, 0.7);
+  text-shadow:
+    0 0 7px var(--y2k-lcd-glow),
+    0 0 1px rgba(210, 255, 236, 0.9);
+}
+
+/* Glass sheen and the dot-matrix grid over the display. */
+:root[data-theme='y2k'] .y2k-lcd::before,
+:root[data-theme='y2k'] .y2k-lcd::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+:root[data-theme='y2k'] .y2k-lcd::before {
+  background: linear-gradient(168deg, rgba(255, 255, 255, 0.1) 0 34%, rgba(255, 255, 255, 0) 34.5%);
+}
+
+:root[data-theme='y2k'] .y2k-lcd::after {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.2) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+:root[data-theme='y2k'] .y2k-artist {
+  display: block;
+  color: var(--y2k-lcd-dim);
+  line-height: 1;
+}
+
+:root[data-theme='y2k'] .y2k-lcd.paused :is(.y2k-title, .y2k-artist) {
+  opacity: 0.8;
+}
+
+/* Marquee: two copies side by side, moved left by one copy's width. Short titles sit still. */
+:root[data-theme='y2k'] .y2k-marquee {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+}
+
+:root[data-theme='y2k'] .y2k-marquee.fits {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+:root[data-theme='y2k'] .y2k-mq {
+  display: inline-flex;
+  animation: y2k-mq var(--dur, 14s) linear infinite;
+  animation-play-state: paused;
+}
+
+:root[data-theme='y2k'] .y2k-marquee.run .y2k-mq {
+  animation-play-state: running;
+}
+
+:root[data-theme='y2k'] .y2k-marquee.fits .y2k-mq {
+  animation: none;
+}
+
+:root[data-theme='y2k'] .y2k-copy {
+  display: block;
+  flex: none;
+}
+
+:root[data-theme='y2k'] .y2k-marquee:not(.fits) .y2k-copy::after {
+  content: '\2726';
+  display: inline-block;
+  padding: 0 1.1em;
+  font-size: 0.7em;
+  vertical-align: 0.18em;
+  opacity: 0.55;
+}
+
+:root[data-theme='y2k'] .y2k-t {
+  display: inline-block;
+}
+
+@keyframes y2k-mq {
+  0%,
+  14% {
+    transform: none;
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* Equalizer: each column is a lit gradient with a dark cover that slides down and up over it. */
+:root[data-theme='y2k'] .y2k-eq {
+  display: flex;
+  align-items: stretch;
+  gap: 3px;
+}
+
+:root[data-theme='y2k'] .y2k-eq i {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+  background: linear-gradient(0deg, #7dffc4 0 55%, #d9ff7a 55% 80%, #ffd36a 80%);
+}
+
+:root[data-theme='y2k'] .y2k-eq i::after {
+  /* gaps between the segments, in the display's own dark */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent 0 2.4px, #072523 2.4px 3.6px);
+}
+
+:root[data-theme='y2k'] .y2k-eq b {
+  position: absolute;
+  inset: 0;
+  background: #0b2e2a;
+  box-shadow: inset 0 0 0 40px rgba(147, 255, 210, 0.06);
+  transform: translateY(-4%); /* resting: all but the bottom segment dark */
+  transition: transform 500ms var(--ease);
+}
+
+:root[data-theme='y2k'] .y2k-eq.run b {
+  animation: y2k-eq 0.62s ease-in-out infinite alternate;
+}
+
+:root[data-theme='y2k'] .y2k-eq i:nth-child(3n + 1) b {
+  animation-duration: 0.47s;
+  animation-delay: -0.21s;
+}
+
+:root[data-theme='y2k'] .y2k-eq i:nth-child(3n + 2) b {
+  animation-duration: 0.73s;
+  animation-delay: -0.5s;
+}
+
+:root[data-theme='y2k'] .y2k-eq i:nth-child(4n) b {
+  animation-name: y2k-eq-low;
+  animation-duration: 0.55s;
+  animation-delay: -0.33s;
+}
+
+:root[data-theme='y2k'] .y2k-eq i:nth-child(5n) b {
+  animation-duration: 0.39s;
+  animation-delay: -0.12s;
+}
+
+:root[data-theme='y2k'] .y2k-eq i:nth-child(7n) b {
+  animation-name: y2k-eq-low;
+  animation-duration: 0.81s;
+}
+
+@keyframes y2k-eq {
+  from {
+    transform: translateY(-78%);
+  }
+  to {
+    transform: translateY(-18%);
+  }
+}
+
+@keyframes y2k-eq-low {
+  from {
+    transform: translateY(-62%);
+  }
+  to {
+    transform: translateY(-34%);
+  }
+}
+
+/* Time readout: a button that switches between elapsed and remaining. It blinks while paused. */
+:root[data-theme='y2k'] .y2k-time {
+  flex: none;
+  min-width: 2.6ch;
+  font: inherit;
+  line-height: 0.8;
+  letter-spacing: 0.02em;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+}
+
+:root[data-theme='y2k'] .np.open .y2k-lcd.paused .y2k-time {
+  animation: y2k-blink 1.4s steps(1) infinite;
+}
+
+@keyframes y2k-blink {
+  0%,
+  64% {
+    opacity: 1;
+  }
+  65%,
+  100% {
+    opacity: 0.18;
+  }
+}
+
+/* Mini player's LCD (phone). */
+:root[data-theme='y2k'] .y2k-mini-lcd {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 5px 9px 0;
+  border-radius: 10px;
+}
+
+:root[data-theme='y2k'] .y2k-mini-lcd .y2k-title {
+  font-size: 21px;
+}
+
+:root[data-theme='y2k'] .y2k-mini-lcd .y2k-artist {
+  margin-top: 2px;
+  font-size: 16px;
+}
+
+:root[data-theme='y2k'] .y2k-mini-lcd .mini-progress {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  border-radius: 0;
+  background: #93ffd2;
+  box-shadow: 0 0 6px rgba(80, 255, 180, 0.9);
+}
+
+/* Desktop bar's LCD. */
+:root[data-theme='y2k'] .y2k-bar-bezel {
+  flex: 1;
+  min-width: 0;
+  padding: 3px;
+  border-radius: 13px;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 0 0 1px rgba(36, 66, 116, 0.38);
+}
+
+:root[data-theme='y2k'] .y2k-bar-lcd {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 54px;
+  padding: 0 12px;
+  border-radius: 10px;
+}
+
+:root[data-theme='y2k'] .y2k-lcd-text {
+  flex: 1;
+  min-width: 0;
+}
+
+:root[data-theme='y2k'] .y2k-bar-lcd .y2k-title {
+  font-size: 25px;
+}
+
+:root[data-theme='y2k'] .y2k-bar-lcd .y2k-artist {
+  font-size: 19px;
+}
+
+:root[data-theme='y2k'] .y2k-bar-lcd .y2k-eq {
+  flex: none;
+  width: 60px;
+  height: 32px;
+  gap: 2px;
+}
+
+/* ── Sliders: a dark groove, an aqua fill, a chrome thumb ──────────── */
+
+:root[data-theme='y2k'] .range {
+  --h: 8px;
+  --fill: #2fb4ff;
+  --rest: #0d2a52;
+}
+
+:root[data-theme='y2k'] .range::-webkit-slider-runnable-track {
+  height: var(--h);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 45%) 0 0 / var(--p, 0%) 100% no-repeat,
+    linear-gradient(90deg, #1690ec, #4fd0ff) 0 0 / var(--p, 0%) 100% no-repeat,
+    linear-gradient(180deg, #08203f, #1d4374);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.6),
+    0 1px 0 rgba(255, 255, 255, 0.8),
+    0 0 0 1px rgba(10, 30, 70, 0.3);
+}
+
+:root[data-theme='y2k'] .range::-moz-range-track {
+  height: var(--h);
+  border-radius: 6px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 45%) 0 0 / var(--p, 0%) 100% no-repeat,
+    linear-gradient(90deg, #1690ec, #4fd0ff) 0 0 / var(--p, 0%) 100% no-repeat,
+    linear-gradient(180deg, #08203f, #1d4374);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+:root[data-theme='y2k'] .range::-webkit-slider-thumb {
+  width: 26px;
+  height: 17px;
+  margin-top: calc((var(--h) - 17px) / 2);
+  border-radius: 9px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='.5' y='.5' width='27' height='17' rx='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3Cpath d='M11 5v8M13 5v8M15 5v8M17 5v8' stroke='%23284678' stroke-opacity='.45'/%3E%3C/svg%3E") center / 26px 17px no-repeat;
+  box-shadow: 0 2px 4px rgba(0, 30, 90, 0.35);
+  opacity: 1;
+}
+
+:root[data-theme='y2k'] .range::-moz-range-thumb {
+  width: 26px;
+  height: 17px;
+  border-radius: 9px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='.5' y='.5' width='27' height='17' rx='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3Cpath d='M11 5v8M13 5v8M15 5v8M17 5v8' stroke='%23284678' stroke-opacity='.45'/%3E%3C/svg%3E") center / 26px 17px no-repeat;
+  box-shadow: 0 2px 4px rgba(0, 30, 90, 0.35);
+  opacity: 1;
+}
+
+:root[data-theme='y2k'] .volume .range::-webkit-slider-thumb {
+  width: 16px;
+  height: 16px;
+  margin-top: calc((var(--h) - 16px) / 2);
+  border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='9' cy='9' r='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+}
+
+:root[data-theme='y2k'] .volume .range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='9' cy='9' r='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+}
+
+/* Touch keeps the big 40px grab area; the chrome thumb is drawn in its middle. */
+@media (pointer: coarse) {
+  :root[data-theme='y2k'] .range::-webkit-slider-thumb {
+    width: 40px;
+    height: 40px;
+    margin-top: calc((var(--h) - 40px) / 2);
+    border-radius: 0;
+    box-shadow: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='.5' y='.5' width='27' height='17' rx='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3Cpath d='M11 5v8M13 5v8M15 5v8M17 5v8' stroke='%23284678' stroke-opacity='.45'/%3E%3C/svg%3E") center / 26px 17px no-repeat;
+  }
+
+  :root[data-theme='y2k'] .volume .range::-webkit-slider-thumb {
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff'/%3E%3Cstop offset='.44' stop-color='%23eef2f7'/%3E%3Cstop offset='.52' stop-color='%23d6dee9'/%3E%3Cstop offset='1' stop-color='%23e8edf4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='9' cy='9' r='8.5' fill='url(%23g)' stroke='%23244274' stroke-opacity='.5'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+  }
+}
+
+:root[data-theme='y2k'] .vol-icon {
+  color: var(--y2k-icon);
+}
+
+:root[data-theme='y2k'] .vol-icon .icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.95));
+}
+
+/* ── Transport: chrome steps, a gel play button, toggles with an LED ── */
+
+:root[data-theme='y2k'] .skip-btn {
+  color: var(--y2k-icon);
+  background: var(--y2k-chrome);
+  border: 1px solid var(--y2k-chrome-edge);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -2px 4px rgba(0, 30, 80, 0.1),
+    0 2px 6px rgba(0, 30, 90, 0.22);
+  opacity: 1 !important;
+}
+
+:root[data-theme='y2k'] .skip-btn .icon,
+:root[data-theme='y2k'] .transport .mode .icon {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.95));
+}
+
+:root[data-theme='y2k'] .skip-btn:active {
+  background: var(--y2k-chrome-press);
+  box-shadow: inset 0 2px 5px rgba(0, 30, 80, 0.28);
+}
+
+:root[data-theme='y2k'] .transport .mode {
+  color: var(--y2k-icon) !important;
+  background: none !important;
+}
+
+:root[data-theme='y2k'] .transport .mode.active {
+  color: #0d6fe0 !important;
+}
+
+:root[data-theme='y2k'] .transport .mode::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #c7d0dc, #8794a8);
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='y2k'] .transport .mode.active::after {
+  background: radial-gradient(circle at 40% 35%, #e9fff1, #3dff8b 55%, #12c35a);
+  box-shadow: 0 0 6px 1px rgba(60, 255, 140, 0.8);
+}
+
+/* The gel: aqua glass in a chrome ring. Used by the transport's play button and the mini player's. */
+:root[data-theme='y2k'] :is(.play-btn, .mini-btn.play-swap) {
+  position: relative;
+  color: #fff;
+  border: 4px solid transparent;
+  background: var(--y2k-gel-ball);
+  box-shadow: var(--y2k-gel-shadow);
+}
+
+:root[data-theme='y2k'] :is(.play-btn, .mini-btn.play-swap)::before {
+  content: '';
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  top: 4%;
+  height: 47%;
+  border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.14));
+  pointer-events: none;
+}
+
+:root[data-theme='y2k'] :is(.play-btn, .mini-btn.play-swap) .icon {
+  position: relative;
+  filter: drop-shadow(0 1px 2px rgba(0, 30, 100, 0.65));
+}
+
+:root[data-theme='y2k'] .transport.compact {
+  gap: 12px;
+}
+
+:root[data-theme='y2k'] .transport.compact .skip-btn {
+  width: 34px;
+  height: 34px;
+}
+
+:root[data-theme='y2k'] .transport.compact .play-btn {
+  width: 48px;
+  height: 48px;
+  margin: 0 2px;
+  color: #fff;
+  background: var(--y2k-gel-ball);
+  border-width: 3px;
+}
+
+:root[data-theme='y2k'] .transport.compact .play-btn .icon {
+  width: 20px;
+  height: 20px;
+}
+
+:root[data-theme='y2k'] .transport.compact .mode::after {
+  bottom: -1px;
+  width: 5px;
+  height: 5px;
+  margin-left: -2.5px;
+}
+
+/* ── Now Playing ───────────────────────────────────────────────────── */
+
+/* Color and Vinyl stand on the sky (NowPlaying makes no cover backdrop for them under Y2K); Canvas keeps its
+   picture and the skin frames it. */
+:root[data-theme='y2k'] .np {
+  color: var(--text);
+  background:
+    var(--y2k-cloud) left 31% top calc(var(--safe-top) - 4px) / 124px auto no-repeat,
+    var(--y2k-cloud) left -30px top 36% / 96px auto no-repeat,
+    var(--y2k-cloud) right -24px top 52% / 104px auto no-repeat,
+    var(--y2k-hill) left bottom / 100% 41% no-repeat,
+    var(--y2k-sky);
+}
+
+/* The title and artist move onto the LCD; the text stays for screen readers. */
+:root[data-theme='y2k'] .np:has(.y2k-np) .np-text {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* With the text gone, More sits in the top bar's right corner. */
+:root[data-theme='y2k'] .np:has(.y2k-np) .np-meta {
+  position: absolute;
+  top: calc(var(--safe-top) + 6px + 3px);
+  right: 24px;
+  margin: 0;
+}
+
+/* The top row closes with the chevron in every style, as in the mockup (Color's grabber would sit under a cloud). */
+:root[data-theme='y2k'] .np .np-top {
+  justify-content: flex-start;
+  height: 44px;
+  margin: 0;
+}
+
+:root[data-theme='y2k'] .np .np-grabber {
+  display: none;
+}
+
+:root[data-theme='y2k'] .np .np-close {
+  display: inline-grid;
+}
+
+:root[data-theme='y2k'] .np-top > .icon-btn,
+:root[data-theme='y2k'] .np-meta > .icon-btn {
+  color: var(--y2k-icon);
+}
+
+:root[data-theme='y2k'] .np-top > .icon-btn:hover,
+:root[data-theme='y2k'] .np-meta > .icon-btn:hover {
+  color: var(--text);
+}
+
+/* Top to bottom: the top row, the art, the LCD, then the controls (NowPlaying wraps meta, scrubber, transport and
+   volume in .np-controls, which follows the LCD as a whole). */
+:root[data-theme='y2k'] .np-sheet > .np-controls {
+  order: 4;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-top {
+  order: 0;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-stage {
+  order: 1;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-meta {
+  order: 2;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .y2k-np {
+  order: 3;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-scrub {
+  order: 4;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .transport {
+  order: 5;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls) > .np-volume {
+  order: 6;
+}
+:root[data-theme='y2k'] :is(.np-sheet, .np-controls)::after {
+  order: 7;
+}
+
+/* Art in a chrome bevel, with a pane of glass. Vinyl's record sits on a chrome platter. */
+:root[data-theme='y2k'] .np-art,
+:root[data-theme='y2k'] .np-record {
+  border: 7px solid;
+  border-color: #ffffff #b9c7d9 #a5b5ca #eef2f7;
+  box-shadow:
+    0 0 0 1px rgba(36, 66, 116, 0.42),
+    0 22px 40px rgba(0, 30, 110, 0.38);
+}
+
+:root[data-theme='y2k'] .np-art {
+  border-radius: 22px;
+}
+
+:root[data-theme='y2k'] .np.playing .np-art {
+  box-shadow:
+    0 0 0 1px rgba(36, 66, 116, 0.42),
+    0 26px 46px rgba(0, 30, 110, 0.4);
+}
+
+:root[data-theme='y2k'] .np-art .icon {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+/* Now Playing's display. */
+:root[data-theme='y2k'] .y2k-np {
+  flex: none;
+  margin-top: 18px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-lcd {
+  padding: 12px 16px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-lcd-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  height: 46px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-time {
+  font-size: 56px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-eq {
+  flex: 1;
+  height: 40px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-title {
+  margin-top: 10px;
+  font-size: 32px;
+}
+
+:root[data-theme='y2k'] .y2k-np .y2k-artist {
+  margin-top: 2px;
+  font-size: 22px;
+}
+
+/* Seek groove; the LCD already shows the time. */
+:root[data-theme='y2k'] .np-scrub {
+  margin-top: 12px;
+}
+
+:root[data-theme='y2k'] .np:has(.y2k-np) .np-scrub .time {
+  display: none;
+}
+
+:root[data-theme='y2k'] .np-scrub .range,
+:root[data-theme='y2k'] .np-volume .range {
+  --h: 10px;
+}
+
+:root[data-theme='y2k'] .np-scrub.dragging .range {
+  --h: 10px;
+}
+
+/* The console: a brushed chrome capsule holding the transport. */
+:root[data-theme='y2k'] .np .transport.full {
+  height: 76px;
+  margin: 14px 0 0;
+  padding: 0 14px;
+  border-radius: 40px;
+  background: var(--y2k-brushed);
+  border: 1px solid rgba(36, 66, 116, 0.42);
+  box-shadow:
+    inset 0 1px 0 #fff,
+    inset 0 -3px 6px rgba(0, 30, 80, 0.08),
+    0 12px 26px rgba(0, 40, 20, 0.3);
+}
+
+:root[data-theme='y2k'] .np .transport.full .mode {
+  width: 40px;
+  height: 40px;
+}
+
+:root[data-theme='y2k'] .np .transport.full .skip-btn {
+  width: 52px;
+  height: 52px;
+}
+
+:root[data-theme='y2k'] .np .transport.full .skip-btn .icon {
+  width: 26px;
+  height: 26px;
+}
+
+:root[data-theme='y2k'] .np .transport.full .play-btn {
+  width: 88px;
+  height: 88px;
+  margin: -12px 0;
+  border-width: 6px;
+  /* restated here so it outranks the style rules (Canvas paints its play button white) and the hover */
+  color: #fff;
+  background: var(--y2k-gel-ball);
+  box-shadow: var(--y2k-gel-shadow);
+}
+
+:root[data-theme='y2k'] .np .transport.full .play-btn .icon {
+  width: 40px;
+  height: 40px;
+}
+
+/* Canvas at rest: the display drops with the bar to the bottom edge, where the other styles rest the title. */
+:root[data-theme='y2k'] .np[data-style='canvas'] .y2k-np {
+  transition: transform 460ms var(--ease);
+}
+
+:root[data-theme='y2k'] .np.chrome-hidden .y2k-np {
+  transform: translateY(var(--bar-drop, 0px));
+}
+
+:root[data-theme='y2k'] .np-volume {
+  margin-top: 16px;
+}
+
+:root[data-theme='y2k'] .np-volume .vol-icon {
+  color: var(--y2k-icon);
+}
+
+/* Canvas: the volume row stands on the picture's dark scrim, so its icons are white. */
+:root[data-theme='y2k'] .np[data-style='canvas'] .np-volume .vol-icon {
+  color: #fff;
+}
+
+:root[data-theme='y2k'] .np[data-style='canvas'] .np-volume .vol-icon .icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Canvas: the picture fills the sheet, so on phones the display and console get a touch more lift. */
+@media (max-width: 899px) {
+  :root[data-theme='y2k'] .np:has(.y2k-np[data-style='canvas']) :is(.y2k-bezel, .transport.full) {
+    box-shadow:
+      inset 0 1px 0 #fff,
+      0 0 0 1px rgba(36, 66, 116, 0.5),
+      0 12px 30px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@media (max-width: 899px) and (max-height: 760px) {
+  :root[data-theme='y2k'] .y2k-np {
+    margin-top: 10px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-lcd {
+    padding: 8px 14px 10px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-lcd-row {
+    height: 38px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-time {
+    font-size: 46px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-title {
+    margin-top: 6px;
+    font-size: 28px;
+  }
+}
+
+/* Desktop: Color and Vinyl become a compact chrome device standing on the hill (the mockup's 400 + 520 columns);
+   Canvas keeps its picture whole, with the display and console at the bottom as on phones. */
+@media (min-width: 900px) {
+  :root[data-theme='y2k'] .np {
+    background:
+      var(--y2k-cloud) left 3% top 14% / 170px auto no-repeat,
+      var(--y2k-cloud) right 22% top 8% / 110px auto no-repeat,
+      var(--y2k-hill) left bottom / 100% 44% no-repeat,
+      var(--y2k-sky);
+  }
+
+  /* The sheet lets go of positioning, so close and More sit in the window's corners. As a flex item it still
+     takes a z-index, which keeps it over the Canvas picture. */
+  :root[data-theme='y2k'] .np .np-sheet {
+    position: static;
+    z-index: 1;
+  }
+
+  :root[data-theme='y2k'] .np .np-top {
+    position: absolute;
+    top: 22px;
+    left: 28px;
+  }
+
+  :root[data-theme='y2k'] .np:has(.y2k-np) .np-meta {
+    top: 25px;
+    right: 28px;
+  }
+
+  /* The device: the art on the left; the display, scrubber, transport and volume on the right. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet {
+    display: grid;
+    grid-template-columns: minmax(0, 400px) minmax(0, 520px);
+    grid-template-rows: none;
+    grid-auto-rows: auto;
+    align-content: center;
+    align-items: center;
+    column-gap: 40px;
+    width: auto;
+    max-width: calc(100% - 48px);
+    height: auto;
+    max-height: calc(100% - 40px);
+    padding: 30px 40px 30px 30px;
+    border: 1px solid rgba(36, 66, 116, 0.5);
+    border-radius: 36px;
+    background: var(--y2k-brushed);
+    box-shadow:
+      inset 0 1px 0 #fff,
+      inset 0 0 0 3px rgba(255, 255, 255, 0.5),
+      inset 0 -6px 12px rgba(0, 30, 80, 0.08),
+      0 30px 70px rgba(0, 25, 70, 0.45),
+      0 0 0 7px rgba(255, 255, 255, 0.18);
+  }
+
+  :root[data-theme='y2k'] .np-sheet::after {
+    display: none;
+  }
+
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > * {
+    grid-column: 2;
+  }
+
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .np-stage {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    width: 100%;
+    height: min(400px, 30vw);
+    max-height: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* The display and the controls hug each other, centered beside the art. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .y2k-np {
+    align-self: end;
+  }
+
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .np-sheet > .np-controls {
+    align-self: start;
+  }
+
+  :root[data-theme='y2k'] .np .np-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  :root[data-theme='y2k'] .y2k-np {
+    margin-top: 0;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-lcd {
+    padding: 14px 18px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-lcd-row {
+    height: 58px;
+    gap: 18px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-time {
+    font-size: 72px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-eq {
+    height: 50px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-title {
+    margin-top: 12px;
+    font-size: 40px;
+  }
+
+  :root[data-theme='y2k'] .y2k-np .y2k-artist {
+    font-size: 26px;
+  }
+
+  :root[data-theme='y2k'] .np .np-scrub {
+    margin-top: 18px;
+  }
+
+  /* Inside the device the transport needs no capsule of its own. */
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .transport.full {
+    background: none;
+    border: 0;
+    box-shadow: none;
+    padding: 0 4px;
+  }
+
+  :root[data-theme='y2k'] .np:not([data-style='canvas']) .transport.full .play-btn {
+    margin: 0;
+  }
+
+  /* Canvas: one column at the bottom of the picture. */
+  :root[data-theme='y2k'] .np[data-style='canvas'] .np-sheet {
+    width: min(520px, 100% - 48px);
+    padding: 0 0 36px;
+  }
+
+  :root[data-theme='y2k'] .np[data-style='canvas'] .transport.full {
+    justify-content: space-between;
+  }
+
+  :root[data-theme='y2k'] .np[data-style='canvas'] .np-volume {
+    width: auto;
+    margin: 16px 0 0;
+  }
+}
+
+/* ── Reduced motion: everything rests ──────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='y2k'] :is(.y2k-mq, .y2k-eq b, .y2k-time) {
+    animation: none !important;
+  }
+
+  :root[data-theme='y2k'] .y2k-eq.run b {
+    transform: translateY(-50%);
+  }
+
+  :root[data-theme='y2k'] .y2k-eq.run i:nth-child(odd) b {
+    transform: translateY(-36%);
+  }
+
+  :root[data-theme='y2k'] .y2k-marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  :root[data-theme='y2k'] .y2k-marquee .y2k-mq,
+  :root[data-theme='y2k'] .y2k-copy:first-child {
+    display: block;
+    max-width: 100%;
+  }
+
+  :root[data-theme='y2k'] .y2k-copy:first-child .y2k-t {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :root[data-theme='y2k'] .y2k-copy + .y2k-copy,
+  :root[data-theme='y2k'] .y2k-copy::after {
+    display: none;
+  }
+}
