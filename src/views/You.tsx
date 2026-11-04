@@ -7,6 +7,7 @@ import { detect, useSource } from '../lib/source.ts'
 import { setYouTubeKey, useYouTubeKey } from '../lib/youtube.ts'
 import { useAccount } from '../lib/account.ts'
 import { loadPosts, personOf, useMe, useSocial, type Me } from '../lib/social.ts'
+import { useViewer } from '../lib/viewer.ts'
 import { AccountRows } from '../ui/Account.tsx'
 import { Appearance } from '../ui/Appearance.tsx'
 import { Composer } from '../ui/Composer.tsx'
@@ -69,8 +70,9 @@ export function You() {
   const media = useSavedMedia(profile)
   const [editing, setEditing] = useState(false)
   const cardRef = useRef<HTMLDivElement>(null)
-  // Now Playing covers the page completely, and the observer can't tell: the card rests behind it too.
-  const covered = usePlayer((s) => s.open)
+  const viewing = useViewer((s) => !!s.post)
+  // Now Playing and the Viewer cover the page completely, and the observer can't tell: the card rests behind them too.
+  const covered = usePlayer((s) => s.open) || viewing
   const live = useLive(cardRef, !editing && !covered)
   // A member, online: New Post, More (Share Profile, Following, Followers) and the Posts shelf.
   const me = useMe()

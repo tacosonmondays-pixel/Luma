@@ -181,7 +181,8 @@ export function profileMenuItems({
     danger: true,
     items: [{ label: 'Remove Profile', icon: 'trash', danger: true, onSelect: () => void removeProfile(person.id).then((ok) => ok && onChange?.()) }],
   })
-  if (!person.admin && !person.banned)
+  // Banned people too: a ban that failed part-way (their posts or files still there) runs again from here.
+  if (!person.admin)
     items.push({
       label: 'Ban',
       icon: 'none',

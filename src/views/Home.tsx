@@ -174,19 +174,23 @@ function FeedShelf({ which }: { which: 'friends' | 'friends-new' }) {
   const ref = useRef<HTMLDivElement>(null)
   const near = useNear(ref)
   const title = BUILTIN_TITLES[which]
-  // Not loaded, marked stale (a follow), or older than a minute. A failure (null) waits for the next visit.
-  const stale = feed === undefined || (!!feed && (!feed.at || Date.now() - feed.at > FEED_FRESH))
+  // A failure (null) is tried again once per visit (each one mounts this again), when the shelf comes near.
+  const [retried, setRetried] = useState(false)
+  // Not loaded, marked stale (a follow), older than a minute, or failed and not yet tried again on this visit.
+  const stale = feed === undefined || (feed === null && !retried) || (!!feed && (!feed.at || Date.now() - feed.at > FEED_FRESH))
   const shown = !!feed
 
   useEffect(() => {
-    if ((near || shown) && stale) void loadFeed()
-  }, [near, shown, stale])
+    if (!(near || shown) || !stale) return
+    if (feed === null) setRetried(true)
+    void loadFeed()
+  }, [near, shown, stale, feed])
 
-  if (feed === null) return null
+  if (feed === null && retried) return null
   if (!feed)
     return (
       <div ref={ref} className="shelf-pending">
-        {near && <GhostShelf title={title} wide={which === 'friends'} />}
+        {near && feed === undefined && <GhostShelf title={title} wide={which === 'friends'} />}
       </div>
     )
   if (which === 'friends')

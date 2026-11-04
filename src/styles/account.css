@@ -23,6 +23,11 @@
   animation: sheet-up 380ms var(--ease);
 }
 
+/* It takes focus as it opens (Sheet.tsx): the ring belongs to what's in it. */
+.sheet:focus {
+  outline: none;
+}
+
 .sheet-head {
   display: flex;
   align-items: center;

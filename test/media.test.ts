@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { LIMITS, checkAnimated, checkVideo, extOf, gifInfo, imageInfo, pngInfo, stillPlan, webpInfo } from '../src/lib/media.ts'
+import { LIMITS, checkAnimated, checkVideo, extOf, gifInfo, imageInfo, metadataBoxes, pngInfo, stillPlan, webpInfo, withoutMetadata } from '../src/lib/media.ts'
 
 const fixture = (name: string) => new Uint8Array(readFileSync(new URL(`./fixtures/${name}`, import.meta.url)))
 const MB = 1024 * 1024
@@ -144,5 +144,83 @@ describe('extOf', () => {
     expect(extOf('video/quicktime')).toBe('mov')
     expect(extOf('image/jpeg')).toBe('jpg')
     expect(extOf('audio/mpeg')).toBeUndefined()
+  })
+})
+
+describe('withoutMetadata', () => {
+  const text = (b: Uint8Array) => Buffer.from(b).toString('latin1')
+  const utf8 = (s: string) => new TextEncoder().encode(s)
+  const concat = (...parts: Uint8Array[]) => {
+    const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+    let at = 0
+    for (const p of parts) (out.set(p, at), (at += p.length))
+    return out
+  }
+  /** A box: its size, its type, then its body. */
+  const box = (type: string, ...body: (Uint8Array | string)[]) => {
+    const out = concat(new Uint8Array(8), ...body.map((p) => (typeof p === 'string' ? utf8(p) : p)))
+    new DataView(out.buffer).setUint32(0, out.length)
+    out.set(utf8(type), 4)
+    return out
+  }
+  /** The top-level boxes, as [type, offset]. */
+  const top = (b: Uint8Array) => {
+    const out: [string, number][] = []
+    for (let at = 0; at + 8 <= b.length; ) {
+      out.push([text(b.subarray(at + 4, at + 8)), at])
+      at += new DataView(b.buffer, b.byteOffset).getUint32(at) || b.length
+    }
+    return out
+  }
+  const strip = async (bytes: Uint8Array, type: string) =>
+    new Uint8Array(await (await withoutMetadata(new Blob([bytes.slice()], { type }))).arrayBuffer())
+
+  it("removes a phone video's place and camera, and changes nothing else", async () => {
+    const bytes = fixture('located.mov') // clip.mp4 through ffmpeg -f mov -metadata location=… make=… model=…
+    expect(text(bytes)).toContain('+48.8584+002.2945')
+    expect(text(bytes)).toContain('iPhone 15 Pro')
+    const out = await strip(bytes, 'video/quicktime')
+    expect(out.length).toBe(bytes.length) // nothing moves: the chunk offsets stay right
+    expect(text(out)).not.toContain('48.8584')
+    expect(text(out)).not.toContain('iPhone')
+    expect(top(out).map(([t]) => t)).toEqual(['ftyp', 'wide', 'mdat', 'moov'])
+    const moov = top(out).find(([t]) => t === 'moov')![1]
+    const [udta] = metadataBoxes(bytes.subarray(moov))
+    const changed = [...out.keys()].filter((i) => out[i] !== bytes[i])
+    expect(changed[0]).toBeGreaterThanOrEqual(moov + udta.at + 4) // only inside the one box…
+    expect(changed.at(-1)).toBeLessThan(moov + udta.end)
+    expect(text(out.subarray(moov + udta.at + 4, moov + udta.at + 8))).toBe('free') // …which players skip
+    expect(metadataBoxes(out.subarray(moov))).toEqual([])
+  })
+
+  it('walks the top level, moov and its tracks, 64-bit sizes too; leaves every other box alone', async () => {
+    const large = concat(new Uint8Array([0, 0, 0, 1, ...utf8('udta'), 0, 0, 0, 0, 0, 0, 0, 24]), utf8('long one'))
+    const moov = box(
+      'moov',
+      box('mvhd', 'x'.repeat(20)),
+      box('meta', box('hdlr', 'mdta'), box('keys', 'com.apple.quicktime.location.ISO6709')),
+      box('trak', box('tkhd', 'y'), box('udta', box('name', 'cam')), box('mdia', box('udta', 'deep'))),
+      large,
+    )
+    const spans = metadataBoxes(moov)
+    expect(spans.map((m) => text(moov.subarray(m.at + 4, m.at + 8)))).toEqual(['meta', 'udta', 'udta'])
+    expect(spans[2]).toEqual({ at: moov.length - 24, body: moov.length - 8, end: moov.length }) // the 64-bit one
+
+    const file = concat(box('ftyp', 'qt  '), box('meta', 'top secret'), box('mdat', 'media'), moov)
+    const out = await strip(file, 'video/mp4')
+    expect(out.length).toBe(file.length)
+    expect(top(out).map(([t]) => t)).toEqual(['ftyp', 'free', 'mdat', 'moov'])
+    for (const gone of ['meta', 'secret', 'ISO6709', 'cam', 'long one']) expect(text(out)).not.toContain(gone)
+    for (const kept of ['qt  ', 'media', 'mvhd', 'tkhd', 'mdia']) expect(text(out)).toContain(kept)
+    expect(text(out)).toContain('udtadeep') // inside mdia: not where metadata lives, and not walked
+    const big = top(out).find(([t]) => t === 'moov')![1] + spans[2].at
+    expect([...out.subarray(big, big + 16)]).toEqual([0, 0, 0, 1, ...utf8('free'), 0, 0, 0, 0, 0, 0, 0, 24])
+  })
+
+  it('passes WebM, and a file it cannot walk, through untouched', async () => {
+    const webm = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3])], { type: 'video/webm' })
+    expect(await withoutMetadata(webm)).toBe(webm)
+    const junk = new Blob([new Uint8Array([0, 0, 0, 3, 1, 2, 3, 4, 5])], { type: 'video/mp4' })
+    expect(await withoutMetadata(junk)).toBe(junk)
   })
 })

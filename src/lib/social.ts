@@ -418,35 +418,41 @@ export function loadMine(force = false): Promise<boolean> {
   })
 }
 
-/** Follow at once; the server agrees or it's undone. Already following (on another device) counts as done. */
-export async function follow(id: string): Promise<boolean> {
-  const me = currentMe()
-  if (!me || id === me.id) return false
-  if (getState().following?.includes(id)) return true
-  const at = epoch
-  setState((s) => ({ following: [...(s.following ?? []), id], feed: s.feed && { ...s.feed, at: 0 } }))
-  try {
-    const sb = await supabase()
-    const { error } = await sb.from('follows').insert({ follower_id: me.id, followee_id: id })
-    if (!error || error.code === '23505') return true
-  } catch {}
-  if (at === epoch) setState((s) => ({ following: s.following?.filter((f) => f !== id) }))
-  return false
+/** Follow at once; the server agrees or it's undone. Already following (on another device) counts as done. One
+ * follow or unfollow per person at a time: a press while one is on its way gets that one's answer and changes
+ * nothing (two in flight could land, or be undone, in the wrong order). */
+export function follow(id: string): Promise<boolean> {
+  return once(`follow:${id}`, async () => {
+    const me = currentMe()
+    if (!me || id === me.id) return false
+    if (getState().following?.includes(id)) return true
+    const at = epoch
+    setState((s) => ({ following: [...(s.following ?? []), id], feed: s.feed && { ...s.feed, at: 0 } }))
+    try {
+      const sb = await supabase()
+      const { error } = await sb.from('follows').insert({ follower_id: me.id, followee_id: id })
+      if (!error || error.code === '23505') return true
+    } catch {}
+    if (at === epoch) setState((s) => ({ following: s.following?.filter((f) => f !== id) }))
+    return false
+  })
 }
 
-/** Unfollow at once; undone if the server refuses. */
-export async function unfollow(id: string): Promise<boolean> {
-  const me = currentMe()
-  if (!me || !getState().following?.includes(id)) return false
-  const at = epoch
-  setState((s) => ({ following: s.following?.filter((f) => f !== id), feed: s.feed && { ...s.feed, at: 0 } }))
-  try {
-    const sb = await supabase()
-    const { error } = await sb.from('follows').delete().eq('follower_id', me.id).eq('followee_id', id)
-    if (!error) return true
-  } catch {}
-  if (at === epoch) setState((s) => ({ following: s.following?.includes(id) ? s.following : [...(s.following ?? []), id] }))
-  return false
+/** Unfollow at once; undone if the server refuses. One at a time per person, with follow. */
+export function unfollow(id: string): Promise<boolean> {
+  return once(`follow:${id}`, async () => {
+    const me = currentMe()
+    if (!me || !getState().following?.includes(id)) return false
+    const at = epoch
+    setState((s) => ({ following: s.following?.filter((f) => f !== id), feed: s.feed && { ...s.feed, at: 0 } }))
+    try {
+      const sb = await supabase()
+      const { error } = await sb.from('follows').delete().eq('follower_id', me.id).eq('followee_id', id)
+      if (!error) return true
+    } catch {}
+    if (at === epoch) setState((s) => ({ following: s.following?.includes(id) ? s.following : [...(s.following ?? []), id] }))
+    return false
+  })
 }
 
 /** Report a profile, post or video. It hides here at once; already reported counts as done; anything else (50 open

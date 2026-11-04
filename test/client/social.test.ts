@@ -133,6 +133,23 @@ describe('follows', () => {
     expect(server.tables.follows).toEqual([])
   })
 
+  it('a second press while one is on its way changes nothing (a double tap, both refused)', async () => {
+    const d = await device()
+    await signIn(d, 'me@example.com', 'mira')
+    addMember(server, 'u-bob', 'bob')
+    await d.social.loadMine()
+    server.errors.set('insert follows', { message: 'TypeError: Failed to fetch' })
+    server.errors.set('delete follows', { message: 'TypeError: Failed to fetch' })
+    const on = d.social.follow('u-bob')
+    const off = d.social.unfollow('u-bob') // the pill already says Following
+    expect(d.state().following).toEqual(['u-bob'])
+    expect(await on).toBe(false)
+    expect(await off).toBe(false)
+    expect(server.tables.follows).toEqual([])
+    expect(d.state().following).toEqual([])
+    expect(server.calls.filter((c) => c.endsWith(' follows') && !c.startsWith('select'))).toEqual(['insert follows'])
+  })
+
   it('lists who someone follows and who follows them, for anyone', async () => {
     const d = await device()
     addMember(server, 'u-bob', 'bob')
@@ -184,11 +201,15 @@ describe('feed', () => {
     expect(server.calls).toEqual([])
   })
 
-  it('a failure hides it', async () => {
+  it('a failure hides it; the next load (Home, on its next visit) asks again', async () => {
     const d = await friends()
     server.errors.set('select videos', { message: 'timeout' })
     expect(await d.social.loadFeed()).toBeNull()
     expect(d.state().feed).toBeNull()
+    server.errors.clear()
+    await d.social.loadMine(true) // nothing else brings it back
+    expect(d.state().feed).toBeNull()
+    expect((await d.social.loadFeed())?.posts.map((p) => p.id)).toEqual(['v1', 'p1'])
   })
 
   it('following no one, nothing loads', async () => {
@@ -265,6 +286,20 @@ describe('publish', () => {
     expect(d.posting.postErrorLabel(await failed.catch((e) => e))).toBe('Daily Limit')
     expect(files(`${me}/`)).toEqual([])
     expect(server.calls.filter((c) => c.startsWith('remove'))).toHaveLength(1)
+  })
+
+  it("an insert whose answer was lost keeps the files (the row may be in), and the sweep keeps them if it is", async () => {
+    const d = await device()
+    const me = await signIn(d, 'me@example.com', 'mira')
+    server.lost.add('insert posts')
+    await expect(d.posting.publish({ text: 'two pictures', media: [image(), image()] })).rejects.toMatchObject({ code: 'failed' })
+    server.lost.clear()
+    const row = server.tables.posts[0]
+    expect(row.image_paths).toHaveLength(2)
+    expect(files(`${me}/posts/`)).toEqual([...(row.image_paths as string[])].sort())
+    expect(server.calls.filter((c) => c.startsWith('remove'))).toEqual([])
+    await d.posting.sweepOrphans(Date.now() + 2 * DAY)
+    expect(files(`${me}/posts/`)).toHaveLength(2)
   })
 
   it('an abort removes what went up, and inserts nothing', async () => {
@@ -508,7 +543,7 @@ describe('moderation', () => {
 })
 
 describe('orphan sweep', () => {
-  it('removes only unreferenced files over an hour old, at most once a day', async () => {
+  it('removes only unreferenced files over a day old, at most once a day', async () => {
     const d = await device()
     const me = await signIn(d, 'me@example.com', 'mira')
     const put = (name: string, age: number) => {
@@ -517,12 +552,12 @@ describe('orphan sweep', () => {
     }
     server.tables.videos.push(videoRow('v1', me))
     server.tables.posts.push(postRow('p1', me, { image_paths: [`${me}/posts/kept-0.jpg`], removed_at: ago(1) }))
-    put('videos/v1.mp4', 2 * HOUR)
-    put('videos/v1-still.jpg', 2 * HOUR)
-    put('videos/orphan.mp4', 2 * HOUR)
-    put('posts/kept-0.jpg', 2 * HOUR)
-    put('posts/old-0.jpg', 2 * HOUR)
-    put('posts/new-0.jpg', 10 * 60_000)
+    put('videos/v1.mp4', 2 * DAY)
+    put('videos/v1-still.jpg', 2 * DAY)
+    put('videos/orphan.mp4', 2 * DAY)
+    put('posts/kept-0.jpg', 2 * DAY)
+    put('posts/old-0.jpg', 2 * DAY)
+    put('posts/new-0.jpg', 2 * HOUR)
     put('profile/avatar-1.jpg', 9 * DAY)
 
     await d.posting.sweepOrphans()
@@ -535,9 +570,73 @@ describe('orphan sweep', () => {
     await d.posting.sweepOrphans(Date.now() + DAY + 1) // a day on: everything unreferenced is old by then
     expect(files(`${me}/posts/`)).toEqual([`${me}/posts/kept-0.jpg`])
   })
+
+  it("leaves another device's post alone while it uploads, even with a clock hours ahead", async () => {
+    const phone = await device()
+    const me = await signIn(phone, 'me@example.com', 'mira')
+    let release!: () => void
+    const held = new Promise<void>((r) => (release = r))
+    let stillUp!: () => void
+    const firstUp = new Promise<void>((r) => (stillUp = r))
+    phone.posting.setUploader(async (path, blob, o) => {
+      await memoryUploader(path, blob, o)
+      if (path.endsWith('-still.jpg')) {
+        stillUp()
+        await held // the video itself is still going up
+      }
+    })
+    const publishing = phone.posting.publish({ text: 'clip', media: [clip()] })
+    await firstUp
+
+    // The laptop (same account) opens the composer; its clock is 2 hours ahead of the server's.
+    const laptop = await device()
+    expect(await signIn(laptop, 'me@example.com')).toBe(me)
+    await laptop.posting.sweepOrphans(Date.now() + 2 * HOUR)
+
+    release()
+    const post = await publishing
+    const still = server.tables.videos[0].still_path as string
+    expect(post?.paths).toContain(still)
+    expect(server.files.has(still)).toBe(true)
+  })
 })
 
 describe('accounts', () => {
+  it("a row that failed to load at start is asked for again (a profile page waits for it), joining a load under way", async () => {
+    const d = await device()
+    await signIn(d, 'me@example.com', 'mira')
+    d.account.useAccount.setState({ row: undefined }) // the next start: the session is back, the row not yet
+    server.errors.set('select profiles', { message: 'TypeError: Failed to fetch' })
+    await d.account.refreshRow()
+    expect(d.account.useAccount.getState()).toMatchObject({ ready: true, row: undefined }) // nothing asks again by itself
+    expect(d.social.currentMe()).toBeUndefined()
+
+    server.calls.length = 0
+    await d.account.ensureRow() // still failing: it settles, the row still unknown
+    expect(d.account.useAccount.getState().row).toBeUndefined()
+    expect(server.calls).toEqual(['select profiles'])
+
+    // A load under way (the start's own) that fails: it waits for it, then asks once more.
+    server.calls.length = 0
+    const failing = d.account.refreshRow()
+    const ensured = d.account.ensureRow()
+    await failing
+    server.errors.clear()
+    await ensured
+    expect(server.calls).toEqual(['select profiles', 'select profiles'])
+    expect(d.social.currentMe()).toMatchObject({ handle: 'mira' })
+
+    // One that brings it: nothing more. Known: no call at all.
+    d.account.useAccount.setState({ row: undefined })
+    server.calls.length = 0
+    const loading = d.account.refreshRow()
+    await d.account.ensureRow()
+    await loading
+    expect(server.calls).toEqual(['select profiles'])
+    await d.account.ensureRow()
+    expect(server.calls).toEqual(['select profiles'])
+  })
+
   it('a sign-out resets every social store, with no network call; late answers are dropped', async () => {
     const d = await device()
     const me = await signIn(d, 'me@example.com', 'mira')
@@ -594,6 +693,19 @@ describe('accounts', () => {
 })
 
 describe('viewer', () => {
+  it('plays only a video with a picture, within the 60 s cap (no song audio from the server)', async () => {
+    const d = await device()
+    const clip = { videoWidth: 1080, videoHeight: 1920, duration: 59.9 }
+    expect(d.viewer.playable(clip)).toBe(true)
+    expect(d.viewer.playable({ ...clip, duration: 60.25 })).toBe(true)
+    expect(d.viewer.playable({ ...clip, currentTime: 30 })).toBe(true)
+    expect(d.viewer.playable({ ...clip, videoWidth: 0, videoHeight: 0 })).toBe(false) // a song in an MP4
+    expect(d.viewer.playable({ ...clip, duration: 240 })).toBe(false)
+    expect(d.viewer.playable({ ...clip, duration: Infinity })).toBe(false)
+    expect(d.viewer.playable({ ...clip, duration: NaN })).toBe(false)
+    expect(d.viewer.playable({ ...clip, currentTime: 61 })).toBe(false) // its header said less
+  })
+
   it('closing resumes the music only when unmuting paused it', async () => {
     const d = await device()
     const post = { kind: 'post' as const, id: 'p', userId: 'u', text: 'hi', createdAt: '', images: [], paths: [] }

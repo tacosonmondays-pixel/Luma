@@ -39,22 +39,40 @@ export function ReportsSheet({ onClose }: { onClose: () => void }) {
       return next
     })
 
+  // Focus the action took away (its row's buttons were disabled, then went) moves to the first row left, else the sheet.
+  const keepFocus = () =>
+    requestAnimationFrame(() => {
+      const now = document.activeElement
+      if (now && now !== document.body && now.isConnected && !(now as HTMLButtonElement).disabled) return
+      const sheet = document.querySelector<HTMLElement>('.reports-sheet')
+      ;(sheet?.querySelector<HTMLElement>('.report-main:not(:disabled)') ?? sheet)?.focus({ preventScroll: true })
+    })
+
   const act = async (g: ReportGroup, run: () => Promise<boolean>) => {
     mark(g.key, 'leaving')
     const ok = await run()
     mark(g.key, ok ? 'gone' : 'wrong')
+    keepFocus()
+  }
+
+  // A ban resolves every report on them (admin_purge): their other rows go too.
+  const banAll = async (id: string) => {
+    const ok = await ban(id)
+    if (ok) for (const other of groups ?? []) if (other.person?.id === id) mark(other.key, 'gone')
+    return ok
   }
 
   const actions = (g: ReportGroup): MenuItem[] => {
     const person = g.person && (people[g.person.id] ?? g.person)
+    // Banned people too: an open report on someone banned means the ban stopped part-way, and this finishes it.
     const banItem: MenuItem[] =
-      person && !person.admin && !person.banned
+      person && !person.admin
         ? [
             {
               label: g.kind === 'profile' ? 'Ban' : 'Ban Author',
               icon: 'none',
               danger: true,
-              items: [{ label: `Ban @${person.handle}`, icon: 'none', danger: true, onSelect: () => void act(g, () => ban(person.id)) }],
+              items: [{ label: `Ban @${person.handle}`, icon: 'none', danger: true, onSelect: () => void act(g, () => banAll(person.id)) }],
             },
           ]
         : []
@@ -90,11 +108,12 @@ export function ReportsSheet({ onClose }: { onClose: () => void }) {
     }
   }
 
-  // Gone here too: removed or reported from the Viewer over this sheet, or its author banned.
+  // Gone here too: removed or reported from the Viewer over this sheet, or its author banned since it loaded. Someone
+  // banned before it loaded still has open reports only because their ban stopped part-way: they stay, to finish it.
   const shown = (groups ?? []).filter((g) => {
     if (states[g.key] === 'gone' || (hidden.has(g.key) && states[g.key] !== 'leaving')) return false
     const person = g.person && people[g.person.id]
-    return !(person?.banned && states[g.key] !== 'leaving')
+    return !(person?.banned && !g.person?.banned && states[g.key] !== 'leaving')
   })
 
   return (

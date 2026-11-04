@@ -474,6 +474,7 @@
 :root[data-theme='y2k'] .pill.primary.sheet-submit.failed {
   background: linear-gradient(180deg, #f2766c 0%, #d8392b 46%, #c4271b 54%, #d23426 100%);
   border-color: #9c1d14;
+  color: #fff;
 }
 
 /* ── Phone shell: sky header, white cards, glossy tab bar ──────────── */

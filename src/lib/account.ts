@@ -50,8 +50,18 @@ export function resumeAccount(): void {
   if (hasSavedSession()) void startAccount()
 }
 
+let loadingRow: Promise<ProfileRow | null | undefined> | undefined
+
 /** Fetch this user's row again. Keeps the last one when offline. */
-export async function refreshRow(): Promise<ProfileRow | null | undefined> {
+export function refreshRow(): Promise<ProfileRow | null | undefined> {
+  const p = fetchRow().finally(() => {
+    if (loadingRow === p) loadingRow = undefined
+  })
+  loadingRow = p
+  return p
+}
+
+async function fetchRow(): Promise<ProfileRow | null | undefined> {
   const id = getState().user?.id
   if (!id) return
   const sb = await supabase()
@@ -59,6 +69,15 @@ export async function refreshRow(): Promise<ProfileRow | null | undefined> {
   if (error) return getState().row
   if (getState().user?.id === id) setState({ row: (data as ProfileRow | null) ?? null })
   return data as ProfileRow | null
+}
+
+/** The row, when it is still unknown (it failed to load at start, or the app started offline): waits for a load
+ * under way, and asks once more if that one doesn't bring it. Settles either way, the row still unknown if it can't
+ * be had; never throws. */
+export async function ensureRow(): Promise<void> {
+  const unknown = () => !!getState().user && getState().row === undefined
+  if (unknown() && loadingRow) await loadingRow.catch(() => {})
+  if (unknown()) await refreshRow().catch(() => {})
 }
 
 /** Email a 6-digit code. Resolves false when it couldn't be sent. */

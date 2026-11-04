@@ -2,7 +2,7 @@
 // what they're listening to (members who follow them, while they share it) and their posts. Works signed out.
 // Pinned songs show art and title; tapping one searches for it (no audio comes from the server).
 import { useEffect, useMemo, useRef, useState, type MouseEvent } from 'react'
-import { badgesOf, fetchPublicProfile, pinnedOf, profileFromRow, profilePath, useAccount } from '../lib/account.ts'
+import { badgesOf, ensureRow, fetchPublicProfile, pinnedOf, profileFromRow, profilePath, useAccount } from '../lib/account.ts'
 import { usePlayer } from '../lib/player.ts'
 import {
   follow, loadListening, loadMine, loadPosts, personOf, rememberPerson, unfollow, useMe, useOnline, useSocial,
@@ -10,6 +10,7 @@ import {
 } from '../lib/social.ts'
 import { badgeName } from '../lib/stats.ts'
 import { mediaUrl } from '../lib/supabase.ts'
+import { useViewer } from '../lib/viewer.ts'
 import { Icon } from '../ui/Icon.tsx'
 import { openMenu } from '../ui/Menu.tsx'
 import { PeopleSheet, profileMenuItems } from '../ui/People.tsx'
@@ -54,7 +55,10 @@ export function User({ handle }: { handle: string }) {
     }
   }, [handle, reload])
   const cardRef = useRef<HTMLDivElement>(null)
-  const live = useLive(cardRef, !usePlayer((s) => s.open))
+  const viewing = useViewer((s) => !!s.post)
+  // Now Playing and the Viewer cover the page completely, and the observer can't tell: the card rests behind them.
+  const covered = usePlayer((s) => s.open) || viewing
+  const live = useLive(cardRef, !covered)
   const { row } = state
   const view = useMemo(() => row && { profile: profileFromRow(row), media: mediaOf(row), remote: { pinned: pinnedOf(row), badges: badgesOf(row).map((b) => ({ ...b, name: badgeName(b.id, b.tier), fresh: false })) } }, [row])
   const person = useMemo(() => (row ? personOf(row) : undefined), [row])
@@ -131,10 +135,22 @@ function FollowPill({ id }: { id: string }) {
 }
 
 /** Listening To and Posts, together once both have answered (a ghost grid until then), so nothing jumps. Each shows
- * only with something in it. Waits for the account, so a member's Listening To doesn't arrive late. */
+ * only with something in it. Waits for the account, so a member's Listening To doesn't arrive late; a row that
+ * didn't load (a failure at start) is asked for once more, and then the posts load whatever the answer. */
 function Sections({ userId }: { userId: string }) {
-  const ready = useAccount((s) => s.ready && (!s.user || s.row !== undefined))
+  const known = useAccount((s) => s.ready && (!s.user || s.row !== undefined))
+  const checked = useAccount((s) => s.ready)
   const online = useOnline()
+  const [asked, setAsked] = useState(false)
+  useEffect(() => {
+    if (known || !checked || !online) return
+    let live = true
+    void ensureRow().then(() => live && setAsked(true))
+    return () => {
+      live = false
+    }
+  }, [known, checked, online])
+  const ready = known || asked
   const me = useMe()
   const list = useSocial((s) => s.lists[userId])
   const [loaded, setLoaded] = useState<{ listening: FriendPlay[] | null; me?: string }>()

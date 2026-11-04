@@ -35,14 +35,18 @@ export function Composer({ onClose }: { onClose: () => void }) {
   const field = useRef<HTMLTextAreaElement>(null)
   const abort = useRef<AbortController | null>(null)
   const urls = useRef(new Set<string>())
+  const open = useRef(true) // a pick that finishes processing after the sheet closed makes no URL
 
   useEffect(() => {
+    open.current = true
     void sweepOrphans()
     field.current?.focus({ preventScroll: true })
     const made = urls.current
     return () => {
+      open.current = false
       abort.current?.abort()
       for (const url of made) URL.revokeObjectURL(url)
+      made.clear()
     }
   }, [])
 
@@ -70,7 +74,7 @@ export function Composer({ onClose }: { onClose: () => void }) {
   const add = async () => {
     const files = await pickFiles(picks.length ? 'image/*' : ANY, true)
     const chosen = choosePicks(files, { images, video: !!video })
-    if (!chosen.length) return
+    if (!chosen.length || !open.current) return
     const added = chosen.map((file): Pick & { file: File } => {
       const isVideo = file.type.startsWith('video/')
       return { id: uid(), video: isVideo, preview: isVideo ? undefined : urlOf(file), file }
@@ -78,8 +82,8 @@ export function Composer({ onClose }: { onClose: () => void }) {
     setPicks((all) => [...all, ...added.map(({ file: _, ...p }) => p)])
     for (const { id, file } of added)
       void prepareMedia(file).then(
-        (media) => update(id, { media, preview: urlOf(media.kind === 'video' && media.still ? media.still : media.blob) }),
-        (error) => update(id, { error: errorLabel(error) }),
+        (media) => open.current && update(id, { media, preview: urlOf(media.kind === 'video' && media.still ? media.still : media.blob) }),
+        (error) => open.current && update(id, { error: errorLabel(error) }),
       )
   }
 

@@ -1,7 +1,8 @@
 // An in-memory stand-in for supabase-js, enough for account.ts, sync.ts and the social modules: tables with the
 // server's last-write-wins rule and its row level security, the media bucket, the RPCs and email-code sign-in.
 // Shared by "devices" in a test. `errors` fails a call on purpose: by its full name ('insert follows',
-// 'rpc admin_purge', 'remove') or by its first word ('select').
+// 'rpc admin_purge', 'remove') or by its first word ('select'). `lost` runs a call but loses its answer, as a
+// dropped connection does (supabase-js answers with no code).
 
 type Row = Record<string, unknown>
 type Err = { code?: string; message: string }
@@ -18,6 +19,8 @@ export interface FakeServer {
   users: Map<string, string> // email → id
   clock: number
   errors: Map<string, Err>
+  /** Calls (by full name) that go through but whose answer never arrives. */
+  lost: Set<string>
   /** Bytes each member may keep (media_left). */
   quota: number
   /** What luma_search answers, when set (else a plain word match over what the server would show). */
@@ -35,6 +38,7 @@ export function createServer(): FakeServer {
     users: new Map(),
     clock: Date.parse('2026-11-01T00:00:00Z'),
     errors: new Map(),
+    lost: new Set(),
     quota: 200 * 1024 * 1024,
   }
 }
@@ -52,6 +56,7 @@ const KEYS: Record<string, string[]> = {
 
 const RLS: Err = { code: '42501', message: 'new row violates row-level security policy' }
 const ABORTED: Err = { code: '20', message: 'AbortError: The operation was aborted.' }
+const LOST: Err = { code: '', message: 'TypeError: Failed to fetch' }
 const clone = <T,>(v: T): T => structuredClone(v)
 let ids = 0
 const newId = () => `00000000-0000-4000-8000-${String(++ids).padStart(12, '0')}`
@@ -192,7 +197,12 @@ class Query implements PromiseLike<Result> {
     return new Date(++this.server.clock).toISOString()
   }
   then<A, B>(ok?: ((v: Result) => A | PromiseLike<A>) | null, no?: ((e: unknown) => B | PromiseLike<B>) | null) {
-    return Promise.resolve().then(() => this.run()).then(ok, no)
+    return Promise.resolve()
+      .then(() => {
+        const result = this.run()
+        return this.server.lost.has(`${this.op} ${this.table}`) ? { data: null, error: LOST } : result
+      })
+      .then(ok, no)
   }
   private out(rows: Row[]): Result {
     if (this.pick === 'one') {

@@ -27,6 +27,7 @@ const SB = 'https://kbdevcrqrjnqxsfeszbe.supabase.co'
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const step = (name) => console.log(`✓ ${name}`)
 const clip = readFileSync(join(root, 'test/fixtures/clip.mp4'))
+const soundOnly = readFileSync(join(root, 'test/fixtures/Daft Punk - One More Time.m4a')) // an MP4 with no picture
 
 // ── Pictures: soft gradients as PNGs (zlib only), one look per path ──────
 
@@ -168,10 +169,16 @@ function seedData() {
   return { profiles, follows, plays, videos, posts, reports }
 }
 
-/** The pretend server's state; each context starts from a fresh copy. */
-const server = { data: seedData(), mediaLeft: 150 * 1024 * 1024, hold: null, uploads: 0, offline: false, calls: [] }
+/** The pretend server's state; each context starts from a fresh copy. `fail` answers the next request matching each
+ * entry ({ method, path: a RegExp over path and query, status, code }) with an error, once. */
+const server = { data: seedData(), mediaLeft: 150 * 1024 * 1024, hold: null, uploads: 0, offline: false, calls: [], fail: [] }
 function reset() {
-  Object.assign(server, { data: seedData(), mediaLeft: 150 * 1024 * 1024, hold: null, uploads: 0, offline: false, calls: [] })
+  Object.assign(server, { data: seedData(), mediaLeft: 150 * 1024 * 1024, hold: null, uploads: 0, offline: false, calls: [], fail: [] })
+}
+const failed = async () => {
+  for (let i = 0; i < 100 && server.fail.length; i++) await sleep(100)
+  assert.equal(server.fail.length, 0, 'the failure was never asked for')
+  await sleep(400)
 }
 
 // ── The pretend PostgREST, RPCs and Storage ──────────────────────────────
@@ -322,7 +329,11 @@ function rpc(route, fn, me) {
     resolve((r) => r.kind === args.kind && r.target_id === args.id)
   }
   if (fn === 'admin_ban') for (const p of d.profiles) if (p.id === args.target) p.banned = true
-  if (fn === 'admin_purge') resolve((r) => r.target_id === args.target)
+  if (fn === 'admin_purge') {
+    const theirs = (id) => [...d.videos, ...d.posts].some((x) => x.id === id && x.user_id === args.target)
+    for (const x of [...d.videos, ...d.posts]) if (x.user_id === args.target) x.removed_at ??= new Date().toISOString()
+    resolve((r) => r.target_id === args.target || theirs(r.target_id))
+  }
   return route.fulfill({ status: 204, body: '' })
 }
 
@@ -331,6 +342,7 @@ async function storage(route, url, me) {
   const path = decodeURIComponent(url.pathname)
   if (path.startsWith('/storage/v1/object/public/media/')) {
     const file = path.slice('/storage/v1/object/public/media/'.length)
+    if (file.endsWith('/song.mp4')) return route.fulfill({ contentType: 'video/mp4', body: soundOnly })
     if (file.endsWith('.mp4')) return route.fulfill({ contentType: 'video/mp4', body: clip })
     const [w, h] = file.includes('-still') ? [320, 568] : file.includes('banner') ? [900, 300] : file.includes('avatar') ? [160, 160] : file.endsWith('-1.jpg') ? [900, 1200] : [1200, 900]
     return route.fulfill({ contentType: 'image/png', body: picture(file.replace(/-still/, ''), w, h) })
@@ -367,6 +379,11 @@ async function supabaseRoute(route, me) {
   const who = requester(route.request()) ?? undefined
   server.calls.push(`${route.request().method()} ${url.pathname}`)
   if (server.offline) return route.abort('internetdisconnected')
+  const f = server.fail.findIndex((f) => f.method === route.request().method() && f.path.test(url.pathname + url.search))
+  if (f >= 0) {
+    const [{ status = 504, code = '' }] = server.fail.splice(f, 1)
+    return route.fulfill({ status, contentType: 'application/json', body: JSON.stringify({ code, message: 'timeout', details: null, hint: null }) })
+  }
   if (url.pathname.startsWith('/auth/')) {
     const session = me && sessionOf(me)
     if (url.pathname === '/auth/v1/user') return session ? route.fulfill({ json: session.user }) : route.fulfill({ status: 401, json: {} })
@@ -513,6 +530,7 @@ const onlySocialCalls = () => server.calls.filter((c) => /\/rest\/v1\/(follows|p
 
 const files = (n) =>
   Array.from({ length: n }, (_, i) => ({ name: `photo-${i}.png`, mimeType: 'image/png', buffer: picture(`pick-${i}`, i % 2 ? 900 : 1200, i % 2 ? 1200 : 900) }))
+const big = Array.from({ length: 4 }, (_, i) => ({ name: `big-${i}.png`, mimeType: 'image/png', buffer: picture(`big-${i}`, 3000, 2000) }))
 
 for (const theme of ['luma', 'y2k']) {
   for (const phone of [true, false]) {
@@ -593,7 +611,18 @@ for (const theme of ['luma', 'y2k']) {
     {
       const { context, page } = await newContext({ theme, phone, as: ADA })
       await seedLibrary(page)
+      // The feed fails once (a statement timeout): both friends shelves hide, and the next visit tries again.
+      server.fail.push({ method: 'GET', path: /^\/rest\/v1\/videos\?/, status: 500, code: '57014' })
       await page.reload()
+      await page.getByRole('heading', { name: 'Home' }).waitFor()
+      await sleep(800)
+      await scrollEnd(page)
+      await failed()
+      assert.equal(await page.getByText('New from Friends').count(), 0)
+      assert.equal(await page.getByText('Friends Are Listening To').count(), 0)
+      await go(page, '/songs')
+      await go(page, '/')
+      step('member Home: a failed feed hides the friends shelves until the next visit')
 
       // Home: both friends shelves.
       await page.getByRole('heading', { name: 'Home' }).waitFor()
@@ -649,6 +678,19 @@ for (const theme of ['luma', 'y2k']) {
       await shot(page, '09-viewer-video-muted')
       await page.locator('.viewer').getByRole('button', { name: 'Unmute' }).click()
       assert.equal(await page.locator('.viewer video').evaluate((v) => v.muted), false)
+      // The sound button sits on the picture (object-fit: contain draws it inside the element), not on a black bar.
+      const onPicture = await page.locator('.viewer').evaluate((viewer) => {
+        const video = viewer.querySelector('video')
+        const box = video.getBoundingClientRect()
+        const ratio = video.videoWidth / video.videoHeight
+        const width = Math.min(box.width, box.height * ratio)
+        const height = width / ratio
+        const left = box.left + (box.width - width) / 2
+        const top = box.top + (box.height - height) / 2
+        const b = viewer.querySelector('.viewer-sound').getBoundingClientRect()
+        return b.left >= left && b.right <= left + width - 8 && b.top >= top && b.bottom <= top + height - 8
+      })
+      assert.ok(onPicture, 'the sound button is off the picture')
       await shot(page, '09-viewer-video-unmuted')
       await page.locator('.viewer').getByRole('button', { name: 'More', exact: true }).click()
       await menuItem(page, 'Report').waitFor()
@@ -679,6 +721,27 @@ for (const theme of ['luma', 'y2k']) {
       await page.emulateMedia({ reducedMotion: 'no-preference' })
       step('reduced motion: poster and Play')
 
+      // A "video" put up around the app that is a song (sound, no picture): Can't Play, and nothing plays.
+      server.data.videos.push({
+        id: 'bbbbbbbb-0000-4000-8000-00000000000b', user_id: BRAM, path: `${BRAM}/videos/song.mp4`, still_path: `${BRAM}/videos/song-still.jpg`,
+        caption: 'listen to this', ...song(SONGS.less), duration: 30, created_at: ago(1), removed_at: null,
+      })
+      // Bram's card has a video Background: it plays on his page, and rests while the Viewer covers the page.
+      Object.assign(person(BRAM), { backdrop_path: `${BRAM}/profile/backdrop.mp4`, backdrop_kind: 'video', backdrop_still_path: `${BRAM}/profile/backdrop-still.jpg` })
+      await go(page, '/u/moonboy')
+      const backdrop = page.locator('.pc-backdrop video')
+      await page.waitForFunction(() => document.querySelector('.pc-backdrop video')?.paused === false)
+      await page.locator('.post-grid .post-card:has(.post-badge-top)').first().click()
+      await page.locator('.viewer').getByRole('img', { name: "Can't Play" }).waitFor()
+      await sleep(300)
+      assert.equal(await backdrop.evaluate((v) => v.paused), true, "the card's video plays under the Viewer")
+      assert.equal(await page.locator('.viewer video').evaluate((v) => v.paused && !v.hasAttribute('src')), true)
+      assert.equal(await page.locator('.viewer').getByRole('button', { name: 'Unmute' }).count(), 0)
+      await shot(page, '09-viewer-audio-only')
+      await page.keyboard.press('Escape')
+      await page.locator('.viewer').waitFor({ state: 'detached' })
+      step("Viewer: a song posted as a video can't play; the card's video rests under the Viewer")
+
       // You: New Post, More, the Posts shelf and the @handle row.
       await go(page, '/you')
       await page.getByRole('button', { name: 'New Post' }).waitFor()
@@ -693,7 +756,15 @@ for (const theme of ['luma', 'y2k']) {
       await menuItem(page, 'Following').click()
       await page.getByRole('dialog', { name: 'Following' }).locator('.person-row').first().waitFor()
       await shot(page, '10-people-following')
+      const inSheet = () => page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))
+      assert.ok(await inSheet(), 'focus stayed behind the sheet')
+      for (let i = 0; i < 6; i++) {
+        await page.keyboard.press(i % 3 ? 'Tab' : 'Shift+Tab')
+        assert.ok(await inSheet(), 'Tab left the sheet')
+      }
       await page.keyboard.press('Escape')
+      assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'More', 'focus went back to More')
+      step('People sheet: focus moves in, Tab stays in, and goes back to More')
 
       // Owner's More in the Viewer.
       await page.locator('.you-posts .post-card').first().click()
@@ -716,6 +787,15 @@ for (const theme of ['luma', 'y2k']) {
       await (await chooser).setFiles(files(4))
       await page.waitForFunction(() => document.querySelectorAll('.compose-thumb img').length === 4 && !document.querySelector('.compose-busy'))
       assert.equal(await sheet.getByRole('button', { name: 'Add Photo or Video' }).count(), 0)
+      if (phone) {
+        // A coarse pointer: Remove answers a touch 22 px from its middle (a 44 px target), past its thumbnail's edge.
+        const reach = await sheet.getByRole('button', { name: 'Remove' }).first().evaluate((b) => {
+          const r = b.getBoundingClientRect()
+          const [x, y] = [r.left + r.width / 2, r.top + r.height / 2]
+          return [[-21, 0], [21, 0], [0, -21], [0, 21]].every(([dx, dy]) => document.elementFromPoint(x + dx, y + dy) === b)
+        })
+        assert.ok(reach, "Remove's touch target is under 44 px")
+      }
       await sheet.locator('.compose-song').click()
       await shot(page, '08-composer-images')
       let release
@@ -747,7 +827,40 @@ for (const theme of ['luma', 'y2k']) {
       await sheet.getByRole('button', { name: 'Storage Full' }).waitFor()
       await shot(page, '08-composer-storage-full')
       await sheet.getByRole('button', { name: 'Close' }).click()
+      assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), 'New Post', 'focus went back to New Post')
       step('composer: a video, Storage Full')
+
+      // An undecodable pick: its word fits its tile.
+      await page.getByRole('button', { name: 'New Post' }).click()
+      await sheet.waitFor()
+      const chooser3 = page.waitForEvent('filechooser')
+      await sheet.getByRole('button', { name: 'Add Photo or Video' }).click()
+      await (await chooser3).setFiles([{ name: 'bad.png', mimeType: 'image/png', buffer: Buffer.from('not a picture') }])
+      const word = sheet.locator('.compose-error')
+      await word.waitFor()
+      assert.equal(await word.textContent(), 'Unsupported')
+      assert.ok(await word.evaluate((el) => el.scrollWidth <= el.parentElement.clientWidth), 'the word is cut off')
+      await shot(page, '08-composer-unsupported')
+      await sheet.getByRole('button', { name: 'Close' }).click()
+
+      // Closed while big photos are still being processed: what finishes later makes no object URL (none leaks).
+      await page.evaluate(() => {
+        const live = (window.__urls = new Set())
+        const make = URL.createObjectURL.bind(URL)
+        const drop = URL.revokeObjectURL.bind(URL)
+        URL.createObjectURL = (blob) => (live.add(make(blob)), [...live].at(-1))
+        URL.revokeObjectURL = (url) => (live.delete(url), drop(url))
+      })
+      await page.getByRole('button', { name: 'New Post' }).click()
+      await sheet.waitFor()
+      const chooser4 = page.waitForEvent('filechooser')
+      await sheet.getByRole('button', { name: 'Add Photo or Video' }).click()
+      await (await chooser4).setFiles(big)
+      await page.locator('.compose-busy').first().waitFor()
+      await sheet.getByRole('button', { name: 'Close' }).click()
+      await sleep(3000)
+      assert.equal(await page.evaluate(() => window.__urls.size), 0, 'a closed composer left object URLs behind')
+      step('composer: closed while processing, nothing left behind')
 
       // The YouTube sheet, after its classes moved to account.css.
       await scrollTo(page, '.you-settings .group:last-child')
@@ -756,6 +869,15 @@ for (const theme of ['luma', 'y2k']) {
       await page.getByRole('dialog', { name: 'YouTube' }).getByText('Road Trip').waitFor()
       await shot(page, '10-youtube-sheet')
       await page.keyboard.press('Escape')
+
+      // A start whose own row fails to load (a server error): a profile asks for it again, then shows its sections.
+      server.fail.push({ method: 'GET', path: new RegExp(`^/rest/v1/profiles\\?.*id=eq\\.${ADA}`), status: 504 })
+      await page.goto(`${BASE}/u/moonboy`)
+      await failed()
+      await page.getByText('Listening To').waitFor()
+      await page.locator('.post-grid .post-card').first().waitFor()
+      assert.equal(await page.locator('.post-ghosts').count(), 0)
+      step('profile: a row that failed at start is asked for again')
       await context.close()
     }
 
@@ -782,6 +904,8 @@ for (const theme of ['luma', 'y2k']) {
       await shot(page, '10-reports-actions')
       await menuItem(page, 'Dismiss').click()
       await page.waitForFunction(() => document.querySelectorAll('.reports-sheet .report').length === 3)
+      await sleep(200)
+      assert.ok(await page.evaluate(() => !!document.activeElement?.closest('.reports-sheet')), 'focus left the sheet after Dismiss')
       // A reported post opens the Viewer over the sheet, with Remove and Ban.
       await reports.locator('.report-main').nth(1).click()
       await page.locator('.viewer').getByRole('button', { name: 'More', exact: true }).click()
@@ -789,6 +913,10 @@ for (const theme of ['luma', 'y2k']) {
       assert.equal(await menuItem(page, 'Ban').count(), 1)
       await shot(page, '09-viewer-more-admin')
       await page.keyboard.press('Escape')
+      for (let i = 0; i < 8; i++) {
+        await page.keyboard.press(i % 4 ? 'Tab' : 'Shift+Tab')
+        assert.ok(await page.evaluate(() => !!document.activeElement?.closest('.viewer')), 'Tab left the Viewer for the sheet under it')
+      }
       await page.keyboard.press('Escape')
       await page.locator('.viewer').waitFor({ state: 'detached' })
       assert.equal(await reports.count(), 1, 'Escape in the Viewer closed the sheet under it')
@@ -803,6 +931,43 @@ for (const theme of ['luma', 'y2k']) {
       await shot(page, '03-u-alice-admin-more')
       await page.keyboard.press('Escape')
       step('admin profile: Remove Profile and Ban')
+
+      // A ban that stops part-way (admin_purge fails): Ban stays on offer after a reload, and Reports keeps the
+      // banned author's open report, so it can finish.
+      server.fail.push({ method: 'POST', path: /^\/rest\/v1\/rpc\/admin_purge/, status: 504 })
+      // The account and the posts have loaded (a page that moves under it would close the menu).
+      const settled = async () => {
+        await page.locator('.pc-follow').waitFor()
+        await page.locator('.post-grid .post-card').first().waitFor()
+        await sleep(400)
+      }
+      await go(page, '/u/moonboy')
+      await settled()
+      await page.locator('.pc-actions').getByRole('button', { name: 'More', exact: true }).click()
+      await menuItem(page, 'Ban').click()
+      await menuItem(page, 'Ban @moonboy').click()
+      await failed()
+      assert.equal(person(BRAM).banned, true)
+      const open = () => server.data.reports.filter((r) => r.target_id === id('9') && !r.resolved_at).length
+      assert.equal(open(), 2)
+      await page.reload()
+      await settled()
+      await page.locator('.pc-actions').getByRole('button', { name: 'More', exact: true }).click()
+      await menuItem(page, 'Ban').waitFor()
+      await shot(page, '03-u-banned-admin-more')
+      await page.keyboard.press('Escape')
+      await go(page, '/you')
+      await page.getByRole('button', { name: 'Reports' }).click()
+      const pending = page.getByRole('dialog', { name: 'Reports' }).locator('.report', { hasText: 'Abuse · Other' })
+      await pending.waitFor()
+      await shot(page, '10-reports-banned-author')
+      await pending.getByRole('button', { name: 'Actions' }).click()
+      await menuItem(page, 'Ban Author').click()
+      await menuItem(page, 'Ban @moonboy').click()
+      await pending.waitFor({ state: 'detached' })
+      assert.equal(open(), 0)
+      assert.ok(server.data.posts.filter((p) => p.user_id === BRAM).every((p) => p.removed_at))
+      step('admin: a ban that stopped part-way runs again, from the profile and from Reports')
       await context.close()
     }
   }

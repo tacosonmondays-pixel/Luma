@@ -1,7 +1,8 @@
 // Posting: a post (text and up to 4 images) or one video with a caption, either with the song that's playing as
 // metadata (never audio). The files go up first, one at a time through `uploader` (XHR, for progress; tests swap it),
-// then the row. Anything that fails after an upload removes what went up; files left behind anyway (a closed tab)
-// are swept later by their owner (sweepOrphans). Files without a row still count against the quota.
+// then the row. Anything that fails after an upload removes what went up (but an insert that may have landed keeps
+// them); files left behind anyway (a closed tab, a lost answer) are swept later by their owner (sweepOrphans). Files
+// without a row still count against the quota.
 
 import { uid } from './format.ts'
 import { extOf, processMedia, type Media } from './media.ts'
@@ -156,7 +157,7 @@ async function postErrorOf(error: unknown, sb: Client): Promise<PostError> {
 /**
  * Publishes a draft: checks the space left, uploads the files in order (a video's still, then the video; or the
  * images), then inserts the row. The new post goes first in my list, and is returned. Throws a PostError; whatever
- * went up before a failure or an abort is removed.
+ * went up before a failure or an abort is removed, unless the insert's answer was lost (the row may be in).
  */
 export async function publish(
   draft: Draft,
@@ -187,6 +188,9 @@ export async function publish(
   }
   const uploaded: string[] = []
   let row: unknown
+  // Whether the row may be in: from the insert on, until the server names its refusal. An insert whose answer was lost
+  // (a dropped connection: no code) may have landed, so its files stay; the sweep removes them if it didn't.
+  let maybeIn = false
   try {
     const left = await spaceLeft(sb)
     if (typeof left === 'number' && total + RESERVE > left) throw new PostError('storage-full')
@@ -204,16 +208,20 @@ export async function publish(
     }
     if (stop.aborted) throw aborted()
     const song = songColumns(draft.track)
+    maybeIn = true
     const { data, error } = video
       ? await sb.from('videos').insert({
           path: uploaded.at(-1), still_path: video.still ? uploaded[0] : null, caption: text, ...song,
           duration: Number.isFinite(video.duration) ? video.duration : 0,
         }).select(VIDEO).single()
       : await sb.from('posts').insert({ body: text, image_paths: uploaded, ...song }).select(POST).single()
-    if (error) throw error
+    if (error) {
+      if (typeof error.code === 'string' && error.code) maybeIn = false // refused: no row
+      throw error
+    }
     row = data
   } catch (error) {
-    if (uploaded.length) await sb.storage.from(BUCKET).remove(uploaded).catch(() => {})
+    if (uploaded.length && !maybeIn) await sb.storage.from(BUCKET).remove(uploaded).catch(() => {})
     throw await postErrorOf(error, sb)
   }
   const post = postOf(video ? 'video' : 'post', row)
@@ -261,8 +269,9 @@ async function referenced(sb: Client, me: string): Promise<Set<string> | undefin
   return paths
 }
 
-/** Remove my files no row points at (an upload whose post never made it), once they are an hour old. At most once a
- * day per account; the composer runs it when it opens. */
+/** Remove my files no row points at (an upload whose post never made it), once they are a day old: far longer than
+ * any upload takes (another device may be mid-post, its still up and its video still going), and safe from a device
+ * clock that runs ahead of the server's. At most once a day per account; the composer runs it when it opens. */
 export async function sweepOrphans(now = Date.now()): Promise<void> {
   const me = currentMe()
   if (!me || sweeping) return
@@ -284,7 +293,7 @@ export async function sweepOrphans(now = Date.now()): Promise<void> {
       (l.data ?? []).flatMap((o) => {
         const path = `${folders[i]}/${o.name}`
         const made = Date.parse(o.created_at ?? '')
-        return o.id && !keep.has(path) && Number.isFinite(made) && now - made > HOUR ? [path] : []
+        return o.id && !keep.has(path) && Number.isFinite(made) && now - made > DAY ? [path] : []
       }),
     )
     for (let i = 0; i < orphans.length; i += 100) {

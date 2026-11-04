@@ -1,15 +1,15 @@
 // The Viewer: one post over everything, with no route (like Now Playing). Full screen on phones, a centered panel on
 // desktop. A video plays muted and loops (not at all under reduced motion); unmuting pauses the music first, and
 // closing resumes it in the same tap (lib/viewer.ts). Keys are the Viewer's alone while it shows.
-import { useEffect, useRef, useState, type MouseEvent, type SyntheticEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type MouseEvent, type SyntheticEvent } from 'react'
 import { ban, removeContent } from '../lib/moderation.ts'
 import { deletePost } from '../lib/posting.ts'
 import { href, navigate, usePath } from '../lib/router.ts'
 import { currentMe, keyOf, loadPeople, report, useSocial, type Person, type Post } from '../lib/social.ts'
-import { closePost, pauseForSound, useViewer } from '../lib/viewer.ts'
+import { closePost, pauseForSound, playable, useViewer } from '../lib/viewer.ts'
 import { PersonAvatar } from './Art.tsx'
 import { Icon } from './Icon.tsx'
-import { Boundary, IconButton } from './kit.tsx'
+import { Boundary, IconButton, wrapTab } from './kit.tsx'
 import { openMenu, type MenuItem } from './Menu.tsx'
 import { displayName, reasonItems } from './People.tsx'
 import { useReducedMotion } from './profile/ProfileCard.tsx'
@@ -52,7 +52,8 @@ export function postMenuItems(post: Post, author?: Person): MenuItem[] {
       items: [{ label: 'Remove Post', icon: 'trash', danger: true, onSelect: () => (closePost(), void removeContent(post)) }],
     },
   ]
-  if (author && !author.admin && !author.banned)
+  // Banned authors too: a ban that failed part-way runs again from here (every step is idempotent).
+  if (author && !author.admin)
     items.push({
       label: 'Ban',
       icon: 'none',
@@ -96,7 +97,10 @@ function Viewer({ post }: { post: Post }) {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('.menu')) return
       e.stopPropagation()
-      if (e.key === 'Tab') tabbed = true
+      if (e.key === 'Tab') {
+        tabbed = true
+        if (root.current) wrapTab(e, root.current) // not on into a sheet under it
+      }
       if (e.key === 'Escape') {
         e.preventDefault()
         closePost()
@@ -166,6 +170,8 @@ function VideoView({ video, reduced, controls }: { video: NonNullable<Post['vide
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(true)
   const [failed, setFailed] = useState(false)
+  // The picture's shape: the frame takes it, so the sound button sits on the picture, not on a black bar.
+  const [ratio, setRatio] = useState<number>()
   // A tap is needed (reduced motion, or the browser refused to start it): the poster and a Play button.
   const [waiting, setWaiting] = useState(reduced)
 
@@ -208,38 +214,60 @@ function VideoView({ video, reduced, controls }: { video: NonNullable<Post['vide
   const onError = (e: SyntheticEvent<HTMLVideoElement>) => {
     if (e.currentTarget.error) setFailed(true)
   }
+  // No song audio from the server: with no picture, or past the cap, it stops for good and shows Can't Play (the
+  // poster stays).
+  const refuse = (el: HTMLVideoElement) => {
+    setFailed(true)
+    el.pause()
+    el.removeAttribute('src')
+    el.load()
+  }
+  const onMetadata = (e: SyntheticEvent<HTMLVideoElement>) => {
+    const el = e.currentTarget
+    if (!playable(el)) return refuse(el)
+    setRatio(el.videoWidth / el.videoHeight)
+  }
+  const onTime = (e: SyntheticEvent<HTMLVideoElement>) => {
+    if (!failed && !playable(e.currentTarget)) refuse(e.currentTarget)
+  }
 
   return (
     <div className="viewer-video">
-      <video
-        ref={ref}
-        poster={video.still}
-        src={video.url}
-        playsInline
-        muted
-        loop
-        preload="metadata"
-        disablePictureInPicture
-        disableRemotePlayback
-        onClick={toggle}
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onError={onError}
-      />
-      {failed ? (
-        <span className="viewer-center viewer-failed" role="img" aria-label="Can't Play">
-          <Icon name="alert" size={36} />
-        </span>
-      ) : (
-        <>
-          {waiting && !playing && (
-            <button type="button" className="viewer-center viewer-play" aria-label="Play" onClick={start}>
-              <Icon name="play" size={30} />
-            </button>
-          )}
-          <IconButton icon={muted ? 'volume-off' : 'volume-high'} label={muted ? 'Unmute' : 'Mute'} size={20} className="viewer-sound" onClick={sound} />
-        </>
-      )}
+      <div className={`viewer-frame${ratio ? ' sized' : ''}`} style={ratio ? ({ '--ar': ratio } as CSSProperties) : undefined}>
+        <video
+          ref={ref}
+          poster={video.still}
+          src={video.url}
+          playsInline
+          muted
+          loop
+          preload="metadata"
+          disablePictureInPicture
+          disableRemotePlayback
+          onClick={toggle}
+          onPlay={() => setPlaying(true)}
+          onPause={() => setPlaying(false)}
+          onError={onError}
+          onLoadedMetadata={onMetadata}
+          onTimeUpdate={onTime}
+        />
+        {failed ? (
+          <span className="viewer-center viewer-failed" role="img" aria-label="Can't Play">
+            <Icon name="alert" size={36} />
+          </span>
+        ) : (
+          <>
+            {waiting && !playing && (
+              <button type="button" className="viewer-center viewer-play" aria-label="Play" onClick={start}>
+                <Icon name="play" size={30} />
+              </button>
+            )}
+            {ratio !== undefined && (
+              <IconButton icon={muted ? 'volume-off' : 'volume-high'} label={muted ? 'Unmute' : 'Mute'} size={20} className="viewer-sound" onClick={sound} />
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
